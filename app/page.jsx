@@ -265,6 +265,123 @@ function extractJSON(text) {
   return JSON.parse(clean.slice(start, end + 1));
 }
 
+/**
+ * Coerce any value the model might return into a plain string.
+ * Handles objects like {name, description}, arrays, numbers, etc.
+ */
+function toStr(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(toStr).filter(Boolean).join('; ');
+  if (typeof v === 'object') {
+    // Common model patterns: {name, description}, {title, description}, {text}, {value}
+    const s = v.name || v.title || v.text || v.value || v.content || v.signal || v.description || '';
+    if (s) return toStr(s);
+    return Object.values(v).filter(x => x != null && typeof x !== 'object').join(': ') || JSON.stringify(v);
+  }
+  return String(v);
+}
+
+/** Ensure an array field contains only strings. */
+function toStrArr(arr) {
+  if (!Array.isArray(arr)) return arr == null ? [] : [toStr(arr)];
+  return arr.map(item => (typeof item === 'string' ? item : toStr(item)));
+}
+
+/**
+ * Normalize agent/synthesis JSON so all leaf fields that should be strings
+ * actually are — regardless of what the model returns.
+ */
+function normalizeAgentData(data) {
+  if (!data || typeof data !== 'object') return data;
+  const d = { ...data };
+
+  // Top-level string fields
+  ['summary', 'executive_summary', 'posture_rationale', 'strategic_headline',
+   'dominant_direction', 'overall_posture', 'macro_regime', 'technology_maturity_stage',
+   'social_license_status', 'ip_position', 'investment_attractiveness'].forEach(k => {
+    if (k in d) d[k] = toStr(d[k]);
+  });
+
+  // Top-level string-array fields
+  ['opportunities', 'risks', 'disruption_paths', 'key_themes',
+   'top_takeaways', 'cross_dimensional_risks', 'convergence_opportunities'].forEach(k => {
+    if (k in d) d[k] = toStrArr(d[k]);
+  });
+
+  // Drivers
+  if (Array.isArray(d.drivers)) {
+    d.drivers = d.drivers.map(dr => ({
+      ...dr,
+      name:        toStr(dr.name),
+      description: toStr(dr.description),
+      evidence:    toStrArr(dr.evidence || []),
+    }));
+  }
+
+  // Signals
+  if (Array.isArray(d.signals)) {
+    d.signals = d.signals.map(sig => ({
+      ...sig,
+      signal:         toStr(sig.signal),
+      why_it_matters: toStr(sig.why_it_matters),
+    }));
+  }
+
+  // Per-dimension forecasts
+  if (Array.isArray(d.forecast)) {
+    d.forecast = d.forecast.map(fc => ({
+      ...fc,
+      trigger:     toStr(fc.trigger),
+      description: toStr(fc.description),
+    }));
+  }
+
+  // Synthesis: cross-dimension insights
+  if (Array.isArray(d.cross_dimension_insights)) {
+    d.cross_dimension_insights = d.cross_dimension_insights.map(ins => ({
+      ...ins,
+      insight:               toStr(ins.insight),
+      strategic_implication: toStr(ins.strategic_implication),
+    }));
+  }
+
+  // Synthesis: macro forces
+  if (Array.isArray(d.macro_forces)) {
+    d.macro_forces = d.macro_forces.map(f => ({
+      ...f,
+      name:        toStr(f.name),
+      description: toStr(f.description),
+    }));
+  }
+
+  // Synthesis: roadmap
+  if (d.roadmap && typeof d.roadmap === 'object') {
+    ['near', 'mid', 'long'].forEach(horizon => {
+      if (Array.isArray(d.roadmap[horizon])) {
+        d.roadmap[horizon] = d.roadmap[horizon].map(m => ({
+          ...m,
+          title:       toStr(m.title),
+          trigger:     toStr(m.trigger),
+          description: toStr(m.description),
+        }));
+      }
+    });
+  }
+
+  // Synthesis: matrix items
+  if (Array.isArray(d.matrix_items)) {
+    d.matrix_items = d.matrix_items.map(item => ({
+      ...item,
+      title:       toStr(item.title),
+      description: toStr(item.description),
+    }));
+  }
+
+  return d;
+}
+
 /** Call the /api/analyze proxy and return parsed JSON. */
 async function callAgent(systemPrompt, userMessage, model, onStatus) {
   onStatus('researching');
@@ -282,7 +399,7 @@ async function callAgent(systemPrompt, userMessage, model, onStatus) {
   const raw = await readOllamaStream(res);
   if (!raw.trim()) throw new Error('Model returned empty response');
 
-  const parsed = extractJSON(raw);
+  const parsed = normalizeAgentData(extractJSON(raw));
   onStatus('complete');
   return parsed;
 }

@@ -34,8 +34,8 @@ export async function POST(request) {
         format: 'json',       // Force Ollama JSON output mode
         options: {
           temperature:  0.1,  // Low temperature for consistent structured output
-          num_ctx:      8192, // Context window
-          num_predict:  3000, // Max tokens in response
+          num_ctx:      4096, // Context window (halved to reduce KV cache RAM usage)
+          num_predict:  1500, // Max tokens — enough for full JSON, avoids multi-minute CPU runs
           top_p:        0.9,
           repeat_penalty: 1.1,
         },
