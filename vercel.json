@@ -1,0 +1,24 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "functions": {
+    "app/api/analyze/route.js": {
+      "maxDuration": 60
+    },
+    "app/api/pull/route.js": {
+      "maxDuration": 60
+    },
+    "app/api/health/route.js": {
+      "maxDuration": 10
+    },
+    "app/api/models/route.js": {
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "OLLAMA_BASE_URL": "@ollama_base_url",
+    "STEEP_DEFAULT_MODEL": "@steep_default_model"
+  }
+}
