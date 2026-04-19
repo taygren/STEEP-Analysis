@@ -5,6 +5,7 @@
   "description": "AI-powered STEEP Analysis Platform using Ollama for local LLM inference",
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
+    "dev:ollama": "bash start-dev.sh",
     "build": "next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",
