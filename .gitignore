@@ -1,0 +1,42 @@
+# Next.js
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ollama model cache (multi-GB, not for git)
+.ollama/
+
+# Replit runtime files
+.replit
+replit.nix
+replit.md
+.local/
+.agents/
+.cache/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+/build
+/dist
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
