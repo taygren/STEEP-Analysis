@@ -1,82 +1,72 @@
 # STEEP Analysis Platform
 
-AI-powered STEEP Analysis Platform using Ollama for local LLM inference. No API key or cloud costs required.
+AI-powered STEEP Analysis Platform using Groq cloud inference. Six coordinated agents (Social, Technological, Economic, Environmental, Political + synthesis) analyse any subject and return structured intelligence: Overview, 3D Force Map, and Forecast Roadmap.
 
 ## Architecture
 
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS
 - **3D Visualization**: Three.js
-- **AI Backend**: Ollama (local LLM inference, CPU mode)
+- **AI Backend**: Groq cloud API (OpenAI-compatible SSE streaming)
 - **Port**: 5000
 
 ## Project Structure
 
 ```
 app/
-  page.jsx          — Main UI (single-page app, ~1960 lines)
+  page.jsx          — Main UI (single-page, ~1600 lines)
   layout.jsx        — Root layout
   globals.css       — Global styles
   api/
-    analyze/route.js  — Proxies chat completions to Ollama (streaming NDJSON)
-    health/route.js   — Health check: confirms Ollama is reachable
-    models/route.js   — Lists available Ollama models
-    pull/route.js     — Triggers model pulls
-scripts/
-  setup.sh / setup.ps1 / start.sh  — Legacy Vercel-era scripts (not used)
-start-dev.sh        — Startup script: launches Ollama, pulls default model, starts Next.js
+    analyze/route.js  — Proxies to Groq with retry-on-ratelimit (SSE stream)
+    health/route.js   — Checks GROQ_API_KEY and Groq reachability
+    models/route.js   — Returns curated Groq model catalog
+    pull/route.js     — Returns 410 (not applicable for Groq)
+scripts/            — Legacy setup scripts (not required for Groq workflow)
+start-dev.sh        — Replit startup script (starts Ollama legacy + Next.js)
+vercel.json         — Vercel function timeouts (60 s on analyze)
 ```
 
 ## How It Runs
 
-The workflow runs `bash start-dev.sh` which:
-1. Starts `ollama serve` in the background on port 11434
-2. Waits up to 60 seconds for Ollama to be ready
-3. Pulls the default model (`llama3.2:3b`, ~2 GB) if not already cached
-4. Runs `npm install && npm run dev` to start Next.js on port 5000
+The Replit workflow runs `bash start-dev.sh` which:
+1. Starts Ollama in the background (legacy, unused — harmless)
+2. Starts Next.js on port 5000
 
-On subsequent starts the model pull is skipped (already cached in `~/.ollama/models`).
+The AI backend is Groq, not Ollama. Ollama runs but is never called.
 
 ## Key Environment Variables
 
-| Variable | Default | Purpose |
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `GROQ_API_KEY` | Yes | — | Groq API key (`gsk_...`) |
+| `STEEP_DEFAULT_MODEL` | No | `llama-3.3-70b-versatile` | Override default model |
+
+## Models (Groq)
+
+| Model ID | Label | Notes |
 |---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `STEEP_DEFAULT_MODEL` | `llama3.2:3b` | Model pulled/used on startup |
+| `llama-3.3-70b-versatile` | Llama 3.3 70B | Default — best quality |
+| `llama-3.1-8b-instant` | Llama 3.1 8B Instant | Fastest, higher rate-limit headroom |
+| `llama3-8b-8192` | Llama 3 8B | Solid baseline, 8k context |
+| `mixtral-8x7b-32768` | Mixtral 8×7B | Strong reasoning, 32k context |
+| `gemma2-9b-it` | Gemma 2 9B | Good instruction following |
 
-## Models
+## Rate Limit Handling
 
-Models are stored in `~/.ollama/models`. Catalog (from the UI):
-- `llama3.2:3b` — ~2 GB, default (CPU-friendly)
-- `llama3.1:8b` — ~5 GB, best quality
-- `mistral:7b` — ~4 GB, fast reasoning
-- `qwen2.5:7b` — ~5 GB, excellent JSON
-- `phi4:14b` — ~9 GB, highest quality (needs 16 GB VRAM)
+Groq free tier: 12,000 TPM on Llama 3.3 70B.
+- analyze/route.js retries on 429 up to 4 times, parsing retry delay from Groq's error message
+- 3-second pause inserted before synthesis agent call
+- Dimension agents: 1,200 max_tokens; synthesis agent: 1,800 max_tokens
 
-## UI Features
+## UI Tabs
 
-### Sidebar
-- **Quick-pick dropdown** — 14 curated trends + 15 companies pre-loaded; selecting one fills the subject input instantly.
-- Free-text input still accepts any subject.
-
-### ForceMap Tab (3D)
-- **Side panel** slides in when a node is clicked, showing: dimension chip, direction badge, impact/velocity chips, confidence bar, full description, and all evidence bullets.
-- **Auto-Rotate toggle** button pauses/resumes the ambient globe spin.
-
-### Roadmap Tab
-- **Cards / Timeline toggle** — Cards shows a responsive grid; Timeline renders a vertical connected thread.
-- Each horizon shows a **Cross-Dimension Context** callout pulled from `cross_dimension_insights`.
-- Each milestone card shows: trigger point (⚡), confidence bar, and an expandable **Risks & Accelerants** section with color-coded bullet lists.
-- Synthesis prompt trimmed to only `roadmap`, `overall_posture`, `posture_rationale`, `executive_summary`, and `cross_dimension_insights` — `macro_forces` and `top_takeaways` removed to free token budget for roadmap population.
-
-### Overview Tab
-- Shows subject header, posture, executive summary, STEEP dimension grid, cross-dimension insights.
-- **Evidence by Dimension** accordion (formerly the Evidence tab) is now embedded at the bottom — per-dimension drivers, signals, forecasts, opportunities/risks.
-- Evidence tab removed from navigation (content merged into Overview).
+- **Overview**: Posture badge, executive summary, dimension driver cards, cross-dimension insights, evidence accordion
+- **Force Map (3D)**: Three.js globe, node click opens detail side panel, auto-rotate toggle
+- **Roadmap**: Near/mid/long-term milestones, trigger points, risks & accelerants, Card/Timeline toggle
 
 ## Security Notes
 
-- Next.js 14.2.35 (upgraded from vulnerable 14.2.5)
-- CORS headers on `/api/*` allow all origins (intentional for local Ollama access)
-- No external API keys or credentials needed
-- All inference runs locally via Ollama
+- Next.js 14.2.x
+- GROQ_API_KEY is server-side only — never exposed to the browser
+- cleanApiKey() helper in analyze/route.js and health/route.js strips accidental `NAME=value` or quoted formats

@@ -1,16 +1,16 @@
 # STEEP Analysis Platform
 
-AI-powered STEEP (Social, Technological, Economic, Environmental, Political) analysis tool that runs entirely on your local machine using [Ollama](https://ollama.ai) — no API keys, no cloud costs, no data leaving your machine.
+AI-powered strategic intelligence tool that runs six coordinated agents — one per STEEP dimension (Social, Technological, Economic, Environmental, Political) plus a synthesis agent — against any company, trend, or technology topic. Powered by [Groq](https://groq.com) cloud inference. No local GPU required.
 
 ---
 
-## What it does
+## What it produces
 
-Enter any company, trend, or technology topic and the platform runs six sequential AI agents (one per STEEP dimension + a synthesis agent) to generate structured intelligence:
-
-- **Overview** — posture badge, executive summary, per-dimension driver cards, cross-dimension insights, and a full per-dimension evidence accordion (drivers, signals, forecasts, opportunities, risks)
-- **3D Force Map** — interactive Three.js globe visualising driver relationships; click any node for a detail panel
-- **Forecast Roadmap** — near / mid / long-term milestones, each with a trigger point (⚡), risk bullets, and accelerant bullets; toggle between Card and Timeline views
+| Output | Description |
+|---|---|
+| **Overview** | Posture badge, executive summary, per-dimension driver cards, cross-dimension insights, and a full evidence accordion with drivers, signals, forecasts, opportunities, and risks |
+| **3D Force Map** | Interactive Three.js globe visualising driver relationships — click any node to open a detail panel |
+| **Forecast Roadmap** | Near / mid / long-term milestones, each with a trigger point, confidence rating, and expandable risks & accelerants section; toggle between Card and Timeline views |
 
 ---
 
@@ -19,42 +19,32 @@ Enter any company, trend, or technology topic and the platform runs six sequenti
 | Requirement | Notes |
 |---|---|
 | Node.js 18+ | `node --version` to check |
-| npm 9+ | bundled with Node 18 |
-| RAM | 8 GB minimum, 16 GB recommended |
-| Disk | ~2 GB free for the default model cache |
-| OS | macOS, Linux, or Windows 10/11 |
-
-> **Ollama** is automatically installed by the setup script. You do not need to install it manually.
+| npm 9+ | Bundled with Node 18 |
+| Groq API key | Free at [console.groq.com](https://console.groq.com) — no credit card required |
 
 ---
 
 ## Quick start
 
-### macOS / Linux
+```bash
+git clone https://github.com/your-org/steep-analysis-platform.git
+cd steep-analysis-platform
+npm install
+```
+
+Create a `.env.local` file in the project root:
+
+```env
+GROQ_API_KEY=gsk_your_key_here
+```
+
+Then start the dev server:
 
 ```bash
-git clone https://github.com/your-org/steep-platform.git
-cd steep-platform
-npm run setup          # installs Ollama, pulls llama3.2:3b, installs npm deps
-npm run go             # starts Ollama (if not running) + Next.js
+npm run dev
 ```
 
 Open **http://localhost:5000** in your browser.
-
-### Windows (PowerShell)
-
-```powershell
-git clone https://github.com/your-org/steep-platform.git
-cd steep-platform
-npm run setup:win      # installs Ollama, pulls model, installs deps
-npm run go             # starts Ollama + Next.js
-```
-
-### Shortcut after first setup
-
-```bash
-npm run go    # starts Ollama (if not already running) + Next.js on port 5000
-```
 
 ---
 
@@ -62,71 +52,57 @@ npm run go    # starts Ollama (if not already running) + Next.js on port 5000
 
 | Command | Description |
 |---|---|
-| `npm run setup` | First-time setup — macOS/Linux (Ollama + model pull + npm install) |
-| `npm run setup:win` | First-time setup — Windows PowerShell |
-| `npm run go` | Start Ollama (if needed) + Next.js dev server |
-| `npm run dev` | Next.js dev server only (assumes Ollama already running) |
-| `npm run dev:ollama` | Same as `go` — starts Ollama then Next.js via `start-dev.sh` |
+| `npm run dev` | Start Next.js dev server on port 5000 |
 | `npm run build` | Production build |
 | `npm run start` | Serve production build on port 5000 |
+| `npm run lint` | ESLint check |
 
 ---
 
-## Default model
+## Models
 
-The default model is `llama3.2:3b` (~2 GB, CPU-friendly). You can switch models in the **Ollama** panel inside the app at any time.
+The default model is **Llama 3.3 70B** — the highest quality model available on Groq's free tier. Switch models at any time using the selector in the sidebar.
 
-### Model comparison
+| Model | Context | Speed | Best for |
+|---|---|---|---|
+| `llama-3.3-70b-versatile` *(default)* | 128k | Fast | Best analysis quality |
+| `llama-3.1-8b-instant` | 128k | Fastest | Quick tests, higher rate-limit headroom |
+| `llama3-8b-8192` | 8k | Fast | Solid baseline |
+| `mixtral-8x7b-32768` | 32k | Fast | Strong reasoning tasks |
+| `gemma2-9b-it` | 8k | Fast | Instruction-following |
 
-| Model | Size | Speed | Quality | Best for |
-|---|---|---|---|---|
-| `llama3.2:3b` *(default)* | ~2 GB | ⚡⚡⚡ | ★★☆ | Low-RAM machines, quick tests |
-| `llama3.1:8b` | ~5 GB | ⚡⚡ | ★★★ | Balanced — recommended if RAM allows |
-| `mistral:7b` | ~4 GB | ⚡⚡ | ★★★ | Strong reasoning |
-| `qwen2.5:7b` | ~5 GB | ⚡⚡ | ★★★ | Strong instruction following |
-| `phi4:14b` | ~9 GB | ⚡ | ★★★★ | Best quality, requires 16 GB RAM |
+> **Rate limits:** Groq's free tier allows 12,000 tokens/minute on Llama 3.3 70B. The platform automatically retries on rate-limit errors (up to 4 attempts with backoff), and inserts a short pause before the synthesis agent to stay within the budget. If you run analyses frequently, switch to Llama 3.1 8B Instant which has a higher per-minute quota.
 
 ---
 
-## Configuration
+## Environment variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `STEEP_DEFAULT_MODEL` | `llama3.2:3b` | Model used for analysis |
-
-Create a `.env.local` file in the project root to override defaults:
-
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-STEEP_DEFAULT_MODEL=llama3.2:3b
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GROQ_API_KEY` | Yes | — | Your Groq API key (`gsk_...`) |
+| `STEEP_DEFAULT_MODEL` | No | `llama-3.3-70b-versatile` | Override the default model |
 
 ---
 
 ## Project structure
 
 ```
-steep-platform/
+steep-analysis-platform/
 ├── app/
 │   ├── layout.jsx              # Root Next.js layout
 │   ├── page.jsx                # Full UI — tabs, agents, state, all components
 │   ├── globals.css             # Tailwind base + custom animations
 │   └── api/
-│       ├── health/route.js     # GET  /api/health  — Ollama connectivity check
-│       ├── models/route.js     # GET  /api/models  — list installed models
-│       ├── pull/route.js       # POST /api/pull    — stream model pull progress
-│       └── analyze/route.js   # POST /api/analyze — run agents (NDJSON stream)
-├── scripts/
-│   ├── setup.sh                # macOS/Linux first-time setup
-│   ├── setup.ps1               # Windows first-time setup
-│   └── start.sh                # macOS/Linux start (Ollama check + Next.js)
-├── start-dev.sh                # Replit / direct start script
+│       ├── health/route.js     # GET  /api/health  — Groq connectivity check
+│       ├── models/route.js     # GET  /api/models  — curated model catalog
+│       ├── pull/route.js       # POST /api/pull    — returns 410 (not applicable)
+│       └── analyze/route.js    # POST /api/analyze — proxies to Groq with retry
+├── scripts/                    # Legacy setup scripts (not required)
+├── start-dev.sh                # Replit startup script
+├── vercel.json                 # Vercel function timeouts (60 s on analyze)
 ├── next.config.mjs
 ├── tailwind.config.js
-├── postcss.config.js
-├── package.json
-└── package-lock.json
+└── package.json
 ```
 
 ---
@@ -136,78 +112,92 @@ steep-platform/
 ```
 Browser
   │
-  ├─ GET  /api/health    ──► Ollama /api/version
-  ├─ GET  /api/models    ──► Ollama /api/tags
-  ├─ POST /api/pull      ──► Ollama /api/pull  (NDJSON stream)
-  └─ POST /api/analyze   ──► Ollama /api/chat  (NDJSON stream, 6 agents)
+  ├─ GET  /api/health    ──► Groq API key check
+  ├─ GET  /api/models    ──► Curated model list
+  └─ POST /api/analyze   ──► Groq /openai/v1/chat/completions  (SSE stream)
                                   │
-                          llama3.2:3b (local CPU/GPU)
+                          6 agents run sequentially:
+                          Social → Technological → Economic →
+                          Environmental → Political → Synthesis
 ```
 
-All Ollama calls are proxied through Next.js API routes — the browser never calls `localhost:11434` directly.
+Each agent call streams tokens back to the browser in real time via Server-Sent Events. Results appear dimension by dimension as they complete, so you see progress immediately rather than waiting for all six agents to finish.
 
-Agents run **sequentially** (5 dimension agents then 1 synthesis agent) because a local CPU/GPU processes one LLM request at a time. Each agent result streams to the UI as soon as it finishes, so you see progress in real time.
-
-**Token budgets per agent:**
-- Dimension agents (Social / Technological / Economic / Environmental / Political): 1500 tokens each
-- Synthesis agent: 2500 tokens (roadmap, posture, executive summary, cross-dimension insights)
+**Token budget per agent:**
+- Dimension agents: 1,200 tokens output each
+- Synthesis agent: 1,800 tokens output (roadmap, posture, executive summary, cross-dimension insights)
 
 ---
 
-## Troubleshooting
+## UI features
 
-### "Ollama not reachable" in the status bar
+### Sidebar
+- **Quick-pick dropdown** — 14 curated trends and 15 companies pre-loaded; selecting one fills the subject field instantly
+- Free-text input accepts any subject
 
-- Run `ollama serve` in a terminal and reload the page
-- Confirm nothing else is using port 11434: `lsof -i :11434`
-- Windows: check the Ollama tray icon (system tray, bottom-right)
+### Overview tab
+- Subject header with overall posture badge (Opportunistic / Cautious / Defensive / Transformative)
+- Executive summary paragraph
+- Per-dimension driver cards with impact / velocity / confidence scores
+- Cross-dimension insights section
+- Expandable Evidence accordion at the bottom — drivers, signals, forecasts, opportunities, and risks per dimension
 
-### Analysis completes but roadmap is empty
+### 3D Force Map tab
+- Interactive Three.js globe with force-directed driver nodes
+- Click any node to open a side panel with full details: dimension, direction, impact/velocity chips, confidence bar, description, and evidence bullets
+- Auto-Rotate toggle pauses and resumes ambient globe spin
 
-- Switch to `llama3.2:3b` — it fits within the 2500-token synthesis budget more reliably than larger models on CPU
-- Try a shorter, more specific subject (e.g. "electric vehicles" instead of "the future of mobility")
-
-### Model pull stuck at 0%
-
-- Check your internet connection
-- Pull manually: `ollama pull llama3.2:3b`
-- Partial downloads resume automatically on retry
-
-### Windows: execution policy error
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
+### Forecast Roadmap tab
+- Near-term / Mid-term / Long-term horizon sections
+- Each milestone shows a trigger point (⚡), confidence bar, and an expandable Risks & Accelerants section
+- Cross-dimension context callout per horizon
+- Toggle between Card grid and vertical Timeline views
 
 ---
 
 ## Deploying to Vercel
 
-> Vercel serverless functions cannot run Ollama locally. You need a **publicly accessible Ollama instance**.
+The project ships with a `vercel.json` that sets a 60-second timeout on the analyze route (needed for six sequential agent calls).
 
-### Option A — Expose local Ollama via Cloudflare Tunnel (free)
+1. Push your repository to GitHub
+2. Go to **vercel.com → New Project → Import Git Repository**
+3. Add environment variables in the Vercel dashboard under **Settings → Environment Variables**:
+   - `GROQ_API_KEY` = your Groq key
+   - `STEEP_DEFAULT_MODEL` = `llama-3.3-70b-versatile` (optional)
+4. Deploy — Vercel will pick up `vercel.json` automatically
 
-```bash
-cloudflared tunnel --url http://localhost:11434
-# Copy the generated https://xyz.trycloudflare.com URL
-```
+> Do **not** add `GROQ_API_KEY` as a Vercel Secret via CLI (`@groq_api_key` syntax). Set it directly as a plain environment variable in the dashboard.
 
-### Option B — Run Ollama on a VPS
+---
 
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-OLLAMA_HOST=0.0.0.0 ollama serve &
-ollama pull llama3.2:3b
-```
+## Troubleshooting
 
-### Deploy steps
+### "Groq — Not connected" in the sidebar
 
-1. Push to GitHub
-2. Import into Vercel: **vercel.com → New Project → Import Git Repository**
-3. Set environment variables in Vercel dashboard:
-   - `OLLAMA_BASE_URL` = your public Ollama URL
-   - `STEEP_DEFAULT_MODEL` = `llama3.2:3b`
-4. Deploy — `vercel.json` sets a 60 s timeout on API routes
+- Confirm `GROQ_API_KEY` is set correctly in `.env.local` (key starts with `gsk_`)
+- Restart the dev server after editing `.env.local`
+- Check [console.groq.com](https://console.groq.com) to verify the key is active
+
+### Overview or Roadmap does not populate after analysis
+
+- The synthesis agent likely hit Groq's rate limit. The platform retries automatically — wait a moment and try again, or switch to **Llama 3.1 8B Instant** which has a higher TPM quota on the free tier.
+- Try a shorter, more specific subject (e.g. "autonomous vehicles" instead of "the future of transportation")
+
+### Analysis hangs or times out on Vercel
+
+- Vercel's Hobby plan has a 60-second function timeout, which matches `vercel.json`. If all six agents consistently time out, upgrade to a Pro plan or reduce the number of retries by switching to a faster model.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Styling | Tailwind CSS |
+| 3D visualization | Three.js |
+| AI inference | Groq cloud API (OpenAI-compatible SSE) |
+| Deployment | Vercel |
 
 ---
 
