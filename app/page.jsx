@@ -1412,7 +1412,8 @@ function App() {
         }
       }
 
-      // Step 3: synthesis
+      // Step 3: synthesis — brief pause lets the TPM bucket partially refill
+      await new Promise(r => setTimeout(r, 3000));
       dispatch({ type: 'SET_STATUS', payload: 'synthesizing' });
       try {
         const synthData = await callAgent(
@@ -1420,7 +1421,7 @@ function App() {
           `Synthesize the five STEEP dimension analyses for "${subject}" into a unified executive intelligence report. Return only valid JSON matching the schema.`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
-          2500, // synthesis needs more tokens than a single dimension agent
+          1800, // enough for full roadmap + executive summary within Groq TPM limits
         );
         dispatch({ type: 'SET_SYNTHESIS', data: synthData });
         dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });
