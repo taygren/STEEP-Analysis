@@ -1546,29 +1546,168 @@ function App() {
       <main className="flex-1 overflow-y-auto">
         {/* Idle */}
         {status === 'idle' && (
-          <div className="h-full flex items-center justify-center px-8">
-            <div className="text-center max-w-xl">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-7 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
-              <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
-              <p className="text-slate-400 text-sm leading-relaxed mb-2">Powered by <span className="text-white font-semibold">Groq</span> — fast cloud inference, no GPU needed.</p>
-              <p className="text-slate-500 text-sm leading-relaxed mb-8">Enter any trend or company to run a six-agent STEEP intelligence analysis. Results include a 3D force map, a forecast roadmap with trigger points, risks, and accelerants, and full per-dimension evidence.</p>
-              <div className="grid grid-cols-5 gap-2 mb-8">
-                {Object.entries(COLORS).map(([dim, color]) => (
-                  <div key={dim} className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
-                    <div className="w-8 h-8 rounded-full mx-auto mb-2" style={{ backgroundColor: color + '33', border: `2px solid ${color}55` }}>
-                      <div className="w-full h-full rounded-full" style={{ backgroundColor: color, opacity: 0.6 }} />
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium">{dim}</p>
-                  </div>
-                ))}
+          <div className="overflow-y-auto px-8 py-10">
+            <div className="max-w-4xl mx-auto">
+
+              {/* Hero */}
+              <div className="text-center mb-12">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-6 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
+                <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto mb-1">
+                  Powered by <span className="text-white font-semibold">Groq</span> — fast cloud inference, no GPU needed.
+                </p>
+                <p className="text-slate-500 text-sm leading-relaxed max-w-xl mx-auto">
+                  Enter any company, trend, or technology in the sidebar to run a six-agent intelligence analysis and generate a 3D force map, forecast roadmap, and full per-dimension evidence report.
+                </p>
               </div>
+
+              {/* What is STEEP */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-8">
+                <h2 className="text-white font-bold text-base mb-2">What is STEEP analysis?</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  STEEP is a structured strategic-intelligence framework used by analysts, executives, and policy makers to map the macro-environmental forces shaping an organisation, industry, or trend. By examining five distinct dimensions — Social, Technological, Economic, Environmental, and Political — it surfaces both the threats and opportunities that lie outside a subject's direct control, enabling better long-range planning and risk management.
+                </p>
+              </div>
+
+              {/* Dimension cards */}
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest mb-4 opacity-50">The five dimensions + synthesis agent</h2>
+              <div className="grid grid-cols-1 gap-4 mb-8">
+
+                {/* Social */}
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#3B82F620', color: '#3B82F6', border: '2px solid #3B82F640' }}>S</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Social</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#3B82F620', color: '#3B82F6' }}>Agent 1</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Examines human and societal forces that influence demand, talent, and public perception.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Demographics & population', 'Cultural shifts', 'Consumer behaviour', 'Workforce trends', 'Public health', 'Education & skills'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Technological */}
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#8B5CF620', color: '#8B5CF6', border: '2px solid #8B5CF640' }}>T</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Technological</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#8B5CF620', color: '#8B5CF6' }}>Agent 2</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Maps emerging technologies, R&D momentum, and the pace of digital disruption affecting the subject.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['AI & automation', 'R&D breakthroughs', 'Digital infrastructure', 'Cybersecurity', 'IP landscape', 'Platform dynamics'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Economic */}
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#10B98120', color: '#10B981', border: '2px solid #10B98140' }}>E</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Economic</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#10B98120', color: '#10B981' }}>Agent 3</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Analyses macroeconomic conditions, market structures, and financial forces shaping viability and growth.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Market conditions', 'Trade & tariffs', 'Investment flows', 'Inflation & rates', 'Supply chains', 'Competitive landscape'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Environmental */}
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#14B8A620', color: '#14B8A6', border: '2px solid #14B8A640' }}>E</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Environmental</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#14B8A620', color: '#14B8A6' }}>Agent 4</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Assesses climate risk, natural resource constraints, sustainability expectations, and ecological regulation.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Climate risk', 'Energy transition', 'Resource scarcity', 'ESG pressure', 'Carbon regulation', 'Circular economy'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Political */}
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#F9731620', color: '#F97316', border: '2px solid #F9731640' }}>P</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Political</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#F9731620', color: '#F97316' }}>Agent 5</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Evaluates government policy, regulatory direction, geopolitical instability, and legislative trends.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Government policy', 'Regulation & compliance', 'Geopolitical risk', 'Elections & stability', 'International relations', 'Lobbying dynamics'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Synthesis */}
+                <div className="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 flex gap-5" style={{ borderColor: '#6366f140' }}>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#6366f120', color: '#818cf8', border: '2px solid #6366f140' }}>✦</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-bold text-sm">Synthesis</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#6366f120', color: '#818cf8' }}>Agent 6</span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Runs after all five dimension agents complete. Integrates findings into a unified executive report with an overall strategic posture, cross-dimension insights, and a forecast roadmap.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Overall posture', 'Executive summary', 'Cross-dimension insights', 'Near-term milestones', 'Mid-term milestones', 'Long-term milestones'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Output summary */}
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest mb-4 opacity-50">What you get</h2>
+              <div className="grid grid-cols-3 gap-4 mb-10">
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                  <div className="text-lg mb-2">📋</div>
+                  <p className="text-white font-semibold text-sm mb-1">Overview</p>
+                  <p className="text-slate-500 text-xs leading-relaxed">Strategic posture badge, executive summary, dimension driver cards, cross-dimension insights, and a full evidence accordion.</p>
+                </div>
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                  <div className="text-lg mb-2">🌐</div>
+                  <p className="text-white font-semibold text-sm mb-1">3D Force Map</p>
+                  <p className="text-slate-500 text-xs leading-relaxed">Interactive Three.js globe with force-directed driver nodes. Click any node for a full detail panel with confidence, impact, and evidence.</p>
+                </div>
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                  <div className="text-lg mb-2">🗺️</div>
+                  <p className="text-white font-semibold text-sm mb-1">Forecast Roadmap</p>
+                  <p className="text-slate-500 text-xs leading-relaxed">Near / mid / long-term milestones with trigger points, risks, accelerants, and confidence ratings. Toggle Card or Timeline view.</p>
+                </div>
+              </div>
+
+              {/* Status / CTA */}
               {groqStatus === 'offline' && (
-                <div className="bg-red-950 border border-red-800 rounded-xl p-4 text-left">
+                <div className="bg-red-950 border border-red-800 rounded-xl p-4">
                   <p className="text-red-300 font-semibold text-sm mb-1">Groq API key not found</p>
                   <p className="text-red-400 text-xs">Set <code className="font-mono bg-red-900 px-1 rounded">GROQ_API_KEY</code> in your environment variables and restart the app.</p>
                 </div>
               )}
-              {groqStatus === 'online' && <p className="text-slate-600 text-xs">Enter a subject in the sidebar to begin.</p>}
+              {groqStatus === 'online' && (
+                <p className="text-center text-slate-600 text-xs pb-4">Enter a subject in the sidebar to begin your analysis.</p>
+              )}
+
             </div>
           </div>
         )}
