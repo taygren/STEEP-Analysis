@@ -1,9 +1,18 @@
+/** Strip accidental "GROQ_API_KEY=..." or surrounding quotes from the secret value. */
+function cleanApiKey(raw) {
+  if (!raw) return raw;
+  let key = raw.trim().replace(/^["']|["']$/g, '');
+  const eqIdx = key.indexOf('=');
+  if (eqIdx !== -1) key = key.slice(eqIdx + 1).trim();
+  return key.replace(/^["']|["']$/g, '');
+}
+
 /**
  * GET /api/health
  * Verifies the Groq API key is present and reachable.
  */
 export async function GET() {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
 
   if (!apiKey) {
     return Response.json(

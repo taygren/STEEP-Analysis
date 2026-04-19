@@ -1,6 +1,15 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
 
+/** Strip accidental "GROQ_API_KEY=..." or surrounding quotes from the secret value. */
+function cleanApiKey(raw) {
+  if (!raw) return raw;
+  let key = raw.trim().replace(/^["']|["']$/g, ''); // strip surrounding quotes
+  const eqIdx = key.indexOf('=');
+  if (eqIdx !== -1) key = key.slice(eqIdx + 1).trim(); // strip NAME= prefix
+  return key.replace(/^["']|["']$/g, ''); // strip quotes again after stripping prefix
+}
+
 /**
  * POST /api/analyze
  * Body: { systemPrompt, userMessage, model, numPredict }
@@ -11,7 +20,7 @@ const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatil
  * Final line:     data: [DONE]
  */
 export async function POST(request) {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
   if (!apiKey) {
     return Response.json({ error: 'GROQ_API_KEY is not configured' }, { status: 503 });
   }
