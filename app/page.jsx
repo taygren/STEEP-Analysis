@@ -148,31 +148,23 @@ Dimension summaries:
 - Environmental: ${s(data.environmental)} | Top drivers: ${drivers(data.environmental)}
 - Political:     ${s(data.political)}     | Top drivers: ${drivers(data.political)}
 
-Return ONLY a valid JSON object — no prose, no markdown fences. Fill every field.
+Return ONLY a valid JSON object — no prose, no markdown fences. Fill every field with real content for "${subj}".
 
 {
   "roadmap":{
     "near":[
-      {"id":"n1","title":"","dimension":"Social","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.7,"catalyst_type":""},
-      {"id":"n2","title":"","dimension":"Technological","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.7,"catalyst_type":""}
+      {"id":"n1","title":"","dimension":"Social","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.7},
+      {"id":"n2","title":"","dimension":"Technological","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.7}
     ],
     "mid":[
-      {"id":"m1","title":"","dimension":"Economic","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.65,"catalyst_type":""},
-      {"id":"m2","title":"","dimension":"Political","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.65,"catalyst_type":""}
+      {"id":"m1","title":"","dimension":"Economic","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.65},
+      {"id":"m2","title":"","dimension":"Political","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.65}
     ],
     "long":[
-      {"id":"l1","title":"","dimension":"Environmental","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.6,"catalyst_type":""},
-      {"id":"l2","title":"","dimension":"Social","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.6,"catalyst_type":""}
+      {"id":"l1","title":"","dimension":"Environmental","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.6},
+      {"id":"l2","title":"","dimension":"Social","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.6}
     ]
   },
-  "matrix_items":[
-    {"id":"r1","title":"","type":"risk","dimension":"Political","impact_score":4,"likelihood_score":3,"time_sensitivity":"near","description":"","confidence":0.7,"reversibility":"partially reversible"},
-    {"id":"r2","title":"","type":"risk","dimension":"Economic","impact_score":3,"likelihood_score":4,"time_sensitivity":"mid","description":"","confidence":0.65,"reversibility":"irreversible"},
-    {"id":"o1","title":"","type":"opportunity","dimension":"Technological","impact_score":4,"likelihood_score":4,"time_sensitivity":"near","description":"","confidence":0.75,"reversibility":"fully reversible"},
-    {"id":"o2","title":"","type":"opportunity","dimension":"Social","impact_score":3,"likelihood_score":3,"time_sensitivity":"mid","description":"","confidence":0.65,"reversibility":"partially reversible"},
-    {"id":"d1","title":"","type":"disruption","dimension":"Technological","impact_score":5,"likelihood_score":3,"time_sensitivity":"long","description":"","confidence":0.6,"reversibility":"irreversible"},
-    {"id":"d2","title":"","type":"disruption","dimension":"Environmental","impact_score":4,"likelihood_score":3,"time_sensitivity":"long","description":"","confidence":0.55,"reversibility":"irreversible"}
-  ],
   "overall_posture":"net positive|net negative|mixed|uncertain",
   "posture_rationale":"2-3 sentences",
   "executive_summary":"4-5 sentence strategic assessment",
@@ -181,8 +173,8 @@ Return ONLY a valid JSON object — no prose, no markdown fences. Fill every fie
   "top_takeaways":["","","",""]
 }
 Requirements:
-- roadmap: exactly 2 milestones per horizon — fill all 6 placeholders above with real content
-- matrix_items: fill all 6 placeholders above with real content for "${subj}"
+- roadmap: exactly 2 milestones per horizon — all 6 must contain real content specific to "${subj}"
+- each milestone: trigger = the specific condition that activates it; risks = 2 things that could derail it; accelerants = 2 things that could speed it up
 - macro_forces: 2-3 entries
 - cross_dimension_insights: 2-3 entries covering ONLY cross-dimension interactions
 - top_takeaways: 4-5 items, each naming "${subj}" explicitly`;
@@ -203,9 +195,7 @@ const initialState = {
   steepData: blankDims(),
   synthesis: null,
   activeTab: 'overview',
-  matrixFilter: 'risks',
   roadmapFilter: [],
-  selectedMatrixItem: null,
   error: null,
   // Ollama
   ollamaStatus: 'checking', // checking | online | offline
@@ -230,12 +220,10 @@ function reducer(state, action) {
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
     case 'SET_STATUS':        return { ...state, status: action.payload };
     case 'SET_ACTIVE_TAB':    return { ...state, activeTab: action.payload };
-    case 'SET_MATRIX_FILTER': return { ...state, matrixFilter: action.payload };
     case 'TOGGLE_ROADMAP_FILTER': {
       const f = state.roadmapFilter, d = action.payload;
       return { ...state, roadmapFilter: f.includes(d) ? f.filter(x => x !== d) : [...f, d] };
     }
-    case 'SET_SELECTED_MATRIX_ITEM': return { ...state, selectedMatrixItem: action.payload };
     case 'SET_ERROR': return { ...state, status: 'error', error: action.payload };
     default: return state;
   }
@@ -395,23 +383,12 @@ function normalizeAgentData(data) {
         title:       toStr(m.title),
         trigger:     toStr(m.trigger),
         description: toStr(m.description),
+        risks:       Array.isArray(m.risks)       ? m.risks.map(toStr).filter(Boolean)       : [],
+        accelerants: Array.isArray(m.accelerants) ? m.accelerants.map(toStr).filter(Boolean) : [],
       })).filter(m => m.title); // drop empty placeholder entries
     });
   } else if (d.roadmap == null) {
     d.roadmap = { near: [], mid: [], long: [] };
-  }
-
-  // Synthesis: matrix items
-  if (Array.isArray(d.matrix_items)) {
-    d.matrix_items = d.matrix_items
-      .map(item => ({
-        ...item,
-        title:       toStr(item.title),
-        description: toStr(item.description),
-      }))
-      .filter(item => item.title && item.type); // drop empty placeholder entries
-  } else if (d.matrix_items == null) {
-    d.matrix_items = [];
   }
 
   return d;
@@ -1228,27 +1205,26 @@ function RoadmapTab({ state, dispatch }) {
             {ms.length === 0 ? (
               <p className="text-slate-600 text-sm px-5 py-4">No milestones match current filter.</p>
             ) : viewMode === 'cards' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
                 {ms.map((m, i) => {
                   const uid = m.id || `${key}-${i}`;
                   const isOpen = expanded[uid];
+                  const hasDetail = m.description || m.risks?.length || m.accelerants?.length;
                   return (
                     <div key={uid} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:border-slate-500 transition-colors">
                       <div className="p-3">
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-base leading-none">{icon(m.catalyst_type)}</span>
-                            <DimChip dim={m.dimension} />
-                          </div>
+                          <DimChip dim={m.dimension} />
                           <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>
                             {m.direction}
                           </Badge>
                         </div>
-                        <p className="text-white text-sm font-semibold leading-tight mb-1">{m.title}</p>
+                        <p className="text-white text-sm font-semibold leading-tight mb-2">{m.title}</p>
                         {m.trigger && (
-                          <p className="text-slate-500 text-xs mb-1">
-                            <span className="text-slate-600">Trigger: </span>{m.trigger}
-                          </p>
+                          <div className="flex gap-1.5 items-start mb-1.5">
+                            <span className="text-blue-400 text-xs flex-shrink-0 mt-0.5">⚡</span>
+                            <p className="text-slate-400 text-xs leading-snug"><span className="text-slate-500 font-medium">Trigger: </span>{m.trigger}</p>
+                          </div>
                         )}
                         {m.confidence != null && (
                           <div className="mt-2">
@@ -1260,15 +1236,45 @@ function RoadmapTab({ state, dispatch }) {
                             </div>
                           </div>
                         )}
-                        {m.description && (
+                        {hasDetail && (
                           <button onClick={() => toggleExpanded(uid)} className="mt-2 text-xs text-slate-500 hover:text-blue-400 transition-colors">
-                            {isOpen ? '▲ Hide detail' : '▼ Show detail'}
+                            {isOpen ? '▲ Collapse' : '▼ Risks & Accelerants'}
                           </button>
                         )}
                       </div>
-                      {isOpen && m.description && (
-                        <div className="border-t border-slate-700 px-3 py-3 bg-slate-900">
-                          <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                      {isOpen && (
+                        <div className="border-t border-slate-700 bg-slate-900 divide-y divide-slate-800">
+                          {m.description && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                            </div>
+                          )}
+                          {m.risks?.length > 0 && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-1.5">⚠ Risks</p>
+                              <ul className="space-y-1">
+                                {m.risks.map((r, ri) => (
+                                  <li key={ri} className="flex gap-1.5 items-start">
+                                    <span className="text-red-600 text-xs flex-shrink-0 mt-0.5">•</span>
+                                    <span className="text-slate-400 text-xs leading-snug">{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {m.accelerants?.length > 0 && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1.5">▲ Accelerants</p>
+                              <ul className="space-y-1">
+                                {m.accelerants.map((a, ai) => (
+                                  <li key={ai} className="flex gap-1.5 items-start">
+                                    <span className="text-emerald-600 text-xs flex-shrink-0 mt-0.5">•</span>
+                                    <span className="text-slate-400 text-xs leading-snug">{a}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1281,6 +1287,7 @@ function RoadmapTab({ state, dispatch }) {
                 {ms.map((m, i) => {
                   const uid = m.id || `${key}-${i}`;
                   const isOpen = expanded[uid];
+                  const hasDetail = m.description || m.risks?.length || m.accelerants?.length;
                   return (
                     <div key={uid} className="flex gap-4 pb-4 relative">
                       <div className="flex-shrink-0 z-10" style={{ width: 20, paddingTop: 6 }}>
@@ -1295,19 +1302,44 @@ function RoadmapTab({ state, dispatch }) {
                               <DimChip dim={m.dimension} />
                               <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>{m.direction}</Badge>
                             </div>
-                            <button onClick={() => toggleExpanded(uid)} className="text-slate-600 hover:text-slate-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</button>
+                            {hasDetail && <button onClick={() => toggleExpanded(uid)} className="text-slate-600 hover:text-slate-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</button>}
                           </div>
                           <p className="text-white text-sm font-semibold leading-tight">{m.title}</p>
-                          {m.trigger && <p className="text-slate-500 text-xs mt-0.5"><span className="text-slate-600">Trigger: </span>{m.trigger}</p>}
+                          {m.trigger && (
+                            <p className="text-slate-500 text-xs mt-1 flex gap-1.5">
+                              <span className="text-blue-400 flex-shrink-0">⚡</span>
+                              <span><span className="text-slate-600">Trigger: </span>{m.trigger}</span>
+                            </p>
+                          )}
                           {m.confidence != null && (
                             <div className="mt-1.5 h-1 bg-slate-700 rounded-full">
                               <div className="h-1 rounded-full" style={{ width: `${m.confidence * 100}%`, backgroundColor: color }} />
                             </div>
                           )}
                         </div>
-                        {isOpen && m.description && (
-                          <div className="border-t border-slate-700 px-3 py-3 bg-slate-900">
-                            <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                        {isOpen && (
+                          <div className="border-t border-slate-700 bg-slate-900 divide-y divide-slate-800">
+                            {m.description && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                              </div>
+                            )}
+                            {m.risks?.length > 0 && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-1">⚠ Risks</p>
+                                <ul className="space-y-0.5">
+                                  {m.risks.map((r, ri) => <li key={ri} className="text-slate-400 text-xs">• {r}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {m.accelerants?.length > 0 && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">▲ Accelerants</p>
+                                <ul className="space-y-0.5">
+                                  {m.accelerants.map((a, ai) => <li key={ai} className="text-slate-400 text-xs">• {a}</li>)}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1323,257 +1355,6 @@ function RoadmapTab({ state, dispatch }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// TAB 4 — RISK / OPPORTUNITY / DISRUPTION MATRIX
-// ═══════════════════════════════════════════════════════════════════
-
-function MatrixTab({ state, dispatch }) {
-  const { synthesis, matrixFilter, selectedMatrixItem } = state;
-  const [sortKey, setSortKey] = useState('composite');
-  const [sortDir, setSortDir] = useState('desc');
-  if (!synthesis) return null;
-  if (!synthesis.matrix_items || synthesis.matrix_items.length === 0) return (
-    <div className="flex flex-col items-center justify-center py-16 text-center fade-in">
-      <p className="text-slate-500 text-sm">No matrix data was generated.</p>
-      <p className="text-slate-600 text-xs mt-1">The synthesis agent may have run out of tokens. Try running the analysis again.</p>
-    </div>
-  );
-
-  const typeMap = { risks: 'risk', opportunities: 'opportunity', disruptions: 'disruption' };
-  const allItems = synthesis.matrix_items || [];
-  const filtered = allItems.filter(i => i.type === typeMap[matrixFilter]);
-
-  const composite = item => {
-    const ts = { immediate: 5, near: 4, mid: 3, long: 2 }[item.time_sensitivity] || 3;
-    return (item.impact_score || 3) * 0.40 + (item.likelihood_score || 3) * 0.35 + ts * 0.25;
-  };
-
-  const sorted = [...filtered].sort((a, b) => {
-    const av = sortKey === 'composite' ? composite(a) : (a[sortKey] || 0);
-    const bv = sortKey === 'composite' ? composite(b) : (b[sortKey] || 0);
-    return sortDir === 'desc' ? bv - av : av - bv;
-  });
-
-  const cells = {};
-  filtered.forEach(item => {
-    const x = Math.min(5, Math.max(1, item.likelihood_score || 3));
-    const y = Math.min(5, Math.max(1, item.impact_score || 3));
-    const k = `${x},${y}`;
-    if (!cells[k]) cells[k] = [];
-    cells[k].push(item);
-  });
-
-  const typeCount = t => allItems.filter(i => i.type === typeMap[t]).length;
-  const handleSort = k => { if (sortKey === k) setSortDir(d => d === 'desc' ? 'asc' : 'desc'); else { setSortKey(k); setSortDir('desc'); } };
-
-  return (
-    <div className="space-y-6 fade-in">
-      <div className="flex items-center gap-2">
-        {['risks', 'opportunities', 'disruptions'].map(f => (
-          <button key={f} onClick={() => dispatch({ type: 'SET_MATRIX_FILTER', payload: f })}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${matrixFilter === f ? 'bg-blue-700 text-white' : 'bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'}`}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-            <span className="ml-2 text-xs opacity-60">({typeCount(f)})</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
-        <div className="flex gap-3">
-          <div style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }} className="flex items-center justify-center">
-            <span className="text-xs text-slate-500 font-semibold tracking-widest uppercase">Impact →</span>
-          </div>
-          <div className="flex-1">
-            {[5, 4, 3, 2, 1].map(y => (
-              <div key={y} className="flex gap-1 mb-1">
-                <div className="w-5 flex items-center justify-center"><span className="text-xs text-slate-600 font-mono">{y}</span></div>
-                {[1, 2, 3, 4, 5].map(x => {
-                  const ci = cells[`${x},${y}`] || [];
-                  const sc = x * y;
-                  const bg = sc >= 16 ? 'bg-red-950 border-red-900' : sc >= 9 ? 'bg-orange-950 border-orange-900' : 'bg-slate-900 border-slate-700';
-                  return (
-                    <div key={x} className={`flex-1 border rounded-lg ${bg} flex flex-wrap content-start gap-1 p-1.5`} style={{ minHeight: 58, minWidth: 54 }}>
-                      {ci.map((item, ci2) => (
-                        <button key={ci2} onClick={() => dispatch({ type: 'SET_SELECTED_MATRIX_ITEM', payload: selectedMatrixItem?.id === item.id ? null : item })}
-                          className="w-4 h-4 rounded-full border-2 border-slate-950 hover:scale-125 transition-transform cursor-pointer"
-                          style={{ backgroundColor: COLORS[item.dimension] || '#94a3b8', boxShadow: selectedMatrixItem?.id === item.id ? `0 0 0 2px ${COLORS[item.dimension]}` : 'none' }}
-                          title={item.title}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            <div className="flex gap-1 mt-1">
-              <div className="w-5" />
-              {[1, 2, 3, 4, 5].map(x => <div key={x} className="flex-1 text-center"><span className="text-xs text-slate-600 font-mono">{x}</span></div>)}
-            </div>
-            <div className="text-center mt-1"><span className="text-xs text-slate-500 font-semibold tracking-widest uppercase">Likelihood →</span></div>
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-slate-700 flex flex-wrap gap-4">
-          {Object.entries(COLORS).map(([d, c]) => (
-            <div key={d} className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: c }} /><span className="text-xs text-slate-400">{d}</span></div>
-          ))}
-        </div>
-        <div className="flex gap-4 mt-2">
-          {[['bg-red-950 border-red-900','Critical'],['bg-orange-950 border-orange-900','Monitor'],['bg-slate-900 border-slate-700','Watch']].map(([cls,lbl]) => (
-            <div key={lbl} className="flex items-center gap-1.5"><div className={`w-3 h-3 rounded border ${cls}`} /><span className="text-xs text-slate-500">{lbl}</span></div>
-          ))}
-        </div>
-      </div>
-
-      {selectedMatrixItem && (() => {
-        const item = selectedMatrixItem;
-        const dimColor = COLORS[item.dimension] || '#94a3b8';
-        const compScore = composite(item);
-        const revCls = (item.reversibility || '').includes('irrev') ? 'bg-red-900 text-red-300' : (item.reversibility || '').includes('partial') ? 'bg-amber-900 text-amber-300' : 'bg-emerald-900 text-emerald-300';
-        const relatedInsights = (synthesis.cross_dimension_insights || []).filter(ins =>
-          (ins.dimensions_involved || []).includes(item.dimension)
-        ).slice(0, 2);
-        const dimData = state.steepData[item.dimension?.toLowerCase()];
-        const relatedDrivers = (dimData?.drivers || []).filter(d =>
-          d.direction === (item.type === 'opportunity' ? 'positive' : 'negative') ||
-          d.impact === 'high'
-        ).slice(0, 2);
-        return (
-          <div className="bg-slate-800 border rounded-2xl overflow-hidden fade-in" style={{ borderColor: dimColor + '55' }}>
-            {/* Header strip */}
-            <div className="px-5 py-4 border-b border-slate-700" style={{ borderLeftColor: dimColor, borderLeftWidth: 4 }}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <DimChip dim={item.dimension} />
-                  <Badge className={item.type === 'risk' ? 'bg-red-900 text-red-300 border border-red-700' : item.type === 'opportunity' ? 'bg-green-900 text-green-300 border border-green-700' : 'bg-purple-900 text-purple-300 border border-purple-700'}>
-                    {item.type}
-                  </Badge>
-                  {item.reversibility && <Badge className={revCls}>{item.reversibility}</Badge>}
-                  {item.time_sensitivity && <Badge className="bg-slate-700 text-slate-300 border border-slate-600">{item.time_sensitivity}</Badge>}
-                </div>
-                <button onClick={() => dispatch({ type: 'SET_SELECTED_MATRIX_ITEM', payload: null })} className="text-slate-600 hover:text-white ml-3 text-base">✕</button>
-              </div>
-              <h4 className="text-white font-bold text-base mt-2 leading-snug">{item.title}</h4>
-            </div>
-
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Left column */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Description</p>
-                  <p className="text-slate-300 text-sm leading-relaxed">{item.description}</p>
-                </div>
-
-                {/* Score meters */}
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Scores</p>
-                  {[['Impact', item.impact_score, '#ef4444'], ['Likelihood', item.likelihood_score, '#f59e0b'], ['Composite', parseFloat(compScore.toFixed(1)), dimColor]].map(([lbl, val, col]) => (
-                    <div key={lbl}>
-                      <div className="flex justify-between text-xs mb-0.5">
-                        <span className="text-slate-500">{lbl}</span>
-                        <span className="text-slate-300 font-semibold">{val} / 5</span>
-                      </div>
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${(val / 5.5) * 100}%`, backgroundColor: col }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Confidence */}
-                {item.confidence != null && (
-                  <div>
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span className="text-slate-500">Agent Confidence</span>
-                      <span className="text-slate-300 font-semibold">{Math.round(item.confidence * 100)}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${item.confidence * 100}%`, backgroundColor: dimColor }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right column */}
-              <div className="space-y-4">
-                {relatedInsights.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Strategic Context</p>
-                    <div className="space-y-2">
-                      {relatedInsights.map((ins, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            {(ins.dimensions_involved || []).map(d => <DimChip key={d} dim={d} />)}
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${ins.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : ins.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{ins.type}</span>
-                          </div>
-                          <p className="text-slate-300 text-xs leading-relaxed">{ins.insight}</p>
-                          {ins.strategic_implication && <p className="text-slate-500 text-xs mt-1 italic">→ {ins.strategic_implication}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {relatedDrivers.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Related {item.dimension} Drivers</p>
-                    <div className="space-y-2">
-                      {relatedDrivers.map((dr, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dr.direction === 'positive' ? 'bg-emerald-400' : dr.direction === 'negative' ? 'bg-red-400' : 'bg-amber-400'}`} />
-                            <span className="text-white text-xs font-semibold">{dr.name}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${dr.impact === 'high' ? 'bg-red-900 text-red-300' : dr.impact === 'medium' ? 'bg-amber-900 text-amber-300' : 'bg-slate-700 text-slate-400'}`}>{dr.impact}</span>
-                          </div>
-                          {dr.description && <p className="text-slate-400 text-xs leading-relaxed">{dr.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      <div>
-        <SectionHdr>All Items ({sorted.length})</SectionHdr>
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800">
-              <tr>
-                {[['Title','title'],['Dimension','dimension'],['Impact','impact_score'],['Likelihood','likelihood_score'],['Score','composite']].map(([lbl,k]) => (
-                  <th key={k} onClick={() => handleSort(k)} className="text-left px-4 py-3 text-xs text-slate-500 font-semibold uppercase tracking-wider cursor-pointer hover:text-slate-300 whitespace-nowrap select-none">
-                    {lbl}{sortKey === k ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {sorted.map((item, i) => (
-                <tr key={i} onClick={() => dispatch({ type: 'SET_SELECTED_MATRIX_ITEM', payload: selectedMatrixItem?.id === item.id ? null : item })}
-                  className={`hover:bg-slate-800 cursor-pointer transition-colors ${selectedMatrixItem?.id === item.id ? 'bg-slate-800' : ''}`}>
-                  <td className="px-4 py-3 text-slate-200 max-w-xs truncate">{item.title}</td>
-                  <td className="px-4 py-3"><DimChip dim={item.dimension} /></td>
-                  <td className="px-4 py-3 text-center font-mono text-white">{item.impact_score}</td>
-                  <td className="px-4 py-3 text-center font-mono text-white">{item.likelihood_score}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-white">{composite(item).toFixed(1)}</span>
-                      <div className="w-16 h-1.5 bg-slate-700 rounded-full">
-                        <div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${Math.min(100, composite(item) / 5.5 * 100)}%` }} />
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // TAB 5 — EVIDENCE BASE
@@ -1800,7 +1581,6 @@ function App() {
     { key: 'overview',  label: 'Overview',  icon: '◉' },
     { key: 'forcemap',  label: 'Force Map', icon: '◈' },
     { key: 'roadmap',   label: 'Roadmap',   icon: '→' },
-    { key: 'matrix',    label: 'Matrix',    icon: '⊞' },
     { key: 'evidence',  label: 'Evidence',  icon: '◎' },
   ];
 
@@ -1913,7 +1693,7 @@ function App() {
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-7 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
               <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
               <p className="text-slate-400 text-sm leading-relaxed mb-2">100% local — no API key, no cloud, no cost.</p>
-              <p className="text-slate-500 text-sm leading-relaxed mb-8">Powered by <span className="text-white font-semibold">Ollama</span>. Enter any trend or company to run a six-agent STEEP intelligence analysis with a 3D force map, forecast roadmap, and risk/opportunity matrix.</p>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">Powered by <span className="text-white font-semibold">Ollama</span>. Enter any trend or company to run a six-agent STEEP intelligence analysis with a 3D force map and a forecast roadmap with trigger points, risks, and accelerants.</p>
               <div className="grid grid-cols-5 gap-2 mb-8">
                 {Object.entries(COLORS).map(([dim, color]) => (
                   <div key={dim} className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
@@ -1986,7 +1766,6 @@ function App() {
               {activeTab === 'overview' && <OverviewTab state={state} />}
               {activeTab === 'forcemap' && <ForceMapTab state={state} />}
               {activeTab === 'roadmap'  && <RoadmapTab  state={state} dispatch={dispatch} />}
-              {activeTab === 'matrix'   && <MatrixTab   state={state} dispatch={dispatch} />}
               {activeTab === 'evidence' && <EvidenceTab state={state} />}
             </div>
           </div>

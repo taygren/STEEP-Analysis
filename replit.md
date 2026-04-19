@@ -66,12 +66,8 @@ Models are stored in `~/.ollama/models`. Catalog (from the UI):
 ### Roadmap Tab
 - **Cards / Timeline toggle** — Cards shows a responsive grid; Timeline renders a vertical connected thread.
 - Each horizon shows a **Cross-Dimension Context** callout pulled from `cross_dimension_insights`.
-- Milestone cards have expandable detail sections and confidence progress bars.
-
-### Matrix Tab (Risk/Opportunity/Disruption)
-- Selected item detail panel shows: full score bars (Impact, Likelihood, Composite), confidence bar, reversibility + time-sensitivity badges.
-- **Strategic Context** section surfaces related `cross_dimension_insights` matching the item's dimension.
-- **Related Drivers** section pulls dimension-specific agent driver evidence.
+- Each milestone card shows: trigger point (⚡), confidence bar, and an expandable **Risks & Accelerants** section with color-coded bullet lists.
+- Synthesis prompt includes `risks` and `accelerants` arrays per milestone; `matrix_items` field removed entirely.
 
 ## Security Notes
 
