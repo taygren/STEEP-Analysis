@@ -9,6 +9,9 @@ const nextConfig = {
     serverComponentsExternalPackages: [],
   },
 
+  // Allow cross-origin requests from Replit's proxied preview domain
+  allowedDevOrigins: ['*.replit.dev', '*.kirk.replit.dev'],
+
   // Headers to allow cross-origin requests in development
   async headers() {
     return [
