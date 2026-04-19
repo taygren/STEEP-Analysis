@@ -150,29 +150,19 @@ Dimension summaries:
 
 Return ONLY a valid JSON object — no prose, no markdown fences. Fill every field with real content for "${subj}".
 
-Each roadmap entry describes how that STEEP dimension's forces INFLUENCE and IMPACT "${subj}" over time — not what the subject does, but what external forces are doing TO it.
-
 {
   "roadmap":{
-    "social":[
-      {"id":"s1","horizon":"near","title":"how Social forces are shaping ${subj} now","direction":"positive|negative|mixed","trigger":"condition that activates this influence","risks":["factor that could worsen this"],"accelerants":["factor that could intensify this"],"description":"1-2 sentences on the social influence","confidence":0.7},
-      {"id":"s2","horizon":"long","title":"long-term Social structural shift affecting ${subj}","direction":"positive|negative|mixed","trigger":"condition that activates this influence","risks":["factor that could worsen this"],"accelerants":["factor that could intensify this"],"description":"1-2 sentences on the social influence","confidence":0.6}
+    "near":[
+      {"id":"n1","title":"","dimension":"Social","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.7},
+      {"id":"n2","title":"","dimension":"Technological","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.7}
     ],
-    "technological":[
-      {"id":"t1","horizon":"near","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.7},
-      {"id":"t2","horizon":"mid","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.65}
+    "mid":[
+      {"id":"m1","title":"","dimension":"Economic","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.65},
+      {"id":"m2","title":"","dimension":"Political","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.65}
     ],
-    "economic":[
-      {"id":"e1","horizon":"near","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.7},
-      {"id":"e2","horizon":"mid","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.65}
-    ],
-    "environmental":[
-      {"id":"en1","horizon":"mid","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.65},
-      {"id":"en2","horizon":"long","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.6}
-    ],
-    "political":[
-      {"id":"p1","horizon":"near","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.7},
-      {"id":"p2","horizon":"mid","title":"","direction":"positive|negative|mixed","trigger":"","risks":[""],"accelerants":[""],"description":"","confidence":0.65}
+    "long":[
+      {"id":"l1","title":"","dimension":"Environmental","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.6},
+      {"id":"l2","title":"","dimension":"Social","trigger":"condition that activates this milestone","risks":["risk 1","risk 2"],"accelerants":["accelerant 1","accelerant 2"],"description":"","direction":"positive|negative|mixed","confidence":0.6}
     ]
   },
   "overall_posture":"net positive|net negative|mixed|uncertain",
@@ -183,8 +173,8 @@ Each roadmap entry describes how that STEEP dimension's forces INFLUENCE and IMP
   "top_takeaways":["","","",""]
 }
 Requirements:
-- roadmap: 2 entries per dimension (social/technological/economic/environmental/political) — fill all 10 placeholders with real content specific to "${subj}"
-- each entry: horizon must be near|mid|long; title describes the dimension's INFLUENCE ON "${subj}"; trigger = condition that activates that influence; risks = 1 thing that could worsen/block it; accelerants = 1 thing that could intensify/speed it
+- roadmap: exactly 2 milestones per horizon — all 6 must contain real content specific to "${subj}"
+- each milestone: trigger = the specific condition that activates it; risks = 2 things that could derail it; accelerants = 2 things that could speed it up
 - macro_forces: 2-3 entries
 - cross_dimension_insights: 2-3 entries covering ONLY cross-dimension interactions
 - top_takeaways: 4-5 items, each naming "${subj}" explicitly`;
@@ -205,7 +195,7 @@ const initialState = {
   steepData: blankDims(),
   synthesis: null,
   activeTab: 'overview',
-  roadmapHorizon: 'all',  // 'all' | 'near' | 'mid' | 'long'
+  roadmapFilter: [],
   error: null,
   // Ollama
   ollamaStatus: 'checking', // checking | online | offline
@@ -229,8 +219,11 @@ function reducer(state, action) {
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
     case 'SET_STATUS':        return { ...state, status: action.payload };
-    case 'SET_ACTIVE_TAB':      return { ...state, activeTab: action.payload };
-    case 'SET_ROADMAP_HORIZON': return { ...state, roadmapHorizon: action.payload };
+    case 'SET_ACTIVE_TAB':    return { ...state, activeTab: action.payload };
+    case 'TOGGLE_ROADMAP_FILTER': {
+      const f = state.roadmapFilter, d = action.payload;
+      return { ...state, roadmapFilter: f.includes(d) ? f.filter(x => x !== d) : [...f, d] };
+    }
     case 'SET_ERROR': return { ...state, status: 'error', error: action.payload };
     default: return state;
   }
@@ -381,25 +374,21 @@ function normalizeAgentData(data) {
     }));
   }
 
-  // Synthesis: roadmap — dimension-keyed structure
-  // Shape: { social: [...], technological: [...], economic: [...], environmental: [...], political: [...] }
-  const ROADMAP_DIMS = ['social', 'technological', 'economic', 'environmental', 'political'];
-  const VALID_HORIZONS = new Set(['near', 'mid', 'long']);
+  // Synthesis: roadmap — ensure all 3 horizon arrays exist
   if (d.roadmap && typeof d.roadmap === 'object') {
-    ROADMAP_DIMS.forEach(dim => {
-      if (!Array.isArray(d.roadmap[dim])) d.roadmap[dim] = [];
-      d.roadmap[dim] = d.roadmap[dim].map(m => ({
+    ['near', 'mid', 'long'].forEach(horizon => {
+      if (!Array.isArray(d.roadmap[horizon])) d.roadmap[horizon] = [];
+      d.roadmap[horizon] = d.roadmap[horizon].map(m => ({
         ...m,
         title:       toStr(m.title),
         trigger:     toStr(m.trigger),
         description: toStr(m.description),
-        horizon:     VALID_HORIZONS.has(m.horizon) ? m.horizon : 'near',
         risks:       Array.isArray(m.risks)       ? m.risks.map(toStr).filter(Boolean)       : [],
         accelerants: Array.isArray(m.accelerants) ? m.accelerants.map(toStr).filter(Boolean) : [],
-      })).filter(m => m.title);
+      })).filter(m => m.title); // drop empty placeholder entries
     });
   } else if (d.roadmap == null) {
-    d.roadmap = Object.fromEntries(ROADMAP_DIMS.map(k => [k, []]));
+    d.roadmap = { near: [], mid: [], long: [] };
   }
 
   return d;
@@ -1121,200 +1110,247 @@ function ForceMapTab({ state }) {
 // ═══════════════════════════════════════════════════════════════════
 
 function RoadmapTab({ state, dispatch }) {
-  const { synthesis, roadmapHorizon } = state;
+  const { synthesis, roadmapFilter } = state;
+  const [viewMode, setViewMode] = useState('cards');
   const [expanded, setExpanded] = useState({});
   if (!synthesis) return null;
-
-  const DIM_KEYS = ['social','technological','economic','environmental','political'];
-  const DIM_LABELS = { social:'Social', technological:'Technological', economic:'Economic', environmental:'Environmental', political:'Political' };
-  const totalItems = DIM_KEYS.reduce((s, k) => s + (synthesis.roadmap?.[k]?.length || 0), 0);
-
-  if (!synthesis.roadmap || totalItems === 0) return (
+  const totalMilestones = ['near','mid','long'].reduce((s, k) => s + (synthesis.roadmap?.[k]?.length || 0), 0);
+  if (!synthesis.roadmap || totalMilestones === 0) return (
     <div className="flex flex-col items-center justify-center py-16 text-center fade-in">
       <p className="text-slate-500 text-sm">No roadmap data was generated.</p>
       <p className="text-slate-600 text-xs mt-1">The synthesis agent may have run out of tokens. Try running the analysis again.</p>
     </div>
   );
 
-  const HORIZONS = [
+  const horizons = [
     { key: 'near', label: 'Near Term',   sub: '0–12 months', color: '#3B82F6' },
     { key: 'mid',  label: 'Medium Term', sub: '1–3 years',   color: '#8B5CF6' },
     { key: 'long', label: 'Long Term',   sub: '3–7 years',   color: '#F97316' },
   ];
+  const dims = Object.keys(COLORS);
 
-  const toggleExpanded = id => setExpanded(e => ({ ...e, [id]: !e[id] }));
+  const icon = (type) => {
+    if (!type) return '◆';
+    const t = type.toLowerCase();
+    if (t.includes('polic') || t.includes('election') || t.includes('legislat')) return '⚖️';
+    if (t.includes('tech') || t.includes('product') || t.includes('bench'))     return '⚡';
+    if (t.includes('market') || t.includes('demand') || t.includes('capital'))  return '📈';
+    if (t.includes('consumer') || t.includes('social') || t.includes('behav'))  return '👥';
+    if (t.includes('regul') || t.includes('compliance'))                         return '📋';
+    if (t.includes('climate') || t.includes('environ'))                          return '🌿';
+    return '◆';
+  };
 
-  const dirCls = dir =>
-    dir === 'positive'  ? 'bg-emerald-900 text-emerald-300 border border-emerald-800' :
-    dir === 'negative'  ? 'bg-red-900 text-red-300 border border-red-800' :
-                          'bg-amber-900 text-amber-300 border border-amber-800';
+  const filtered = ms => roadmapFilter.length ? ms.filter(m => roadmapFilter.includes(m.dimension)) : ms;
+  const clearAll = () => dims.forEach(d => { if (roadmapFilter.includes(d)) dispatch({ type: 'TOGGLE_ROADMAP_FILTER', payload: d }); });
+  const toggleExpanded = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
 
-  const visibleHorizons = roadmapHorizon === 'all' ? HORIZONS : HORIZONS.filter(h => h.key === roadmapHorizon);
-  const colTemplate = `140px repeat(${visibleHorizons.length}, 1fr)`;
-
-  const insightForDim = dimKey => {
-    const label = DIM_LABELS[dimKey];
+  const horizonInsight = (key) => {
+    const ms = filtered(synthesis.roadmap[key] || []);
+    const activeDims = new Set(ms.map(m => m.dimension));
     return (synthesis.cross_dimension_insights || []).find(ins =>
-      (ins.dimensions_involved || []).includes(label)
+      (ins.dimensions_involved || []).some(d => activeDims.has(d))
     );
   };
 
   return (
-    <div className="space-y-5 fade-in">
-
-      {/* Horizon filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-slate-500 font-medium">Horizon:</span>
-        {[{ k:'all', l:'All' }, ...HORIZONS.map(h => ({ k: h.key, l: h.label }))].map(({ k, l }) => (
-          <button key={k}
-            onClick={() => dispatch({ type: 'SET_ROADMAP_HORIZON', payload: k })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${roadmapHorizon === k ? 'bg-slate-600 border-slate-500 text-white' : 'bg-transparent border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}`}>
-            {l}
-          </button>
+    <div className="space-y-4 fade-in">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex bg-slate-800 border border-slate-700 rounded-lg overflow-hidden mr-2">
+          {[['cards', '▦ Cards'], ['timeline', '↕ Timeline']].map(([v, l]) => (
+            <button key={v} onClick={() => setViewMode(v)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === v ? 'bg-blue-700 text-white' : 'text-slate-400 hover:text-white'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-slate-500">Filter:</span>
+        <button onClick={clearAll} className={`px-3 py-1 rounded-lg text-xs transition-colors ${!roadmapFilter.length ? 'bg-slate-600 text-white' : 'bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'}`}>All</button>
+        {dims.map(d => (
+          <button key={d} className="px-3 py-1 rounded-lg text-xs border transition-all"
+            style={{ backgroundColor: roadmapFilter.includes(d) ? COLORS[d] + '28' : 'transparent', borderColor: roadmapFilter.includes(d) ? COLORS[d] + '88' : '#334155', color: roadmapFilter.includes(d) ? COLORS[d] : '#94a3b8' }}
+            onClick={() => dispatch({ type: 'TOGGLE_ROADMAP_FILTER', payload: d })}
+          >{d.slice(0, 4)}</button>
         ))}
       </div>
 
-      {/* Swimlane grid */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950" style={{ minWidth: 560 }}>
-
-        {/* Column header */}
-        <div className="grid border-b border-slate-800" style={{ gridTemplateColumns: colTemplate }}>
-          <div className="px-4 py-3">
-            <span className="text-xs text-slate-600 font-semibold uppercase tracking-widest">Dimension</span>
-          </div>
-          {visibleHorizons.map(h => (
-            <div key={h.key} className="px-4 py-3 border-l border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: h.color }} />
-                <span className="text-sm font-bold text-white">{h.label}</span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 pl-4">{h.sub}</p>
+      {horizons.map(({ key, label, sub, color }) => {
+        const ms = filtered(synthesis.roadmap[key] || []);
+        const insight = horizonInsight(key);
+        return (
+          <div key={key} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden" style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-800">
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="font-bold text-white">{label}</span>
+              <span className="text-slate-500 text-xs">{sub}</span>
+              <div className="flex-1 h-px bg-slate-800" />
+              <span className="text-xs text-slate-600">{ms.length} milestone{ms.length !== 1 ? 's' : ''}</span>
             </div>
-          ))}
-        </div>
 
-        {/* Dimension swim-lanes */}
-        {DIM_KEYS.map((dimKey, di) => {
-          const dimLabel = DIM_LABELS[dimKey];
-          const dimColor = COLORS[dimLabel];
-          const allItems = synthesis.roadmap[dimKey] || [];
-          const insight  = insightForDim(dimKey);
-
-          return (
-            <div key={dimKey}
-              className="grid"
-              style={{
-                gridTemplateColumns: colTemplate,
-                borderBottom: di < DIM_KEYS.length - 1 ? '1px solid #0f172a' : 'none',
-              }}>
-
-              {/* Dimension label */}
-              <div className="px-3 py-4 flex flex-col gap-2 border-r border-slate-800"
-                style={{ borderLeft: `3px solid ${dimColor}` }}>
-                <DimChip dim={dimLabel} />
-                {insight && (
-                  <div className="flex items-start gap-1.5 mt-1">
-                    <span className="text-blue-400 text-xs flex-shrink-0 mt-0.5">⟳</span>
-                    <div>
-                      <span className={`inline-block px-1.5 py-0 rounded text-xs font-semibold mb-0.5 ${insight.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : insight.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{insight.type}</span>
-                      <p className="text-slate-500 text-xs leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{insight.insight}</p>
-                    </div>
+            {insight && (
+              <div className="mx-4 mt-3 mb-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 flex gap-3 items-start">
+                <span className="text-blue-400 flex-shrink-0 text-sm mt-0.5">⟳</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cross-Dim Context</span>
+                    {(insight.dimensions_involved || []).map(d => <DimChip key={d} dim={d} />)}
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${insight.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : insight.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{insight.type}</span>
                   </div>
-                )}
+                  <p className="text-slate-300 text-xs leading-relaxed">{insight.insight}</p>
+                  {insight.strategic_implication && <p className="text-slate-500 text-xs mt-1 italic">→ {insight.strategic_implication}</p>}
+                </div>
               </div>
+            )}
 
-              {/* Horizon cells */}
-              {visibleHorizons.map(h => {
-                const items = allItems.filter(item => item.horizon === h.key);
-                return (
-                  <div key={h.key} className="px-2.5 py-3 border-l border-slate-800 space-y-2">
-                    {items.length === 0 ? (
-                      <div className="h-6 flex items-center">
-                        <span className="text-slate-800 text-xs select-none">—</span>
-                      </div>
-                    ) : items.map((item, idx) => {
-                      const uid = item.id || `${dimKey}-${h.key}-${idx}`;
-                      const isOpen = expanded[uid];
-                      const hasDetail = item.description || item.risks?.length || item.accelerants?.length;
-                      return (
-                        <div key={uid}
-                          className="rounded-xl overflow-hidden border border-slate-700 hover:border-slate-500 transition-colors bg-slate-900"
-                          style={{ borderLeftColor: dimColor, borderLeftWidth: 3 }}>
-                          <div className="p-2.5">
-                            <div className="flex items-start justify-between gap-1 mb-1.5">
-                              <Badge className={dirCls(item.direction)}>{item.direction}</Badge>
-                              {hasDetail && (
-                                <button onClick={() => toggleExpanded(uid)}
-                                  className="text-slate-600 hover:text-slate-300 text-xs flex-shrink-0">
-                                  {isOpen ? '▲' : '▼'}
-                                </button>
-                              )}
-                            </div>
-                            <p className="text-white text-xs font-semibold leading-snug mb-1.5">{item.title}</p>
-                            {item.trigger && (
-                              <div className="flex gap-1.5 items-start">
-                                <span className="text-blue-400 text-xs flex-shrink-0 mt-0.5">⚡</span>
-                                <p className="text-slate-500 text-xs leading-snug">{item.trigger}</p>
-                              </div>
-                            )}
-                            {item.confidence != null && (
-                              <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${item.confidence * 100}%`, backgroundColor: dimColor + 'aa' }} />
-                              </div>
-                            )}
+            {ms.length === 0 ? (
+              <p className="text-slate-600 text-sm px-5 py-4">No milestones match current filter.</p>
+            ) : viewMode === 'cards' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
+                {ms.map((m, i) => {
+                  const uid = m.id || `${key}-${i}`;
+                  const isOpen = expanded[uid];
+                  const hasDetail = m.description || m.risks?.length || m.accelerants?.length;
+                  return (
+                    <div key={uid} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:border-slate-500 transition-colors">
+                      <div className="p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <DimChip dim={m.dimension} />
+                          <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>
+                            {m.direction}
+                          </Badge>
+                        </div>
+                        <p className="text-white text-sm font-semibold leading-tight mb-2">{m.title}</p>
+                        {m.trigger && (
+                          <div className="flex gap-1.5 items-start mb-1.5">
+                            <span className="text-blue-400 text-xs flex-shrink-0 mt-0.5">⚡</span>
+                            <p className="text-slate-400 text-xs leading-snug"><span className="text-slate-500 font-medium">Trigger: </span>{m.trigger}</p>
                           </div>
-                          {isOpen && (
-                            <div className="border-t border-slate-800 bg-slate-950 divide-y divide-slate-800">
-                              {item.description && (
-                                <div className="px-2.5 py-2">
-                                  <p className="text-slate-400 text-xs leading-relaxed">{item.description}</p>
-                                </div>
-                              )}
-                              {item.risks?.length > 0 && (
-                                <div className="px-2.5 py-2">
-                                  <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-1">⚠ Risk</p>
-                                  {item.risks.map((r, ri) => <p key={ri} className="text-slate-500 text-xs">• {r}</p>)}
-                                </div>
-                              )}
-                              {item.accelerants?.length > 0 && (
-                                <div className="px-2.5 py-2">
-                                  <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">▲ Accelerant</p>
-                                  {item.accelerants.map((a, ai) => <p key={ai} className="text-slate-500 text-xs">• {a}</p>)}
-                                </div>
-                              )}
+                        )}
+                        {m.confidence != null && (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs text-slate-600 mb-0.5">
+                              <span>Confidence</span><span>{Math.round(m.confidence * 100)}%</span>
+                            </div>
+                            <div className="h-1 bg-slate-700 rounded-full">
+                              <div className="h-1 rounded-full" style={{ width: `${m.confidence * 100}%`, backgroundColor: color }} />
+                            </div>
+                          </div>
+                        )}
+                        {hasDetail && (
+                          <button onClick={() => toggleExpanded(uid)} className="mt-2 text-xs text-slate-500 hover:text-blue-400 transition-colors">
+                            {isOpen ? '▲ Collapse' : '▼ Risks & Accelerants'}
+                          </button>
+                        )}
+                      </div>
+                      {isOpen && (
+                        <div className="border-t border-slate-700 bg-slate-900 divide-y divide-slate-800">
+                          {m.description && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                            </div>
+                          )}
+                          {m.risks?.length > 0 && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-1.5">⚠ Risks</p>
+                              <ul className="space-y-1">
+                                {m.risks.map((r, ri) => (
+                                  <li key={ri} className="flex gap-1.5 items-start">
+                                    <span className="text-red-600 text-xs flex-shrink-0 mt-0.5">•</span>
+                                    <span className="text-slate-400 text-xs leading-snug">{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {m.accelerants?.length > 0 && (
+                            <div className="px-3 py-2.5">
+                              <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1.5">▲ Accelerants</p>
+                              <ul className="space-y-1">
+                                {m.accelerants.map((a, ai) => (
+                                  <li key={ai} className="flex gap-1.5 items-start">
+                                    <span className="text-emerald-600 text-xs flex-shrink-0 mt-0.5">•</span>
+                                    <span className="text-slate-400 text-xs leading-snug">{a}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Cross-dimension insights panel */}
-      {(synthesis.cross_dimension_insights || []).length > 0 && (
-        <div>
-          <SectionHdr>Cross-Dimension Dynamics</SectionHdr>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {synthesis.cross_dimension_insights.map((ins, i) => (
-              <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  {(ins.dimensions_involved || []).map(d => <DimChip key={d} dim={d} />)}
-                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${ins.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : ins.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{ins.type}</span>
-                </div>
-                <p className="text-slate-300 text-xs leading-relaxed">{ins.insight}</p>
-                {ins.strategic_implication && (
-                  <p className="text-slate-500 text-xs mt-1.5 italic">→ {ins.strategic_implication}</p>
-                )}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            ) : (
+              <div className="px-5 py-4 space-y-0 relative">
+                <div className="absolute" style={{ left: 28, top: 16, bottom: 16, width: 1, backgroundColor: '#334155' }} />
+                {ms.map((m, i) => {
+                  const uid = m.id || `${key}-${i}`;
+                  const isOpen = expanded[uid];
+                  const hasDetail = m.description || m.risks?.length || m.accelerants?.length;
+                  return (
+                    <div key={uid} className="flex gap-4 pb-4 relative">
+                      <div className="flex-shrink-0 z-10" style={{ width: 20, paddingTop: 6 }}>
+                        <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center" style={{ backgroundColor: color + '22', borderColor: color }}>
+                          <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
+                        </div>
+                      </div>
+                      <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:border-slate-500 transition-colors">
+                        <div className="p-3">
+                          <div className="flex items-start justify-between mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <DimChip dim={m.dimension} />
+                              <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>{m.direction}</Badge>
+                            </div>
+                            {hasDetail && <button onClick={() => toggleExpanded(uid)} className="text-slate-600 hover:text-slate-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</button>}
+                          </div>
+                          <p className="text-white text-sm font-semibold leading-tight">{m.title}</p>
+                          {m.trigger && (
+                            <p className="text-slate-500 text-xs mt-1 flex gap-1.5">
+                              <span className="text-blue-400 flex-shrink-0">⚡</span>
+                              <span><span className="text-slate-600">Trigger: </span>{m.trigger}</span>
+                            </p>
+                          )}
+                          {m.confidence != null && (
+                            <div className="mt-1.5 h-1 bg-slate-700 rounded-full">
+                              <div className="h-1 rounded-full" style={{ width: `${m.confidence * 100}%`, backgroundColor: color }} />
+                            </div>
+                          )}
+                        </div>
+                        {isOpen && (
+                          <div className="border-t border-slate-700 bg-slate-900 divide-y divide-slate-800">
+                            {m.description && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                              </div>
+                            )}
+                            {m.risks?.length > 0 && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-xs text-red-400 font-semibold uppercase tracking-wider mb-1">⚠ Risks</p>
+                                <ul className="space-y-0.5">
+                                  {m.risks.map((r, ri) => <li key={ri} className="text-slate-400 text-xs">• {r}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {m.accelerants?.length > 0 && (
+                              <div className="px-3 py-2.5">
+                                <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mb-1">▲ Accelerants</p>
+                                <ul className="space-y-0.5">
+                                  {m.accelerants.map((a, ai) => <li key={ai} className="text-slate-400 text-xs">• {a}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }

@@ -14,7 +14,7 @@ AI-powered STEEP Analysis Platform using Ollama for local LLM inference. No API 
 
 ```
 app/
-  page.jsx          — Main UI (single-page app, ~1800 lines)
+  page.jsx          — Main UI (single-page app, ~1960 lines)
   layout.jsx        — Root layout
   globals.css       — Global styles
   api/
