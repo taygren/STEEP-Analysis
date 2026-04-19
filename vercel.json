@@ -16,9 +16,5 @@
     "app/api/models/route.js": {
       "maxDuration": 10
     }
-  },
-  "env": {
-    "OLLAMA_BASE_URL": "@ollama_base_url",
-    "STEEP_DEFAULT_MODEL": "@steep_default_model"
   }
 }
