@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "DslL5o8j8mtiWU4V9X8Gq"
+uri = "file://steep-analysis-platform.tar.gz"
+type = "unspecified"
+title = "steep-analysis-platform.tar.gz"
