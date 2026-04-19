@@ -7,13 +7,13 @@ import * as THREE from 'three';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 
-const RECOMMENDED_MODEL = 'llama3.1:8b';
+const RECOMMENDED_MODEL = 'llama3.2:3b';
 
 const CATALOG = [
-  { id: 'llama3.1:8b',  label: 'Llama 3.1 8B',    size: '~5 GB', note: 'Recommended — best quality' },
+  { id: 'llama3.2:3b',  label: 'Llama 3.2 3B',    size: '~2 GB', note: 'Recommended — pre-installed, CPU-friendly' },
+  { id: 'llama3.1:8b',  label: 'Llama 3.1 8B',    size: '~5 GB', note: 'Best quality — pull to use' },
   { id: 'mistral:7b',   label: 'Mistral 7B',       size: '~4 GB', note: 'Fast, solid reasoning' },
   { id: 'qwen2.5:7b',   label: 'Qwen 2.5 7B',     size: '~5 GB', note: 'Excellent JSON adherence' },
-  { id: 'llama3.2:3b',  label: 'Llama 3.2 3B',    size: '~2 GB', note: 'Lightweight / CPU-friendly' },
   { id: 'phi4:14b',     label: 'Phi-4 14B',        size: '~9 GB', note: 'Highest quality, needs 16 GB VRAM' },
 ];
 
