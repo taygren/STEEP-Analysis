@@ -148,28 +148,44 @@ Dimension summaries:
 - Environmental: ${s(data.environmental)} | Top drivers: ${drivers(data.environmental)}
 - Political:     ${s(data.political)}     | Top drivers: ${drivers(data.political)}
 
-Return ONLY a valid JSON object — no prose, no markdown fences.
+Return ONLY a valid JSON object — no prose, no markdown fences. Fill every field.
 
 {
+  "roadmap":{
+    "near":[
+      {"id":"n1","title":"","dimension":"Social","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.7,"catalyst_type":""},
+      {"id":"n2","title":"","dimension":"Technological","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.7,"catalyst_type":""}
+    ],
+    "mid":[
+      {"id":"m1","title":"","dimension":"Economic","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.65,"catalyst_type":""},
+      {"id":"m2","title":"","dimension":"Political","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.65,"catalyst_type":""}
+    ],
+    "long":[
+      {"id":"l1","title":"","dimension":"Environmental","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.6,"catalyst_type":""},
+      {"id":"l2","title":"","dimension":"Social","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.6,"catalyst_type":""}
+    ]
+  },
+  "matrix_items":[
+    {"id":"r1","title":"","type":"risk","dimension":"Political","impact_score":4,"likelihood_score":3,"time_sensitivity":"near","description":"","confidence":0.7,"reversibility":"partially reversible"},
+    {"id":"r2","title":"","type":"risk","dimension":"Economic","impact_score":3,"likelihood_score":4,"time_sensitivity":"mid","description":"","confidence":0.65,"reversibility":"irreversible"},
+    {"id":"o1","title":"","type":"opportunity","dimension":"Technological","impact_score":4,"likelihood_score":4,"time_sensitivity":"near","description":"","confidence":0.75,"reversibility":"fully reversible"},
+    {"id":"o2","title":"","type":"opportunity","dimension":"Social","impact_score":3,"likelihood_score":3,"time_sensitivity":"mid","description":"","confidence":0.65,"reversibility":"partially reversible"},
+    {"id":"d1","title":"","type":"disruption","dimension":"Technological","impact_score":5,"likelihood_score":3,"time_sensitivity":"long","description":"","confidence":0.6,"reversibility":"irreversible"},
+    {"id":"d2","title":"","type":"disruption","dimension":"Environmental","impact_score":4,"likelihood_score":3,"time_sensitivity":"long","description":"","confidence":0.55,"reversibility":"irreversible"}
+  ],
   "overall_posture":"net positive|net negative|mixed|uncertain",
-  "posture_rationale":"2-3 sentences explaining the overall STEEP posture",
-  "executive_summary":"5-6 sentence comprehensive strategic assessment covering all five dimensions",
+  "posture_rationale":"2-3 sentences",
+  "executive_summary":"4-5 sentence strategic assessment",
   "macro_forces":[{"name":"","dimensions":["Social"],"description":"","composite_score":0.75,"direction":"positive|negative|mixed"}],
   "cross_dimension_insights":[{"insight":"","dimensions_involved":["Social","Political"],"type":"reinforcing|countervailing|emerging","strategic_implication":""}],
-  "top_takeaways":[""],
-  "roadmap":{
-    "near":[{"id":"n1","title":"","dimension":"Social","trigger":"","description":"","direction":"positive|negative|mixed","confidence":0.7,"catalyst_type":""}],
-    "mid":[],
-    "long":[]
-  },
-  "matrix_items":[{"id":"m1","title":"","type":"risk|opportunity|disruption","dimension":"Social","impact_score":3,"likelihood_score":3,"time_sensitivity":"near","description":"","confidence":0.7,"reversibility":"partially reversible"}]
+  "top_takeaways":["","","",""]
 }
 Requirements:
-- macro_forces: 3-5 cross-dimension forces
-- cross_dimension_insights: 3-5 insights that ONLY emerge from dimension interactions — not single-dimension findings
-- top_takeaways: 5-7 items, each must name "${subj}" explicitly and be specific (non-generic)
-- roadmap: 3+ milestones in EACH horizon (near, mid, long)
-- matrix_items: at least 3 risks + 3 opportunities + 3 disruptions (9+ total)`;
+- roadmap: exactly 2 milestones per horizon — fill all 6 placeholders above with real content
+- matrix_items: fill all 6 placeholders above with real content for "${subj}"
+- macro_forces: 2-3 entries
+- cross_dimension_insights: 2-3 entries covering ONLY cross-dimension interactions
+- top_takeaways: 4-5 items, each naming "${subj}" explicitly`;
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -370,39 +386,44 @@ function normalizeAgentData(data) {
     }));
   }
 
-  // Synthesis: roadmap
+  // Synthesis: roadmap — ensure all 3 horizon arrays exist
   if (d.roadmap && typeof d.roadmap === 'object') {
     ['near', 'mid', 'long'].forEach(horizon => {
-      if (Array.isArray(d.roadmap[horizon])) {
-        d.roadmap[horizon] = d.roadmap[horizon].map(m => ({
-          ...m,
-          title:       toStr(m.title),
-          trigger:     toStr(m.trigger),
-          description: toStr(m.description),
-        }));
-      }
+      if (!Array.isArray(d.roadmap[horizon])) d.roadmap[horizon] = [];
+      d.roadmap[horizon] = d.roadmap[horizon].map(m => ({
+        ...m,
+        title:       toStr(m.title),
+        trigger:     toStr(m.trigger),
+        description: toStr(m.description),
+      })).filter(m => m.title); // drop empty placeholder entries
     });
+  } else if (d.roadmap == null) {
+    d.roadmap = { near: [], mid: [], long: [] };
   }
 
   // Synthesis: matrix items
   if (Array.isArray(d.matrix_items)) {
-    d.matrix_items = d.matrix_items.map(item => ({
-      ...item,
-      title:       toStr(item.title),
-      description: toStr(item.description),
-    }));
+    d.matrix_items = d.matrix_items
+      .map(item => ({
+        ...item,
+        title:       toStr(item.title),
+        description: toStr(item.description),
+      }))
+      .filter(item => item.title && item.type); // drop empty placeholder entries
+  } else if (d.matrix_items == null) {
+    d.matrix_items = [];
   }
 
   return d;
 }
 
 /** Call the /api/analyze proxy and return parsed JSON. */
-async function callAgent(systemPrompt, userMessage, model, onStatus) {
+async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict) {
   onStatus('researching');
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemPrompt, userMessage, model }),
+    body: JSON.stringify({ systemPrompt, userMessage, model, numPredict }),
   });
 
   if (!res.ok) {
@@ -1115,7 +1136,14 @@ function RoadmapTab({ state, dispatch }) {
   const { synthesis, roadmapFilter } = state;
   const [viewMode, setViewMode] = useState('cards');
   const [expanded, setExpanded] = useState({});
-  if (!synthesis?.roadmap) return null;
+  if (!synthesis) return null;
+  const totalMilestones = ['near','mid','long'].reduce((s, k) => s + (synthesis.roadmap?.[k]?.length || 0), 0);
+  if (!synthesis.roadmap || totalMilestones === 0) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center fade-in">
+      <p className="text-slate-500 text-sm">No roadmap data was generated.</p>
+      <p className="text-slate-600 text-xs mt-1">The synthesis agent may have run out of tokens. Try running the analysis again.</p>
+    </div>
+  );
 
   const horizons = [
     { key: 'near', label: 'Near Term',   sub: '0–12 months', color: '#3B82F6' },
@@ -1303,7 +1331,13 @@ function MatrixTab({ state, dispatch }) {
   const { synthesis, matrixFilter, selectedMatrixItem } = state;
   const [sortKey, setSortKey] = useState('composite');
   const [sortDir, setSortDir] = useState('desc');
-  if (!synthesis?.matrix_items) return null;
+  if (!synthesis) return null;
+  if (!synthesis.matrix_items || synthesis.matrix_items.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center fade-in">
+      <p className="text-slate-500 text-sm">No matrix data was generated.</p>
+      <p className="text-slate-600 text-xs mt-1">The synthesis agent may have run out of tokens. Try running the analysis again.</p>
+    </div>
+  );
 
   const typeMap = { risks: 'risk', opportunities: 'opportunity', disruptions: 'disruption' };
   const allItems = synthesis.matrix_items || [];
@@ -1747,6 +1781,7 @@ function App() {
           `Synthesize the five STEEP dimension analyses for "${subject}" into a unified executive intelligence report. Return only valid JSON matching the schema.`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
+          2500, // synthesis needs more tokens than a single dimension agent
         );
         dispatch({ type: 'SET_SYNTHESIS', data: synthData });
         dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });

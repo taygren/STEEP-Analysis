@@ -12,7 +12,7 @@ const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama3.1:8b';
  * The client accumulates content tokens until done=true, then parses JSON.
  */
 export async function POST(request) {
-  const { systemPrompt, userMessage, model } = await request.json();
+  const { systemPrompt, userMessage, model, numPredict } = await request.json();
 
   if (!systemPrompt || !userMessage) {
     return Response.json({ error: 'systemPrompt and userMessage are required' }, { status: 400 });
@@ -31,12 +31,12 @@ export async function POST(request) {
           { role: 'user',   content: userMessage   },
         ],
         stream: true,
-        format: 'json',       // Force Ollama JSON output mode
+        format: 'json',
         options: {
-          temperature:  0.1,  // Low temperature for consistent structured output
-          num_ctx:      4096, // Context window (halved to reduce KV cache RAM usage)
-          num_predict:  1500, // Max tokens — enough for full JSON, avoids multi-minute CPU runs
-          top_p:        0.9,
+          temperature:    0.1,
+          num_ctx:        4096,
+          num_predict:    numPredict || 1500, // caller can request a higher budget
+          top_p:          0.9,
           repeat_penalty: 1.1,
         },
       }),
