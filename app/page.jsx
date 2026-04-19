@@ -168,16 +168,12 @@ Return ONLY a valid JSON object — no prose, no markdown fences. Fill every fie
   "overall_posture":"net positive|net negative|mixed|uncertain",
   "posture_rationale":"2-3 sentences",
   "executive_summary":"4-5 sentence strategic assessment",
-  "macro_forces":[{"name":"","dimensions":["Social"],"description":"","composite_score":0.75,"direction":"positive|negative|mixed"}],
-  "cross_dimension_insights":[{"insight":"","dimensions_involved":["Social","Political"],"type":"reinforcing|countervailing|emerging","strategic_implication":""}],
-  "top_takeaways":["","","",""]
+  "cross_dimension_insights":[{"insight":"","dimensions_involved":["Social","Political"],"type":"reinforcing|countervailing|emerging","strategic_implication":""}]
 }
 Requirements:
 - roadmap: exactly 2 milestones per horizon — all 6 must contain real content specific to "${subj}"
 - each milestone: trigger = the specific condition that activates it; risks = 2 things that could derail it; accelerants = 2 things that could speed it up
-- macro_forces: 2-3 entries
-- cross_dimension_insights: 2-3 entries covering ONLY cross-dimension interactions
-- top_takeaways: 4-5 items, each naming "${subj}" explicitly`;
+- cross_dimension_insights: 2-3 entries covering cross-dimension interactions only`;
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -656,6 +652,7 @@ function ProgressPanel({ agentStatuses, status }) {
 
 function OverviewTab({ state }) {
   const { steepData, synthesis, subject, subjectType } = state;
+  const [openEvidence, setOpenEvidence] = useState({});
   if (!synthesis) return null;
   const dims = [
     { key: 'social', label: 'Social' }, { key: 'technological', label: 'Technological' },
@@ -752,43 +749,122 @@ function OverviewTab({ state }) {
         </div>
       )}
 
-      {(synthesis.macro_forces || []).length > 0 && (
-        <div>
-          <SectionHdr>Top Macro Forces</SectionHdr>
-          <div className="space-y-2">
-            {synthesis.macro_forces.map((f, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-600 font-mono w-5">#{i + 1}</span>
-                    <span className="font-semibold text-white text-sm">{f.name}</span>
-                    <div className="flex flex-wrap gap-1">{(f.dimensions || []).map(d => <DimChip key={d} dim={d} />)}</div>
+      <div>
+        <SectionHdr>Evidence by Dimension</SectionHdr>
+        <div className="space-y-2">
+          {dims.map(({ key, label }) => {
+            const d = steepData[key];
+            const isOpen = openEvidence[key];
+            return (
+              <div key={key} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+                <button className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-750 transition-colors" onClick={() => setOpenEvidence(p => ({ ...p, [key]: !p[key] }))}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[label] }} />
+                    <span className="font-semibold text-white">{label}</span>
+                    {d ? <DirBadge direction={d.dominant_direction} /> : <Badge className="bg-red-900 text-red-400 border border-red-800">Unavailable</Badge>}
+                    {d?.dimension_confidence && <span className="text-xs text-slate-600">{Math.round(d.dimension_confidence * 100)}% conf</span>}
                   </div>
-                  <DirBadge direction={f.direction} />
-                </div>
-                <p className="text-slate-400 text-xs pl-7">{f.description}</p>
-                <div className="mt-2 pl-7 h-1 bg-slate-700 rounded-full">
-                  <div className="h-1 rounded-full" style={{ width: `${Math.min(100, (f.composite_score || 0.5) * 100)}%`, backgroundColor: f.direction === 'positive' ? '#10B981' : f.direction === 'negative' ? '#EF4444' : '#F59E0B' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                  <span className="text-slate-500">{isOpen ? '↑' : '↓'}</span>
+                </button>
 
-      {(synthesis.top_takeaways || []).length > 0 && (
-        <div>
-          <SectionHdr>Strategic Takeaways</SectionHdr>
-          <div className="space-y-2">
-            {synthesis.top_takeaways.map((t, i) => (
-              <div key={i} className="flex items-start gap-3 bg-slate-800 border border-slate-700 rounded-xl p-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-950 border border-blue-700 text-blue-300 flex items-center justify-center text-xs font-bold">{i + 1}</span>
-                <p className="text-slate-200 text-sm leading-relaxed">{t}</p>
+                {isOpen && d && (
+                  <div className="border-t border-slate-700 px-5 py-4 space-y-5">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Summary</p>
+                      <p className="text-slate-300 text-sm leading-relaxed">{d.summary}</p>
+                    </div>
+
+                    {(d.drivers || []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Drivers & Evidence</p>
+                        <div className="space-y-3">
+                          {d.drivers.map((dr, i) => (
+                            <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <span className="text-white font-semibold text-sm">{dr.name}</span>
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                                  <Badge className={IMPACT_CLS[dr.impact] || IMPACT_CLS.low}>{dr.impact}</Badge>
+                                  <Badge className={dr.direction === 'positive' ? 'bg-green-900 text-green-300' : dr.direction === 'negative' ? 'bg-red-900 text-red-300' : 'bg-yellow-900 text-yellow-300'}>{dr.direction}</Badge>
+                                  {dr.velocity && <Badge className="bg-slate-700 text-slate-400">{dr.velocity}</Badge>}
+                                </div>
+                              </div>
+                              {dr.description && <p className="text-slate-400 text-xs leading-relaxed mb-2">{dr.description}</p>}
+                              {(dr.evidence || []).map((ev, j) => <p key={j} className="text-slate-500 text-xs">• {ev}</p>)}
+                              {dr.confidence != null && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-xs text-slate-600 w-16">Confidence</span>
+                                  <div className="flex-1 h-1.5 bg-slate-800 rounded-full">
+                                    <div className="h-1.5 rounded-full" style={{ width: `${dr.confidence * 100}%`, backgroundColor: dr.confidence > 0.7 ? '#10b981' : dr.confidence > 0.5 ? '#f59e0b' : '#ef4444' }} />
+                                  </div>
+                                  <span className="text-xs text-slate-600 w-8 text-right">{Math.round(dr.confidence * 100)}%</span>
+                                </div>
+                              )}
+                              {dr.nonlinearity_flag && dr.nonlinearity_flag !== 'none' && (
+                                <div className="mt-2"><Badge className="bg-purple-950 text-purple-300 border border-purple-800">⚡ {dr.nonlinearity_flag}</Badge></div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(d.signals || []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Forward Signals</p>
+                        {d.signals.map((sig, i) => (
+                          <div key={i} className="bg-slate-900 rounded-xl p-3 flex items-start gap-3 mb-2">
+                            <div className="flex-1">
+                              <p className="text-white text-sm">{sig.signal}</p>
+                              {sig.why_it_matters && <p className="text-slate-500 text-xs mt-1">{sig.why_it_matters}</p>}
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              <div className="w-20 h-1.5 bg-slate-700 rounded-full">
+                                <div className="h-1.5 rounded-full" style={{ width: `${(sig.confidence || 0) * 100}%`, backgroundColor: (sig.confidence || 0) > 0.7 ? '#10b981' : (sig.confidence || 0) > 0.5 ? '#f59e0b' : '#ef4444' }} />
+                              </div>
+                              <span className="text-xs text-slate-600">{Math.round((sig.confidence || 0) * 100)}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {(d.forecast || []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Dimension Forecast</p>
+                        {d.forecast.map((fc, i) => (
+                          <div key={i} className="bg-slate-900 rounded-xl p-3 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className="bg-slate-700 text-slate-300 border border-slate-600">{fc.time_horizon}</Badge>
+                              {fc.trigger && <span className="text-slate-500 text-xs">Trigger: {fc.trigger}</span>}
+                            </div>
+                            <p className="text-slate-300 text-xs leading-relaxed">{fc.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[['Opportunities', d.opportunities, 'text-green-400', 'bg-green-500'], ['Risks', d.risks, 'text-red-400', 'bg-red-500']].map(([lbl, items, tc, dc]) => (
+                        (items || []).length > 0 && (
+                          <div key={lbl}>
+                            <p className={`text-xs font-semibold ${tc} uppercase tracking-wider mb-2`}>{lbl}</p>
+                            {items.slice(0, 5).map((item, i) => (
+                              <div key={i} className="flex items-start gap-2 mb-1">
+                                <div className={`w-1.5 h-1.5 rounded-full ${dc} mt-1.5 flex-shrink-0`} />
+                                <p className="text-slate-400 text-xs leading-relaxed">{item}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -1356,135 +1432,6 @@ function RoadmapTab({ state, dispatch }) {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════
-// TAB 5 — EVIDENCE BASE
-// ═══════════════════════════════════════════════════════════════════
-
-function EvidenceTab({ state }) {
-  const { steepData } = state;
-  const [open, setOpen] = useState({});
-  const dims = [
-    { key: 'social', label: 'Social' }, { key: 'technological', label: 'Technological' },
-    { key: 'economic', label: 'Economic' }, { key: 'environmental', label: 'Environmental' },
-    { key: 'political', label: 'Political' },
-  ];
-
-  return (
-    <div className="space-y-2 fade-in">
-      {dims.map(({ key, label }) => {
-        const d = steepData[key];
-        const isOpen = open[key];
-        return (
-          <div key={key} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-            <button className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-750 transition-colors" onClick={() => setOpen(p => ({ ...p, [key]: !p[key] }))}>
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[label] }} />
-                <span className="font-semibold text-white">{label}</span>
-                {d ? <DirBadge direction={d.dominant_direction} /> : <Badge className="bg-red-900 text-red-400 border border-red-800">Unavailable</Badge>}
-                {d?.dimension_confidence && <span className="text-xs text-slate-600">{Math.round(d.dimension_confidence * 100)}% conf</span>}
-              </div>
-              <span className="text-slate-500">{isOpen ? '↑' : '↓'}</span>
-            </button>
-
-            {isOpen && d && (
-              <div className="border-t border-slate-700 px-5 py-4 space-y-5">
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Summary</p>
-                  <p className="text-slate-300 text-sm leading-relaxed">{d.summary}</p>
-                </div>
-
-                {(d.drivers || []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Drivers & Evidence</p>
-                    <div className="space-y-3">
-                      {d.drivers.map((dr, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <span className="text-white font-semibold text-sm">{dr.name}</span>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                              <Badge className={IMPACT_CLS[dr.impact] || IMPACT_CLS.low}>{dr.impact}</Badge>
-                              <Badge className={dr.direction === 'positive' ? 'bg-green-900 text-green-300' : dr.direction === 'negative' ? 'bg-red-900 text-red-300' : 'bg-yellow-900 text-yellow-300'}>{dr.direction}</Badge>
-                              {dr.velocity && <Badge className="bg-slate-700 text-slate-400">{dr.velocity}</Badge>}
-                            </div>
-                          </div>
-                          {dr.description && <p className="text-slate-400 text-xs leading-relaxed mb-2">{dr.description}</p>}
-                          {(dr.evidence || []).map((ev, j) => <p key={j} className="text-slate-500 text-xs">• {ev}</p>)}
-                          {dr.confidence != null && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs text-slate-600 w-16">Confidence</span>
-                              <div className="flex-1 h-1.5 bg-slate-800 rounded-full">
-                                <div className="h-1.5 rounded-full" style={{ width: `${dr.confidence * 100}%`, backgroundColor: dr.confidence > 0.7 ? '#10b981' : dr.confidence > 0.5 ? '#f59e0b' : '#ef4444' }} />
-                              </div>
-                              <span className="text-xs text-slate-600 w-8 text-right">{Math.round(dr.confidence * 100)}%</span>
-                            </div>
-                          )}
-                          {dr.nonlinearity_flag && dr.nonlinearity_flag !== 'none' && (
-                            <div className="mt-2"><Badge className="bg-purple-950 text-purple-300 border border-purple-800">⚡ {dr.nonlinearity_flag}</Badge></div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {(d.signals || []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Forward Signals</p>
-                    {d.signals.map((sig, i) => (
-                      <div key={i} className="bg-slate-900 rounded-xl p-3 flex items-start gap-3 mb-2">
-                        <div className="flex-1">
-                          <p className="text-white text-sm">{sig.signal}</p>
-                          {sig.why_it_matters && <p className="text-slate-500 text-xs mt-1">{sig.why_it_matters}</p>}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <div className="w-20 h-1.5 bg-slate-700 rounded-full">
-                            <div className="h-1.5 rounded-full" style={{ width: `${(sig.confidence || 0) * 100}%`, backgroundColor: (sig.confidence || 0) > 0.7 ? '#10b981' : (sig.confidence || 0) > 0.5 ? '#f59e0b' : '#ef4444' }} />
-                          </div>
-                          <span className="text-xs text-slate-600">{Math.round((sig.confidence || 0) * 100)}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {(d.forecast || []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Dimension Forecast</p>
-                    {d.forecast.map((fc, i) => (
-                      <div key={i} className="bg-slate-900 rounded-xl p-3 mb-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge className="bg-slate-700 text-slate-300 border border-slate-600">{fc.time_horizon}</Badge>
-                          {fc.trigger && <span className="text-slate-500 text-xs">Trigger: {fc.trigger}</span>}
-                        </div>
-                        <p className="text-slate-300 text-xs leading-relaxed">{fc.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[['Opportunities', d.opportunities, 'text-green-400', 'bg-green-500'],['Risks', d.risks, 'text-red-400', 'bg-red-500']].map(([lbl, items, tc, dc]) => (
-                    (items || []).length > 0 && (
-                      <div key={lbl}>
-                        <p className={`text-xs font-semibold ${tc} uppercase tracking-wider mb-2`}>{lbl}</p>
-                        {items.slice(0, 5).map((item, i) => (
-                          <div key={i} className="flex items-start gap-2 mb-1">
-                            <div className={`w-1.5 h-1.5 rounded-full ${dc} mt-1.5 flex-shrink-0`} />
-                            <p className="text-slate-400 text-xs leading-relaxed">{item}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // ROOT APP
@@ -1581,7 +1528,6 @@ function App() {
     { key: 'overview',  label: 'Overview',  icon: '◉' },
     { key: 'forcemap',  label: 'Force Map', icon: '◈' },
     { key: 'roadmap',   label: 'Roadmap',   icon: '→' },
-    { key: 'evidence',  label: 'Evidence',  icon: '◎' },
   ];
 
   return (
@@ -1693,7 +1639,7 @@ function App() {
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-7 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
               <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
               <p className="text-slate-400 text-sm leading-relaxed mb-2">100% local — no API key, no cloud, no cost.</p>
-              <p className="text-slate-500 text-sm leading-relaxed mb-8">Powered by <span className="text-white font-semibold">Ollama</span>. Enter any trend or company to run a six-agent STEEP intelligence analysis with a 3D force map and a forecast roadmap with trigger points, risks, and accelerants.</p>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">Powered by <span className="text-white font-semibold">Ollama</span>. Enter any trend or company to run a six-agent STEEP intelligence analysis. Results include a 3D force map, a forecast roadmap with trigger points, risks, and accelerants, and full per-dimension evidence.</p>
               <div className="grid grid-cols-5 gap-2 mb-8">
                 {Object.entries(COLORS).map(([dim, color]) => (
                   <div key={dim} className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
@@ -1766,7 +1712,6 @@ function App() {
               {activeTab === 'overview' && <OverviewTab state={state} />}
               {activeTab === 'forcemap' && <ForceMapTab state={state} />}
               {activeTab === 'roadmap'  && <RoadmapTab  state={state} dispatch={dispatch} />}
-              {activeTab === 'evidence' && <EvidenceTab state={state} />}
             </div>
           </div>
         )}

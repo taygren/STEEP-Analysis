@@ -67,7 +67,12 @@ Models are stored in `~/.ollama/models`. Catalog (from the UI):
 - **Cards / Timeline toggle** — Cards shows a responsive grid; Timeline renders a vertical connected thread.
 - Each horizon shows a **Cross-Dimension Context** callout pulled from `cross_dimension_insights`.
 - Each milestone card shows: trigger point (⚡), confidence bar, and an expandable **Risks & Accelerants** section with color-coded bullet lists.
-- Synthesis prompt includes `risks` and `accelerants` arrays per milestone; `matrix_items` field removed entirely.
+- Synthesis prompt trimmed to only `roadmap`, `overall_posture`, `posture_rationale`, `executive_summary`, and `cross_dimension_insights` — `macro_forces` and `top_takeaways` removed to free token budget for roadmap population.
+
+### Overview Tab
+- Shows subject header, posture, executive summary, STEEP dimension grid, cross-dimension insights.
+- **Evidence by Dimension** accordion (formerly the Evidence tab) is now embedded at the bottom — per-dimension drivers, signals, forecasts, opportunities/risks.
+- Evidence tab removed from navigation (content merged into Overview).
 
 ## Security Notes
 
