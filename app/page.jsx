@@ -17,6 +17,20 @@ const CATALOG = [
   { id: 'phi4:14b',     label: 'Phi-4 14B',        size: '~9 GB', note: 'Highest quality, needs 16 GB VRAM' },
 ];
 
+const SUGGESTED_SUBJECTS = {
+  trends: [
+    'Artificial Intelligence', 'Quantum Computing', 'Climate Change',
+    'Blockchain & Web3', 'Electric Vehicles', 'Remote Work', 'Gene Therapy',
+    '5G Networks', 'Renewable Energy', 'Autonomous Vehicles', 'Cybersecurity',
+    'Space Commercialization', 'Synthetic Biology', 'Digital Health',
+  ],
+  companies: [
+    'Apple', 'Google', 'Microsoft', 'Tesla', 'Amazon',
+    'Nvidia', 'Meta', 'Netflix', 'Stripe', 'SpaceX',
+    'TSMC', 'Samsung', 'OpenAI', 'Anthropic', 'Walmart',
+  ],
+};
+
 const COLORS = {
   Social:        '#3B82F6',
   Technological: '#8B5CF6',
@@ -786,10 +800,14 @@ function OverviewTab({ state }) {
 // ═══════════════════════════════════════════════════════════════════
 
 function ForceMapTab({ state }) {
-  const canvasRef  = useRef(null);
-  const cleanupRef = useRef(null);
-  const nodesRef   = useRef([]);
-  const [tooltip, setTooltip] = useState(null);
+  const canvasRef      = useRef(null);
+  const cleanupRef     = useRef(null);
+  const nodesRef       = useRef([]);
+  const [tooltip, setTooltip]       = useState(null);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const autoRotateRef  = useRef(true);
+
+  useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -894,7 +912,7 @@ function ForceMapTab({ state }) {
         );
         drM.position.copy(driverPos);
         group.add(drM);
-        nodes.push({ mesh: drM, label: driver.name, type: 'driver', dimension: dim, description: driver.description || driver.name, evidence: driver.evidence });
+        nodes.push({ mesh: drM, label: driver.name, type: 'driver', dimension: dim, description: driver.description || driver.name, evidence: driver.evidence, impact: driver.impact, velocity: driver.velocity, direction: driver.direction, confidence: driver.confidence });
         addLine(pos, driverPos, hex, 0.18);
       });
     });
@@ -907,7 +925,7 @@ function ForceMapTab({ state }) {
     let frame;
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      if (!mouse.down) group.rotation.y += 0.004;
+      if (!mouse.down && autoRotateRef.current) group.rotation.y += 0.004;
       renderer.render(scene, camera);
     };
     animate();
@@ -962,58 +980,129 @@ function ForceMapTab({ state }) {
   }, [state.steepData, state.subject, state.subjectType]);
 
   return (
-    <div className="relative" style={{ height: 'calc(100vh - 140px)', minHeight: 500 }}>
-      <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+    <div className="flex gap-0" style={{ height: 'calc(100vh - 140px)', minHeight: 500 }}>
+      {/* 3-D canvas */}
+      <div className="relative flex-1 min-w-0">
+        <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
 
-      <div className="absolute top-4 left-4 bg-slate-950 bg-opacity-90 border border-slate-700 rounded-xl p-3 text-xs">
-        <p className="text-slate-500 font-semibold uppercase tracking-wider mb-2">Dimensions</p>
-        {Object.entries(COLORS).map(([d, c]) => (
-          <div key={d} className="flex items-center gap-2 mb-1">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c }} />
-            <span className="text-slate-300">{d}</span>
-          </div>
-        ))}
-        <div className="mt-2 pt-2 border-t border-slate-700">
-          <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1">Drivers</p>
-          {[['#10b981','Positive'],['#ef4444','Negative'],['#f59e0b','Mixed']].map(([c, l]) => (
-            <div key={l} className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
-              <span className="text-slate-400">{l}</span>
+        {/* Legend */}
+        <div className="absolute top-4 left-4 bg-slate-950 bg-opacity-90 border border-slate-700 rounded-xl p-3 text-xs space-y-1">
+          <p className="text-slate-500 font-semibold uppercase tracking-wider mb-2">Dimensions</p>
+          {Object.entries(COLORS).map(([d, c]) => (
+            <div key={d} className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
+              <span className="text-slate-300">{d}</span>
             </div>
           ))}
-          <p className="text-slate-600 mt-1">Node size = impact</p>
-        </div>
-      </div>
-
-      <div className="absolute bottom-4 left-4 bg-slate-950 bg-opacity-80 border border-slate-700 rounded-lg px-3 py-1.5">
-        <p className="text-slate-600 text-xs">Drag to rotate · Scroll to zoom · Click nodes</p>
-      </div>
-
-      <button
-        className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition-colors"
-        onClick={() => { if (cleanupRef.current) { /* reset handled inside */ } }}
-      >
-        Reset View
-      </button>
-
-      {tooltip && (
-        <div className="absolute bottom-4 right-4 bg-slate-950 border border-slate-600 rounded-xl p-4 max-w-xs fade-in">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              {tooltip.dimension && <DimChip dim={tooltip.dimension} />}
-              <p className="text-white font-semibold text-sm mt-1">{tooltip.label}</p>
-            </div>
-            <button onClick={() => setTooltip(null)} className="text-slate-600 hover:text-white ml-3">✕</button>
+          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+            <p className="text-slate-500 font-semibold uppercase tracking-wider">Drivers</p>
+            {[['#10b981','Positive'],['#ef4444','Negative'],['#f59e0b','Mixed']].map(([c, l]) => (
+              <div key={l} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
+                <span className="text-slate-400">{l}</span>
+              </div>
+            ))}
+            <p className="text-slate-600 mt-1">Node size = impact</p>
           </div>
-          {tooltip.description && <p className="text-slate-300 text-xs leading-relaxed">{tooltip.description}</p>}
-          {tooltip.evidence?.length > 0 && (
-            <div className="mt-2 border-t border-slate-700 pt-2">
-              <p className="text-slate-600 text-xs mb-1">Evidence:</p>
-              {tooltip.evidence.slice(0, 2).map((e, i) => <p key={i} className="text-slate-400 text-xs">• {e}</p>)}
-            </div>
-          )}
         </div>
-      )}
+
+        {/* Controls bar */}
+        <div className="absolute bottom-4 left-4 flex items-center gap-2">
+          <div className="bg-slate-950 bg-opacity-80 border border-slate-700 rounded-lg px-3 py-1.5">
+            <p className="text-slate-600 text-xs">Drag to rotate · Scroll to zoom · Click nodes</p>
+          </div>
+          <button
+            onClick={() => setAutoRotate(r => !r)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${autoRotate ? 'bg-blue-900 border-blue-600 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
+          >
+            {autoRotate ? '⏸ Auto-Rotate' : '▶ Auto-Rotate'}
+          </button>
+        </div>
+      </div>
+
+      {/* Right side panel — shown when a node is selected */}
+      <div
+        className="flex-shrink-0 overflow-y-auto transition-all duration-300 bg-slate-950 border-l border-slate-800"
+        style={{ width: tooltip ? 280 : 0, opacity: tooltip ? 1 : 0, pointerEvents: tooltip ? 'auto' : 'none' }}
+      >
+        {tooltip && (
+          <div className="p-4 space-y-4 text-xs fade-in">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="space-y-1.5">
+                {tooltip.dimension && <DimChip dim={tooltip.dimension} />}
+                {tooltip.type === 'driver' && (
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${tooltip.direction === 'positive' ? 'bg-emerald-900 text-emerald-300' : tooltip.direction === 'negative' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>
+                    {tooltip.direction}
+                  </span>
+                )}
+                <p className="text-white font-bold text-sm leading-snug">{tooltip.label}</p>
+                <p className="text-slate-500 capitalize">{tooltip.type}</p>
+              </div>
+              <button onClick={() => setTooltip(null)} className="text-slate-600 hover:text-white text-base ml-2 mt-1">✕</button>
+            </div>
+
+            {/* Impact / Velocity chips */}
+            {tooltip.type === 'driver' && (
+              <div className="flex flex-wrap gap-1.5">
+                {tooltip.impact && (
+                  <span className={`px-2 py-0.5 rounded font-semibold ${tooltip.impact === 'high' ? 'bg-red-900 text-red-300' : tooltip.impact === 'medium' ? 'bg-amber-900 text-amber-300' : 'bg-slate-700 text-slate-400'}`}>
+                    {tooltip.impact} impact
+                  </span>
+                )}
+                {tooltip.velocity && (
+                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-semibold">
+                    {tooltip.velocity} velocity
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Confidence bar */}
+            {tooltip.confidence != null && (
+              <div>
+                <div className="flex justify-between mb-1 text-slate-500">
+                  <span>Confidence</span>
+                  <span className="text-slate-300">{Math.round((tooltip.confidence || 0) * 100)}%</span>
+                </div>
+                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((tooltip.confidence || 0) * 100)}%`, backgroundColor: COLORS[tooltip.dimension] || '#94a3b8' }} />
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            {tooltip.description && (
+              <div>
+                <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Description</p>
+                <p className="text-slate-300 leading-relaxed">{tooltip.description}</p>
+              </div>
+            )}
+
+            {/* Evidence */}
+            {tooltip.evidence?.length > 0 && (
+              <div>
+                <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Evidence</p>
+                <ul className="space-y-1.5">
+                  {tooltip.evidence.map((e, i) => (
+                    <li key={i} className="flex gap-2 text-slate-300 leading-relaxed">
+                      <span className="text-slate-600 flex-shrink-0 mt-0.5">•</span>
+                      <span>{e}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Dimension summary (for dimension nodes) */}
+            {tooltip.type === 'dimension' && tooltip.description && (
+              <div className="bg-slate-900 rounded-lg p-3 border border-slate-700">
+                <p className="text-slate-400 leading-relaxed italic">&ldquo;{tooltip.description}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1024,6 +1113,8 @@ function ForceMapTab({ state }) {
 
 function RoadmapTab({ state, dispatch }) {
   const { synthesis, roadmapFilter } = state;
+  const [viewMode, setViewMode] = useState('cards');
+  const [expanded, setExpanded] = useState({});
   if (!synthesis?.roadmap) return null;
 
   const horizons = [
@@ -1047,11 +1138,28 @@ function RoadmapTab({ state, dispatch }) {
 
   const filtered = ms => roadmapFilter.length ? ms.filter(m => roadmapFilter.includes(m.dimension)) : ms;
   const clearAll = () => dims.forEach(d => { if (roadmapFilter.includes(d)) dispatch({ type: 'TOGGLE_ROADMAP_FILTER', payload: d }); });
+  const toggleExpanded = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
+
+  const horizonInsight = (key) => {
+    const ms = filtered(synthesis.roadmap[key] || []);
+    const activeDims = new Set(ms.map(m => m.dimension));
+    return (synthesis.cross_dimension_insights || []).find(ins =>
+      (ins.dimensions_involved || []).some(d => activeDims.has(d))
+    );
+  };
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="space-y-4 fade-in">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-500 mr-1">Filter:</span>
+        <div className="flex bg-slate-800 border border-slate-700 rounded-lg overflow-hidden mr-2">
+          {[['cards', '▦ Cards'], ['timeline', '↕ Timeline']].map(([v, l]) => (
+            <button key={v} onClick={() => setViewMode(v)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === v ? 'bg-blue-700 text-white' : 'text-slate-400 hover:text-white'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-slate-500">Filter:</span>
         <button onClick={clearAll} className={`px-3 py-1 rounded-lg text-xs transition-colors ${!roadmapFilter.length ? 'bg-slate-600 text-white' : 'bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'}`}>All</button>
         {dims.map(d => (
           <button key={d} className="px-3 py-1 rounded-lg text-xs border transition-all"
@@ -1063,38 +1171,121 @@ function RoadmapTab({ state, dispatch }) {
 
       {horizons.map(({ key, label, sub, color }) => {
         const ms = filtered(synthesis.roadmap[key] || []);
+        const insight = horizonInsight(key);
         return (
-          <div key={key}>
-            <div className="flex items-center gap-3 mb-4">
+          <div key={key} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden" style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-800">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
               <span className="font-bold text-white">{label}</span>
-              <span className="text-slate-500 text-sm">{sub}</span>
+              <span className="text-slate-500 text-xs">{sub}</span>
               <div className="flex-1 h-px bg-slate-800" />
-              <span className="text-xs text-slate-600">{ms.length} item{ms.length !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-slate-600">{ms.length} milestone{ms.length !== 1 ? 's' : ''}</span>
             </div>
-            {ms.length === 0 ? <p className="text-slate-600 text-sm pl-6">No milestones match current filter.</p> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pl-6">
-                {ms.map((m, i) => (
-                  <div key={m.id || i} className="bg-slate-800 border border-slate-700 rounded-xl p-3 hover:border-slate-500 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg leading-none">{icon(m.catalyst_type)}</span>
-                        <DimChip dim={m.dimension} />
-                      </div>
-                      <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>
-                        {m.direction}
-                      </Badge>
-                    </div>
-                    <p className="text-white text-sm font-semibold mb-1 leading-tight">{m.title}</p>
-                    {m.trigger && <p className="text-slate-500 text-xs mb-1"><span className="text-slate-600">Trigger:</span> {m.trigger}</p>}
-                    <p className="text-slate-400 text-xs leading-relaxed">{m.description}</p>
-                    {m.confidence != null && (
-                      <div className="mt-2 h-1 bg-slate-700 rounded-full">
-                        <div className="h-1 rounded-full bg-blue-700" style={{ width: `${m.confidence * 100}%` }} />
-                      </div>
-                    )}
+
+            {insight && (
+              <div className="mx-4 mt-3 mb-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 flex gap-3 items-start">
+                <span className="text-blue-400 flex-shrink-0 text-sm mt-0.5">⟳</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cross-Dim Context</span>
+                    {(insight.dimensions_involved || []).map(d => <DimChip key={d} dim={d} />)}
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${insight.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : insight.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{insight.type}</span>
                   </div>
-                ))}
+                  <p className="text-slate-300 text-xs leading-relaxed">{insight.insight}</p>
+                  {insight.strategic_implication && <p className="text-slate-500 text-xs mt-1 italic">→ {insight.strategic_implication}</p>}
+                </div>
+              </div>
+            )}
+
+            {ms.length === 0 ? (
+              <p className="text-slate-600 text-sm px-5 py-4">No milestones match current filter.</p>
+            ) : viewMode === 'cards' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                {ms.map((m, i) => {
+                  const uid = m.id || `${key}-${i}`;
+                  const isOpen = expanded[uid];
+                  return (
+                    <div key={uid} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:border-slate-500 transition-colors">
+                      <div className="p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base leading-none">{icon(m.catalyst_type)}</span>
+                            <DimChip dim={m.dimension} />
+                          </div>
+                          <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>
+                            {m.direction}
+                          </Badge>
+                        </div>
+                        <p className="text-white text-sm font-semibold leading-tight mb-1">{m.title}</p>
+                        {m.trigger && (
+                          <p className="text-slate-500 text-xs mb-1">
+                            <span className="text-slate-600">Trigger: </span>{m.trigger}
+                          </p>
+                        )}
+                        {m.confidence != null && (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs text-slate-600 mb-0.5">
+                              <span>Confidence</span><span>{Math.round(m.confidence * 100)}%</span>
+                            </div>
+                            <div className="h-1 bg-slate-700 rounded-full">
+                              <div className="h-1 rounded-full" style={{ width: `${m.confidence * 100}%`, backgroundColor: color }} />
+                            </div>
+                          </div>
+                        )}
+                        {m.description && (
+                          <button onClick={() => toggleExpanded(uid)} className="mt-2 text-xs text-slate-500 hover:text-blue-400 transition-colors">
+                            {isOpen ? '▲ Hide detail' : '▼ Show detail'}
+                          </button>
+                        )}
+                      </div>
+                      {isOpen && m.description && (
+                        <div className="border-t border-slate-700 px-3 py-3 bg-slate-900">
+                          <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-5 py-4 space-y-0 relative">
+                <div className="absolute" style={{ left: 28, top: 16, bottom: 16, width: 1, backgroundColor: '#334155' }} />
+                {ms.map((m, i) => {
+                  const uid = m.id || `${key}-${i}`;
+                  const isOpen = expanded[uid];
+                  return (
+                    <div key={uid} className="flex gap-4 pb-4 relative">
+                      <div className="flex-shrink-0 z-10" style={{ width: 20, paddingTop: 6 }}>
+                        <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center" style={{ backgroundColor: color + '22', borderColor: color }}>
+                          <div className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
+                        </div>
+                      </div>
+                      <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:border-slate-500 transition-colors">
+                        <div className="p-3">
+                          <div className="flex items-start justify-between mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <DimChip dim={m.dimension} />
+                              <Badge className={m.direction === 'positive' ? 'bg-green-900 text-green-300 border border-green-800' : m.direction === 'negative' ? 'bg-red-900 text-red-300 border border-red-800' : 'bg-yellow-900 text-yellow-300 border border-yellow-800'}>{m.direction}</Badge>
+                            </div>
+                            <button onClick={() => toggleExpanded(uid)} className="text-slate-600 hover:text-slate-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</button>
+                          </div>
+                          <p className="text-white text-sm font-semibold leading-tight">{m.title}</p>
+                          {m.trigger && <p className="text-slate-500 text-xs mt-0.5"><span className="text-slate-600">Trigger: </span>{m.trigger}</p>}
+                          {m.confidence != null && (
+                            <div className="mt-1.5 h-1 bg-slate-700 rounded-full">
+                              <div className="h-1 rounded-full" style={{ width: `${m.confidence * 100}%`, backgroundColor: color }} />
+                            </div>
+                          )}
+                        </div>
+                        {isOpen && m.description && (
+                          <div className="border-t border-slate-700 px-3 py-3 bg-slate-900">
+                            <p className="text-slate-300 text-xs leading-relaxed">{m.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1199,26 +1390,117 @@ function MatrixTab({ state, dispatch }) {
         </div>
       </div>
 
-      {selectedMatrixItem && (
-        <div className="bg-slate-800 border rounded-xl p-5 fade-in" style={{ borderColor: (COLORS[selectedMatrixItem.dimension] || '#94a3b8') + '66' }}>
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <DimChip dim={selectedMatrixItem.dimension} />
-              <Badge className={selectedMatrixItem.type === 'risk' ? 'bg-red-900 text-red-300 border border-red-700' : selectedMatrixItem.type === 'opportunity' ? 'bg-green-900 text-green-300 border border-green-700' : 'bg-purple-900 text-purple-300 border border-purple-700'}>
-                {selectedMatrixItem.type}
-              </Badge>
+      {selectedMatrixItem && (() => {
+        const item = selectedMatrixItem;
+        const dimColor = COLORS[item.dimension] || '#94a3b8';
+        const compScore = composite(item);
+        const revCls = (item.reversibility || '').includes('irrev') ? 'bg-red-900 text-red-300' : (item.reversibility || '').includes('partial') ? 'bg-amber-900 text-amber-300' : 'bg-emerald-900 text-emerald-300';
+        const relatedInsights = (synthesis.cross_dimension_insights || []).filter(ins =>
+          (ins.dimensions_involved || []).includes(item.dimension)
+        ).slice(0, 2);
+        const dimData = state.steepData[item.dimension?.toLowerCase()];
+        const relatedDrivers = (dimData?.drivers || []).filter(d =>
+          d.direction === (item.type === 'opportunity' ? 'positive' : 'negative') ||
+          d.impact === 'high'
+        ).slice(0, 2);
+        return (
+          <div className="bg-slate-800 border rounded-2xl overflow-hidden fade-in" style={{ borderColor: dimColor + '55' }}>
+            {/* Header strip */}
+            <div className="px-5 py-4 border-b border-slate-700" style={{ borderLeftColor: dimColor, borderLeftWidth: 4 }}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DimChip dim={item.dimension} />
+                  <Badge className={item.type === 'risk' ? 'bg-red-900 text-red-300 border border-red-700' : item.type === 'opportunity' ? 'bg-green-900 text-green-300 border border-green-700' : 'bg-purple-900 text-purple-300 border border-purple-700'}>
+                    {item.type}
+                  </Badge>
+                  {item.reversibility && <Badge className={revCls}>{item.reversibility}</Badge>}
+                  {item.time_sensitivity && <Badge className="bg-slate-700 text-slate-300 border border-slate-600">{item.time_sensitivity}</Badge>}
+                </div>
+                <button onClick={() => dispatch({ type: 'SET_SELECTED_MATRIX_ITEM', payload: null })} className="text-slate-600 hover:text-white ml-3 text-base">✕</button>
+              </div>
+              <h4 className="text-white font-bold text-base mt-2 leading-snug">{item.title}</h4>
             </div>
-            <button onClick={() => dispatch({ type: 'SET_SELECTED_MATRIX_ITEM', payload: null })} className="text-slate-600 hover:text-white ml-3">✕</button>
+
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Left column */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Description</p>
+                  <p className="text-slate-300 text-sm leading-relaxed">{item.description}</p>
+                </div>
+
+                {/* Score meters */}
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Scores</p>
+                  {[['Impact', item.impact_score, '#ef4444'], ['Likelihood', item.likelihood_score, '#f59e0b'], ['Composite', parseFloat(compScore.toFixed(1)), dimColor]].map(([lbl, val, col]) => (
+                    <div key={lbl}>
+                      <div className="flex justify-between text-xs mb-0.5">
+                        <span className="text-slate-500">{lbl}</span>
+                        <span className="text-slate-300 font-semibold">{val} / 5</span>
+                      </div>
+                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${(val / 5.5) * 100}%`, backgroundColor: col }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Confidence */}
+                {item.confidence != null && (
+                  <div>
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="text-slate-500">Agent Confidence</span>
+                      <span className="text-slate-300 font-semibold">{Math.round(item.confidence * 100)}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${item.confidence * 100}%`, backgroundColor: dimColor }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-4">
+                {relatedInsights.length > 0 && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Strategic Context</p>
+                    <div className="space-y-2">
+                      {relatedInsights.map((ins, i) => (
+                        <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            {(ins.dimensions_involved || []).map(d => <DimChip key={d} dim={d} />)}
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${ins.type === 'reinforcing' ? 'bg-emerald-900 text-emerald-300' : ins.type === 'countervailing' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>{ins.type}</span>
+                          </div>
+                          <p className="text-slate-300 text-xs leading-relaxed">{ins.insight}</p>
+                          {ins.strategic_implication && <p className="text-slate-500 text-xs mt-1 italic">→ {ins.strategic_implication}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {relatedDrivers.length > 0 && (
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Related {item.dimension} Drivers</p>
+                    <div className="space-y-2">
+                      {relatedDrivers.map((dr, i) => (
+                        <div key={i} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dr.direction === 'positive' ? 'bg-emerald-400' : dr.direction === 'negative' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                            <span className="text-white text-xs font-semibold">{dr.name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-xs ${dr.impact === 'high' ? 'bg-red-900 text-red-300' : dr.impact === 'medium' ? 'bg-amber-900 text-amber-300' : 'bg-slate-700 text-slate-400'}`}>{dr.impact}</span>
+                          </div>
+                          {dr.description && <p className="text-slate-400 text-xs leading-relaxed">{dr.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <h4 className="text-white font-bold text-base mb-2">{selectedMatrixItem.title}</h4>
-          <p className="text-slate-300 text-sm leading-relaxed mb-4">{selectedMatrixItem.description}</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[['Impact',`${selectedMatrixItem.impact_score}/5`],['Likelihood',`${selectedMatrixItem.likelihood_score}/5`],['Time Sensitivity',selectedMatrixItem.time_sensitivity||'—'],['Reversibility',selectedMatrixItem.reversibility||'—']].map(([lbl,val]) => (
-              <div key={lbl}><p className="text-xs text-slate-500 mb-1">{lbl}</p><p className="text-white font-semibold capitalize text-sm">{val}</p></div>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div>
         <SectionHdr>All Items ({sorted.length})</SectionHdr>
@@ -1505,8 +1787,8 @@ function App() {
         <OllamaPanel state={state} dispatch={dispatch} />
 
         {/* Subject + Run */}
-        <div className="px-4 py-4 border-b border-slate-800">
-          <label className="block text-xs text-slate-500 mb-1.5 font-medium">Subject to Analyze</label>
+        <div className="px-4 py-4 border-b border-slate-800 space-y-2">
+          <label className="block text-xs text-slate-500 font-medium">Subject to Analyze</label>
           <input
             type="text"
             value={subject}
@@ -1516,10 +1798,28 @@ function App() {
             onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           />
+          {/* Quick-pick dropdown */}
+          <div className="relative">
+            <select
+              value=""
+              onChange={e => { if (e.target.value) dispatch({ type: 'SET_SUBJECT', payload: e.target.value }); }}
+              disabled={isRunning}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 pr-6 py-1.5 text-xs text-slate-400 focus:border-blue-500 disabled:opacity-50 transition-colors appearance-none cursor-pointer"
+            >
+              <option value="">— quick-pick a subject —</option>
+              <optgroup label="Trends">
+                {SUGGESTED_SUBJECTS.trends.map(s => <option key={s} value={s}>{s}</option>)}
+              </optgroup>
+              <optgroup label="Companies">
+                {SUGGESTED_SUBJECTS.companies.map(s => <option key={s} value={s}>{s}</option>)}
+              </optgroup>
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▾</span>
+          </div>
           <button
             onClick={handleAnalysis}
             disabled={isRunning || !subject.trim() || ollamaStatus !== 'online'}
-            className="mt-3 w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
+            className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
             style={{ background: isRunning ? 'linear-gradient(135deg,#1e3a5f,#3730a3)' : 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
           >
             {isRunning
@@ -1527,7 +1827,7 @@ function App() {
               : ollamaStatus !== 'online' ? 'Ollama Offline' : 'Run STEEP Analysis'}
           </button>
           {ollamaStatus === 'online' && (
-            <p className="text-slate-600 text-xs mt-2 text-center">
+            <p className="text-slate-600 text-xs text-center">
               Sequential · {CATALOG.find(m => m.id === selectedModel)?.size || '?'} model
             </p>
           )}

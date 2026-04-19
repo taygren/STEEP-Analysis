@@ -14,7 +14,7 @@ AI-powered STEEP Analysis Platform using Ollama for local LLM inference. No API 
 
 ```
 app/
-  page.jsx          — Main UI (single-page app, ~1550 lines)
+  page.jsx          — Main UI (single-page app, ~1960 lines)
   layout.jsx        — Root layout
   globals.css       — Global styles
   api/
@@ -52,6 +52,26 @@ Models are stored in `~/.ollama/models`. Catalog (from the UI):
 - `mistral:7b` — ~4 GB, fast reasoning
 - `qwen2.5:7b` — ~5 GB, excellent JSON
 - `phi4:14b` — ~9 GB, highest quality (needs 16 GB VRAM)
+
+## UI Features
+
+### Sidebar
+- **Quick-pick dropdown** — 14 curated trends + 15 companies pre-loaded; selecting one fills the subject input instantly.
+- Free-text input still accepts any subject.
+
+### ForceMap Tab (3D)
+- **Side panel** slides in when a node is clicked, showing: dimension chip, direction badge, impact/velocity chips, confidence bar, full description, and all evidence bullets.
+- **Auto-Rotate toggle** button pauses/resumes the ambient globe spin.
+
+### Roadmap Tab
+- **Cards / Timeline toggle** — Cards shows a responsive grid; Timeline renders a vertical connected thread.
+- Each horizon shows a **Cross-Dimension Context** callout pulled from `cross_dimension_insights`.
+- Milestone cards have expandable detail sections and confidence progress bars.
+
+### Matrix Tab (Risk/Opportunity/Disruption)
+- Selected item detail panel shows: full score bars (Impact, Likelihood, Composite), confidence bar, reversibility + time-sensitivity badges.
+- **Strategic Context** section surfaces related `cross_dimension_insights` matching the item's dimension.
+- **Related Drivers** section pulls dimension-specific agent driver evidence.
 
 ## Security Notes
 
