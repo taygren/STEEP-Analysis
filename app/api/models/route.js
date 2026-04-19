@@ -1,28 +1,15 @@
-const OLLAMA = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+/**
+ * GET /api/models
+ * Returns the curated list of Groq-hosted models the app supports.
+ */
+const GROQ_MODELS = [
+  { name: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B',       note: 'Recommended — best quality, fast on Groq' },
+  { name: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B Instant', note: 'Fastest — good for quick tests' },
+  { name: 'llama3-8b-8192',          label: 'Llama 3 8B',           note: 'Solid baseline, 8k context' },
+  { name: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',         note: 'Strong reasoning, 32k context' },
+  { name: 'gemma2-9b-it',            label: 'Gemma 2 9B',           note: 'Google model, good instruction following' },
+];
 
 export async function GET() {
-  try {
-    const res = await fetch(`${OLLAMA}/api/tags`, {
-      signal: AbortSignal.timeout(8000),
-      cache: 'no-store',
-    });
-
-    if (!res.ok) {
-      return Response.json({ models: [], error: `Ollama responded ${res.status}` }, { status: res.status });
-    }
-
-    const data = await res.json();
-    const models = (data.models || []).map((m) => ({
-      name: m.name,
-      size: m.size,
-      // Convert bytes to GB for display
-      sizeGb: m.size ? (m.size / 1e9).toFixed(1) : null,
-      modified: m.modified_at,
-      details: m.details || {},
-    }));
-
-    return Response.json({ models });
-  } catch (err) {
-    return Response.json({ models: [], error: err.message }, { status: 503 });
-  }
+  return Response.json({ models: GROQ_MODELS });
 }

@@ -7,14 +7,14 @@ import * as THREE from 'three';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 
-const RECOMMENDED_MODEL = 'llama3.2:3b';
+const RECOMMENDED_MODEL = 'llama-3.3-70b-versatile';
 
 const CATALOG = [
-  { id: 'llama3.2:3b',  label: 'Llama 3.2 3B',    size: '~2 GB', note: 'Recommended — pre-installed, CPU-friendly' },
-  { id: 'llama3.1:8b',  label: 'Llama 3.1 8B',    size: '~5 GB', note: 'Best quality — pull to use' },
-  { id: 'mistral:7b',   label: 'Mistral 7B',       size: '~4 GB', note: 'Fast, solid reasoning' },
-  { id: 'qwen2.5:7b',   label: 'Qwen 2.5 7B',     size: '~5 GB', note: 'Excellent JSON adherence' },
-  { id: 'phi4:14b',     label: 'Phi-4 14B',        size: '~9 GB', note: 'Highest quality, needs 16 GB VRAM' },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B',        note: 'Recommended — best quality, fast on Groq' },
+  { id: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B Instant', note: 'Fastest — good for quick tests' },
+  { id: 'llama3-8b-8192',          label: 'Llama 3 8B',           note: 'Solid baseline, 8k context' },
+  { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',         note: 'Strong reasoning, 32k context' },
+  { id: 'gemma2-9b-it',            label: 'Gemma 2 9B',           note: 'Good instruction following' },
 ];
 
 const SUGGESTED_SUBJECTS = {
@@ -193,22 +193,18 @@ const initialState = {
   activeTab: 'overview',
   roadmapFilter: [],
   error: null,
-  // Ollama
-  ollamaStatus: 'checking', // checking | online | offline
-  ollamaVersion: null,
+  // Groq
+  groqStatus: 'checking', // checking | online | offline
   availableModels: [],
   selectedModel: RECOMMENDED_MODEL,
-  isPulling: false,
-  pullProgress: null,       // { status, pct }
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_SUBJECT':       return { ...state, subject: action.payload };
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
-    case 'SET_OLLAMA_STATUS': return { ...state, ollamaStatus: action.status, ollamaVersion: action.version ?? state.ollamaVersion };
+    case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'SET_PULL_STATUS':   return { ...state, isPulling: action.isPulling, pullProgress: action.progress ?? null };
     case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats() };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
@@ -226,11 +222,15 @@ function reducer(state, action) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// OLLAMA API UTILITIES
+// GROQ API UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 
-/** Read an NDJSON stream, accumulate message content tokens, return full string. */
-async function readOllamaStream(response) {
+/**
+ * Read a Groq SSE stream (OpenAI-compatible format).
+ * Lines are prefixed with "data: "; final line is "data: [DONE]".
+ * Each chunk: { choices: [{ delta: { content } }] }
+ */
+async function readGroqStream(response) {
   const reader  = response.body.getReader();
   const decoder = new TextDecoder();
   let content = '';
@@ -245,24 +245,16 @@ async function readOllamaStream(response) {
     buffer = lines.pop(); // hold incomplete last line
 
     for (const line of lines) {
-      if (!line.trim()) continue;
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === '[DONE]') return content;
       try {
-        const chunk = JSON.parse(line);
-        if (chunk.message?.content) content += chunk.message.content;
-        if (chunk.done) return content;
-        if (chunk.error) throw new Error(chunk.error);
-      } catch (e) {
-        if (e.message && !e.message.includes('JSON')) throw e;
-      }
+        const chunk = JSON.parse(payload);
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (delta) content += delta;
+      } catch {}
     }
-  }
-
-  // Flush remaining buffer
-  if (buffer.trim()) {
-    try {
-      const chunk = JSON.parse(buffer);
-      if (chunk.message?.content) content += chunk.message.content;
-    } catch {}
   }
 
   return content;
@@ -404,7 +396,7 @@ async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict)
     throw new Error(err.error || `Agent responded ${res.status}`);
   }
 
-  const raw = await readOllamaStream(res);
+  const raw = await readGroqStream(res);
   if (!raw.trim()) throw new Error('Model returned empty response');
 
   const parsed = normalizeAgentData(extractJSON(raw));
@@ -424,9 +416,8 @@ async function classifySubject(subject, model) {
         model,
       }),
     });
-    const raw  = await readOllamaStream(res);
+    const raw  = await readGroqStream(res);
     const text = raw.toLowerCase().trim();
-    // The model is forced into json format so it might return {"answer":"trend"} etc.
     if (text.includes('company')) return 'company';
     return 'trend';
   } catch {
@@ -475,71 +466,28 @@ function SectionHdr({ children }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SIDEBAR: OLLAMA STATUS + MODEL SELECTOR
+// SIDEBAR: GROQ STATUS + MODEL SELECTOR
 // ═══════════════════════════════════════════════════════════════════
 
-function OllamaPanel({ state, dispatch }) {
-  const { ollamaStatus, ollamaVersion, availableModels, selectedModel, isPulling, pullProgress } = state;
-
-  const modelInstalled = availableModels.some(m => m.name === selectedModel || m.name.startsWith(selectedModel + ':'));
-
-  const handlePull = async () => {
-    dispatch({ type: 'SET_PULL_STATUS', isPulling: true, progress: { status: 'Starting download…', pct: 0 } });
-    try {
-      const res = await fetch('/api/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: selectedModel }),
-      });
-
-      const reader  = res.body.getReader();
-      const decoder = new TextDecoder();
-      let   buf     = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const chunk = JSON.parse(line);
-            const pct   = chunk.total ? Math.round((chunk.completed / chunk.total) * 100) : null;
-            dispatch({ type: 'SET_PULL_STATUS', isPulling: true, progress: { status: chunk.status, pct } });
-            if (chunk.status === 'success') {
-              // Refresh model list
-              const mRes  = await fetch('/api/models');
-              const mData = await mRes.json();
-              dispatch({ type: 'SET_MODELS', payload: mData.models || [] });
-            }
-          } catch {}
-        }
-      }
-    } catch (err) {
-      console.error('Pull failed:', err);
-    } finally {
-      dispatch({ type: 'SET_PULL_STATUS', isPulling: false });
-    }
-  };
+function GroqPanel({ state, dispatch }) {
+  const { groqStatus, selectedModel } = state;
 
   return (
     <div className="px-4 py-4 border-b border-slate-800 space-y-3">
       {/* Status row */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-400">Ollama</span>
+        <span className="text-xs font-medium text-slate-400">Groq</span>
         <div className="flex items-center gap-1.5">
-          <div className={`w-2 h-2 rounded-full ${ollamaStatus === 'online' ? 'bg-green-400' : ollamaStatus === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-500'}`} />
-          <span className={`text-xs ${ollamaStatus === 'online' ? 'text-green-400' : ollamaStatus === 'checking' ? 'text-yellow-400' : 'text-red-400'}`}>
-            {ollamaStatus === 'online' ? `v${ollamaVersion || '?'}` : ollamaStatus === 'checking' ? 'Checking…' : 'Offline'}
+          <div className={`w-2 h-2 rounded-full ${groqStatus === 'online' ? 'bg-green-400' : groqStatus === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-500'}`} />
+          <span className={`text-xs ${groqStatus === 'online' ? 'text-green-400' : groqStatus === 'checking' ? 'text-yellow-400' : 'text-red-400'}`}>
+            {groqStatus === 'online' ? 'Connected' : groqStatus === 'checking' ? 'Checking…' : 'No API Key'}
           </span>
         </div>
       </div>
 
-      {ollamaStatus === 'offline' && (
+      {groqStatus === 'offline' && (
         <div className="bg-red-950 border border-red-800 rounded-lg p-2">
-          <p className="text-red-300 text-xs leading-relaxed">Run <code className="font-mono bg-red-900 px-1 rounded">ollama serve</code> or <code className="font-mono bg-red-900 px-1 rounded">npm run go</code></p>
+          <p className="text-red-300 text-xs leading-relaxed">Set <code className="font-mono bg-red-900 px-1 rounded">GROQ_API_KEY</code> in your environment variables.</p>
         </div>
       )}
 
@@ -551,49 +499,14 @@ function OllamaPanel({ state, dispatch }) {
           onChange={e => dispatch({ type: 'SET_SELECTED_MODEL', payload: e.target.value })}
           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 transition-colors appearance-none"
         >
-          {CATALOG.map(m => {
-            const installed = availableModels.some(am => am.name === m.id || am.name.startsWith(m.id));
-            return (
-              <option key={m.id} value={m.id}>
-                {installed ? '✓ ' : ''}{m.label} ({m.size})
-              </option>
-            );
-          })}
-          {/* Any extra installed models not in catalog */}
-          {availableModels.filter(m => !CATALOG.find(c => m.name === c.id || m.name.startsWith(c.id + ':'))).map(m => (
-            <option key={m.name} value={m.name}>✓ {m.name}</option>
+          {CATALOG.map(m => (
+            <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
         <p className="text-slate-600 text-xs mt-1">
-          {CATALOG.find(m => m.id === selectedModel)?.note || 'Custom installed model'}
+          {CATALOG.find(m => m.id === selectedModel)?.note || ''}
         </p>
       </div>
-
-      {/* Pull button */}
-      {!modelInstalled && !isPulling && ollamaStatus === 'online' && (
-        <button
-          onClick={handlePull}
-          className="w-full py-2 rounded-lg text-xs font-semibold bg-blue-800 hover:bg-blue-700 text-white border border-blue-600 transition-colors"
-        >
-          ⬇ Pull {selectedModel}
-        </button>
-      )}
-
-      {/* Pull progress */}
-      {isPulling && pullProgress && (
-        <div className="space-y-1">
-          <p className="text-xs text-slate-400 truncate">{pullProgress.status}</p>
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className="h-1.5 bg-blue-500 rounded-full transition-all duration-300"
-              style={{ width: `${pullProgress.pct ?? 100}%` }}
-            />
-          </div>
-          {pullProgress.pct != null && (
-            <p className="text-xs text-slate-600 text-right">{pullProgress.pct}%</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -1439,7 +1352,7 @@ function RoadmapTab({ state, dispatch }) {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, ollamaStatus } = state;
+  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus } = state;
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
@@ -1450,22 +1363,20 @@ function App() {
       try {
         const hRes  = await fetch('/api/health');
         const hData = await hRes.json();
-        dispatch({ type: 'SET_OLLAMA_STATUS', status: hData.ok ? 'online' : 'offline', version: hData.version });
+        dispatch({ type: 'SET_GROQ_STATUS', status: hData.ok ? 'online' : 'offline' });
 
-        if (hData.ok) {
-          const mRes  = await fetch('/api/models');
-          const mData = await mRes.json();
-          dispatch({ type: 'SET_MODELS', payload: mData.models || [] });
-        }
+        const mRes  = await fetch('/api/models');
+        const mData = await mRes.json();
+        dispatch({ type: 'SET_MODELS', payload: mData.models || [] });
       } catch {
-        dispatch({ type: 'SET_OLLAMA_STATUS', status: 'offline' });
+        dispatch({ type: 'SET_GROQ_STATUS', status: 'offline' });
       }
     })();
   }, []);
 
   // ── ANALYSIS ORCHESTRATOR ──
   const handleAnalysis = useCallback(async () => {
-    if (!subject.trim() || ollamaStatus !== 'online') return;
+    if (!subject.trim() || groqStatus !== 'online') return;
     dispatch({ type: 'START_ANALYSIS' });
 
     try {
@@ -1522,7 +1433,7 @@ function App() {
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
-  }, [subject, selectedModel, ollamaStatus]);
+  }, [subject, selectedModel, groqStatus]);
 
   const tabs = [
     { key: 'overview',  label: 'Overview',  icon: '◉' },
@@ -1541,11 +1452,11 @@ function App() {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white">S</div>
             <span className="font-bold text-white">STEEP Platform</span>
           </div>
-          <p className="text-slate-600 text-xs">Local Ollama · No API key needed</p>
+          <p className="text-slate-600 text-xs">Groq Cloud · Fast inference</p>
         </div>
 
-        {/* Ollama panel */}
-        <OllamaPanel state={state} dispatch={dispatch} />
+        {/* Groq panel */}
+        <GroqPanel state={state} dispatch={dispatch} />
 
         {/* Subject + Run */}
         <div className="px-4 py-4 border-b border-slate-800 space-y-2">
@@ -1579,17 +1490,17 @@ function App() {
           </div>
           <button
             onClick={handleAnalysis}
-            disabled={isRunning || !subject.trim() || ollamaStatus !== 'online'}
+            disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
             className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
             style={{ background: isRunning ? 'linear-gradient(135deg,#1e3a5f,#3730a3)' : 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
           >
             {isRunning
               ? <span className="flex items-center justify-center gap-2"><Spinner size={12} />Analyzing…</span>
-              : ollamaStatus !== 'online' ? 'Ollama Offline' : 'Run STEEP Analysis'}
+              : groqStatus !== 'online' ? 'Groq Not Connected' : 'Run STEEP Analysis'}
           </button>
-          {ollamaStatus === 'online' && (
+          {groqStatus === 'online' && (
             <p className="text-slate-600 text-xs text-center">
-              Sequential · {CATALOG.find(m => m.id === selectedModel)?.size || '?'} model
+              6 agents · {CATALOG.find(m => m.id === selectedModel)?.label || selectedModel}
             </p>
           )}
         </div>
@@ -1626,7 +1537,7 @@ function App() {
         )}
 
         <div className="px-5 py-3 border-t border-slate-800 mt-auto">
-          <p className="text-slate-700 text-xs">Ollama · {selectedModel}</p>
+          <p className="text-slate-700 text-xs">Groq · {selectedModel}</p>
         </div>
       </aside>
 
@@ -1638,8 +1549,8 @@ function App() {
             <div className="text-center max-w-xl">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-7 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
               <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
-              <p className="text-slate-400 text-sm leading-relaxed mb-2">100% local — no API key, no cloud, no cost.</p>
-              <p className="text-slate-500 text-sm leading-relaxed mb-8">Powered by <span className="text-white font-semibold">Ollama</span>. Enter any trend or company to run a six-agent STEEP intelligence analysis. Results include a 3D force map, a forecast roadmap with trigger points, risks, and accelerants, and full per-dimension evidence.</p>
+              <p className="text-slate-400 text-sm leading-relaxed mb-2">Powered by <span className="text-white font-semibold">Groq</span> — fast cloud inference, no GPU needed.</p>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">Enter any trend or company to run a six-agent STEEP intelligence analysis. Results include a 3D force map, a forecast roadmap with trigger points, risks, and accelerants, and full per-dimension evidence.</p>
               <div className="grid grid-cols-5 gap-2 mb-8">
                 {Object.entries(COLORS).map(([dim, color]) => (
                   <div key={dim} className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
@@ -1650,13 +1561,13 @@ function App() {
                   </div>
                 ))}
               </div>
-              {ollamaStatus === 'offline' && (
+              {groqStatus === 'offline' && (
                 <div className="bg-red-950 border border-red-800 rounded-xl p-4 text-left">
-                  <p className="text-red-300 font-semibold text-sm mb-1">Ollama is not running</p>
-                  <p className="text-red-400 text-xs">Start it with <code className="font-mono bg-red-900 px-1 rounded">npm run go</code> or <code className="font-mono bg-red-900 px-1 rounded">ollama serve</code></p>
+                  <p className="text-red-300 font-semibold text-sm mb-1">Groq API key not found</p>
+                  <p className="text-red-400 text-xs">Set <code className="font-mono bg-red-900 px-1 rounded">GROQ_API_KEY</code> in your environment variables and restart the app.</p>
                 </div>
               )}
-              {ollamaStatus === 'online' && <p className="text-slate-600 text-xs">Enter a subject in the sidebar to begin.</p>}
+              {groqStatus === 'online' && <p className="text-slate-600 text-xs">Enter a subject in the sidebar to begin.</p>}
             </div>
           </div>
         )}
@@ -1674,10 +1585,10 @@ function App() {
               </h2>
               <p className="text-slate-400 text-sm mb-2 max-w-sm mx-auto">
                 {status === 'classifying' ? `Classifying "${subject}"…`
-                  : status === 'researching' ? `Running agents sequentially on ${selectedModel}…`
+                  : status === 'researching' ? `Running agents on ${CATALOG.find(m => m.id === selectedModel)?.label || selectedModel}…`
                   : 'Producing your executive intelligence report…'}
               </p>
-              <p className="text-slate-600 text-xs mb-8">Each dimension agent takes 30–90 seconds on a local model.</p>
+              <p className="text-slate-600 text-xs mb-8">Each dimension agent takes 5–20 seconds on Groq.</p>
               <div className="flex justify-center gap-3">
                 {Object.entries(COLORS).map(([dim, color]) => {
                   const k = dim.toLowerCase();

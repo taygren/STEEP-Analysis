@@ -1,17 +1,21 @@
-const OLLAMA = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama3.1:8b';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
 
 /**
  * POST /api/analyze
- * Body: { systemPrompt, userMessage, model }
+ * Body: { systemPrompt, userMessage, model, numPredict }
  *
- * Proxies a chat completion request to Ollama and streams the response
- * back as NDJSON. Each line is a partial Ollama chat chunk:
- *   { model, message: { role, content }, done }
- *
- * The client accumulates content tokens until done=true, then parses JSON.
+ * Calls the Groq chat completions API and streams the SSE response
+ * back to the client as-is (OpenAI SSE format).
+ * Each data line: { choices: [{ delta: { content } }] }
+ * Final line:     data: [DONE]
  */
 export async function POST(request) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return Response.json({ error: 'GROQ_API_KEY is not configured' }, { status: 503 });
+  }
+
   const { systemPrompt, userMessage, model, numPredict } = await request.json();
 
   if (!systemPrompt || !userMessage) {
@@ -21,9 +25,12 @@ export async function POST(request) {
   const selectedModel = model || DEFAULT_MODEL;
 
   try {
-    const ollamaRes = await fetch(`${OLLAMA}/api/chat`, {
+    const groqRes = await fetch(GROQ_API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
         model: selectedModel,
         messages: [
@@ -31,28 +38,22 @@ export async function POST(request) {
           { role: 'user',   content: userMessage   },
         ],
         stream: true,
-        format: 'json',
-        options: {
-          temperature:    0.1,
-          num_ctx:        4096,
-          num_predict:    numPredict || 1500, // caller can request a higher budget
-          top_p:          0.9,
-          repeat_penalty: 1.1,
-        },
+        temperature: 0.1,
+        max_tokens: numPredict || 1500,
+        response_format: { type: 'json_object' },
       }),
     });
 
-    if (!ollamaRes.ok) {
-      const text = await ollamaRes.text();
-      return Response.json({ error: text }, { status: ollamaRes.status });
+    if (!groqRes.ok) {
+      const text = await groqRes.text();
+      return Response.json({ error: text }, { status: groqRes.status });
     }
 
-    // Stream Ollama's NDJSON response directly to the client
-    return new Response(ollamaRes.body, {
+    return new Response(groqRes.body, {
       headers: {
-        'Content-Type':     'application/x-ndjson',
-        'Cache-Control':    'no-cache',
-        'X-Accel-Buffering':'no',           // Disable Nginx buffering if behind proxy
+        'Content-Type':      'text/event-stream',
+        'Cache-Control':     'no-cache',
+        'X-Accel-Buffering': 'no',
       },
     });
   } catch (err) {
