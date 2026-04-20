@@ -505,6 +505,9 @@ video {
 .pointer-events-none {
   pointer-events: none;
 }
+.visible {
+  visibility: visible;
+}
 .collapse {
   visibility: collapse;
 }
@@ -696,6 +699,9 @@ video {
 }
 .w-3\.5 {
   width: 0.875rem;
+}
+.w-4 {
+  width: 1rem;
 }
 .w-64 {
   width: 16rem;

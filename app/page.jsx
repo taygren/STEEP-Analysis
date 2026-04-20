@@ -869,10 +869,12 @@ function ForceMapTab({ state }) {
       new THREE.Vector3( 4,  -2.0, -5.0),
     ];
     const dimKeys = ['Social', 'Technological', 'Economic', 'Environmental', 'Political'];
+    const dimPosMap = {};
 
     dimKeys.forEach((dim, di) => {
       const dimData = state.steepData[dim.toLowerCase()];
       const pos     = dimPositions[di];
+      dimPosMap[dim] = pos;
       const hex     = parseInt(COLORS[dim].replace('#', ''), 16);
       const tc      = new THREE.Color(hex);
 
@@ -902,6 +904,56 @@ function ForceMapTab({ state }) {
         nodes.push({ mesh: drM, label: driver.name, type: 'driver', dimension: dim, description: driver.description || driver.name, evidence: driver.evidence, impact: driver.impact, velocity: driver.velocity, direction: driver.direction, confidence: driver.confidence });
         addLine(pos, driverPos, hex, 0.18);
       });
+    });
+
+    // ── Cross-dimension insight arcs ──────────────────────────────────
+    const INSIGHT_COLORS = { reinforcing: 0x10b981, countervailing: 0xef4444, emerging: 0x8b5cf6 };
+    const INSIGHT_HEX    = { reinforcing: '#10b981', countervailing: '#ef4444', emerging: '#8b5cf6' };
+
+    (state.synthesis?.cross_dimension_insights || []).forEach((insight) => {
+      const dims = (insight.dimensions_involved || []).filter(d => dimPosMap[d]);
+      if (dims.length < 2) return;
+
+      const typeKey = (insight.type || 'emerging').toLowerCase().replace(/[^a-z]/g, '');
+      const arcHex  = INSIGHT_COLORS[typeKey] ?? INSIGHT_COLORS.emerging;
+
+      // Draw an arc between every pair of involved dimensions
+      for (let a = 0; a < dims.length - 1; a++) {
+        for (let b = a + 1; b < dims.length; b++) {
+          const p1  = dimPosMap[dims[a]].clone();
+          const p2  = dimPosMap[dims[b]].clone();
+          const mid = p1.clone().add(p2).multiplyScalar(0.5);
+          // Push control point outward from the scene centre to create a visible arc
+          const ctrl = mid.clone().add(mid.clone().normalize().multiplyScalar(4.5));
+          const curve = new THREE.QuadraticBezierCurve3(p1, ctrl, p2);
+          const pts   = curve.getPoints(40);
+          const geom  = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat   = new THREE.LineDashedMaterial({ color: arcHex, dashSize: 0.45, gapSize: 0.28, transparent: true, opacity: 0.7 });
+          const line  = new THREE.Line(geom, mat);
+          line.computeLineDistances();
+          group.add(line);
+
+          // Visible glow bead at arc midpoint — clickable indicator
+          const midPt  = curve.getPoint(0.5);
+          const bead   = new THREE.Mesh(
+            new THREE.SphereGeometry(0.28, 12, 12),
+            new THREE.MeshPhongMaterial({ color: arcHex, emissive: arcHex, emissiveIntensity: 0.7, shininess: 120 })
+          );
+          bead.position.copy(midPt);
+          group.add(bead);
+
+          nodes.push({
+            mesh:                 bead,
+            label:                insight.insight?.slice(0, 50) || 'Cross-dimension Insight',
+            type:                 'insight',
+            insightType:          typeKey,
+            insightHex:           INSIGHT_HEX[typeKey] ?? INSIGHT_HEX.emerging,
+            insight:              insight.insight,
+            strategic_implication: insight.strategic_implication,
+            dimensions_involved:  insight.dimensions_involved,
+          });
+        }
+      }
     });
 
     nodesRef.current = nodes;
@@ -991,6 +1043,16 @@ function ForceMapTab({ state }) {
             ))}
             <p className="text-slate-600 mt-1">Node size = impact</p>
           </div>
+          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+            <p className="text-slate-500 font-semibold uppercase tracking-wider">Cross-dim Arcs</p>
+            {[['#10b981','Reinforcing'],['#ef4444','Countervailing'],['#8b5cf6','Emerging']].map(([c, l]) => (
+              <div key={l} className="flex items-center gap-2">
+                <div className="w-4 h-px flex-shrink-0" style={{ background: `repeating-linear-gradient(90deg,${c} 0px,${c} 4px,transparent 4px,transparent 7px)` }} />
+                <span className="text-slate-400">{l}</span>
+              </div>
+            ))}
+            <p className="text-slate-600 mt-1">Click bead for insight</p>
+          </div>
         </div>
 
         {/* Controls bar */}
@@ -1017,17 +1079,51 @@ function ForceMapTab({ state }) {
             {/* Header */}
             <div className="flex items-start justify-between">
               <div className="space-y-1.5">
-                {tooltip.dimension && <DimChip dim={tooltip.dimension} />}
-                {tooltip.type === 'driver' && (
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${tooltip.direction === 'positive' ? 'bg-emerald-900 text-emerald-300' : tooltip.direction === 'negative' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>
-                    {tooltip.direction}
+                {tooltip.type === 'insight' ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold capitalize" style={{ background: tooltip.insightHex + '22', color: tooltip.insightHex, border: `1px solid ${tooltip.insightHex}44` }}>
+                    {tooltip.insightType || 'insight'}
                   </span>
+                ) : (
+                  <>
+                    {tooltip.dimension && <DimChip dim={tooltip.dimension} />}
+                    {tooltip.type === 'driver' && (
+                      <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${tooltip.direction === 'positive' ? 'bg-emerald-900 text-emerald-300' : tooltip.direction === 'negative' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'}`}>
+                        {tooltip.direction}
+                      </span>
+                    )}
+                  </>
                 )}
                 <p className="text-white font-bold text-sm leading-snug">{tooltip.label}</p>
-                <p className="text-slate-500 capitalize">{tooltip.type}</p>
+                <p className="text-slate-500 capitalize">{tooltip.type === 'insight' ? 'Cross-dimension insight' : tooltip.type}</p>
               </div>
               <button onClick={() => setTooltip(null)} className="text-slate-600 hover:text-white text-base ml-2 mt-1">✕</button>
             </div>
+
+            {/* Insight: dimensions involved */}
+            {tooltip.type === 'insight' && tooltip.dimensions_involved?.length > 0 && (
+              <div>
+                <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Dimensions</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tooltip.dimensions_involved.map(d => <DimChip key={d} dim={d} />)}
+                </div>
+              </div>
+            )}
+
+            {/* Insight: insight text */}
+            {tooltip.type === 'insight' && tooltip.insight && (
+              <div>
+                <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Insight</p>
+                <p className="text-slate-300 leading-relaxed">{tooltip.insight}</p>
+              </div>
+            )}
+
+            {/* Insight: strategic implication */}
+            {tooltip.type === 'insight' && tooltip.strategic_implication && (
+              <div className="bg-slate-900 rounded-lg p-3 border border-slate-700">
+                <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Strategic implication</p>
+                <p className="text-slate-300 leading-relaxed">{tooltip.strategic_implication}</p>
+              </div>
+            )}
 
             {/* Impact / Velocity chips */}
             {tooltip.type === 'driver' && (
@@ -1058,8 +1154,8 @@ function ForceMapTab({ state }) {
               </div>
             )}
 
-            {/* Description */}
-            {tooltip.description && (
+            {/* Description (driver / dimension) */}
+            {tooltip.type !== 'insight' && tooltip.description && (
               <div>
                 <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Description</p>
                 <p className="text-slate-300 leading-relaxed">{tooltip.description}</p>
