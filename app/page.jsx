@@ -463,7 +463,7 @@ function normalizeAgentData(data) {
  * Fetch fresh sources from Tavily for a given query.
  * Returns [] silently on any failure so the orchestrator can degrade gracefully.
  */
-async function fetchResearch(query, max_results = 6) {
+async function fetchResearch(query, max_results = 4) {
   try {
     const res = await fetch('/api/research', {
       method: 'POST',
@@ -477,16 +477,17 @@ async function fetchResearch(query, max_results = 6) {
   }
 }
 
-/** Format an array of {title, url, snippet, published} into a prompt-injection block. */
+/** Format an array of {title, url, snippet, published} into a compact prompt-injection block. */
 function formatSourcesBlock(sources, label = 'RECENT SOURCES') {
   if (!sources || !sources.length) {
-    return `${label}: NO LIVE SOURCES AVAILABLE — proceed with training-data evidence and flag staleness as instructed in the RECENCY REQUIREMENT.`;
+    return `${label}: NO LIVE SOURCES — use training-data evidence and flag staleness per RECENCY REQUIREMENT.`;
   }
   const items = sources.map((s, i) => {
     const date = s.published ? ` (${s.published.slice(0, 10)})` : '';
-    return `[${i + 1}] ${s.title}${date}\n     URL: ${s.url}\n     ${s.snippet}`;
+    const snip = (s.snippet || '').slice(0, 200);
+    return `[${i + 1}] ${s.title}${date} — ${s.url}\n    ${snip}`;
   }).join('\n');
-  return `${label} — fetched live, dated within last 6 months. Ground driver.evidence in these where relevant; cite URLs in evidence strings (e.g. "per [reuters.com/...]"). If a source contradicts your training-data prior, defer to the source.
+  return `${label} (last 6 mo, live). Ground driver.evidence in these; cite the URL inline. Defer to sources over priors.
 
 ${items}`;
 }
@@ -1618,7 +1619,7 @@ function App() {
       for (const { key, dim, prompt } of agents) {
         try {
           dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'researching' });
-          const sources = await fetchResearch(dimQueries[dim], 6);
+          const sources = await fetchResearch(dimQueries[dim], 4);
           allSources.push(...sources.map(s => ({ ...s, dimension: dim })));
           const sourcesBlock = formatSourcesBlock(sources, `RECENT ${dim.toUpperCase()} SOURCES`);
 
@@ -1637,17 +1638,21 @@ ${sourcesBlock}`,
           console.error(`${dim} agent error:`, err.message);
           dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
         }
+        // Inter-agent pacing — lets Groq's per-minute token bucket partially refill
+        // between heavy calls, sharply reducing 429 retries on the free tier.
+        await new Promise(r => setTimeout(r, 4000));
       }
 
-      // Step 3: synthesis — brief pause lets the TPM bucket partially refill
-      await new Promise(r => setTimeout(r, 3000));
+      // Step 3: synthesis — longer pause lets the TPM bucket recover before
+      // the heaviest call (synthesis = 5 dim summaries + cross-dim sources + 2200 tok output)
+      await new Promise(r => setTimeout(r, 10000));
       dispatch({ type: 'SET_STATUS', payload: 'synthesizing' });
       try {
         const synthData = await callAgent(
           SYNTHESIS_PROMPT(subject, subjectType, results, rc),
           `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Use the cross-dimension live sources below to anchor cross_dimension_insights and roadmap triggers in real, dated events. Return only valid JSON matching the schema.
 
-${formatSourcesBlock(allSources.slice(0, 12), 'CROSS-DIMENSION LIVE SOURCES')}`,
+${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
           2200, // room for full roadmap, richer cross-dimension insights, and executive summary

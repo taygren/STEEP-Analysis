@@ -22,7 +22,7 @@ export async function POST(request) {
   } catch {
     return Response.json({ ok: false, sources: [], error: 'invalid JSON' });
   }
-  const { query, max_results = 6, days = 180 } = body || {};
+  const { query, max_results = 4, days = 180 } = body || {};
 
   if (!query || typeof query !== 'string') {
     return Response.json({ ok: false, sources: [], error: 'query is required' });

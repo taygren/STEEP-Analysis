@@ -1,6 +1,6 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
-const MAX_RETRIES   = 4;
+const MAX_RETRIES   = 6;
 
 /** Strip accidental "GROQ_API_KEY=..." or surrounding quotes from the secret value. */
 function cleanApiKey(raw) {
