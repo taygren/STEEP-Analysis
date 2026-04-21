@@ -65,6 +65,28 @@ const IMPACT_CLS = {
 // effects, decision orientation. Output JSON schema is unchanged.
 // ═══════════════════════════════════════════════════════════════════
 
+// Dynamic 6-month recency window — recomputed per analysis run
+function buildRecencyContext() {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - 6);
+  const fmt = (d) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today  = fmt(now);
+  const cutoffStr = fmt(cutoff);
+  return {
+    today,
+    cutoff: cutoffStr,
+    block: `RECENCY REQUIREMENT — strict, applies to every field:
+- Today's date is ${today}. Anchor the entire analysis to the last 6 months (${cutoffStr} → ${today}).
+- driver.evidence MUST cite items dated within this 6-month window. If a foundational older item is essential, prefix it with its date and explain in the same string why no newer item supersedes it.
+- signals MUST be leading indicators OBSERVED within the last 6 months — not historical patterns or evergreen trends.
+- forecast.trigger should reference upcoming events, deadlines, rulings, releases, or earnings windows scheduled within or after this 6-month window.
+- summary and driver.description should reflect the state of play AS OF ${today}, not a generic "current state".
+- If your training data does not extend into the ${cutoffStr}–${today} window, surface the most recent items you DO know, prefix each with its date (e.g., "Q3 2024:"), and flag staleness inline (e.g., "as of Q3 2024 — newer developments may have shifted this"). Do NOT fabricate dates.
+- Do NOT pad with pre-window evidence to hit count requirements — fewer high-recency items beat many stale ones. If a count is unattainable with recent evidence, fill remaining slots with the most recent dated items available and flag them as such.`,
+  };
+}
+
 const ANALYTICAL_VOICE = `WRITING STANDARD — read this twice before responding:
 - NAME SPECIFICS. Cite real companies, regulations, technologies, jurisdictions, products, dates, and numeric magnitudes (% change, $ amount, time-to-impact). Avoid generic categories like "consumer trends" or "regulators" — name which trend, which regulator, which jurisdiction.
 - SHOW CAUSALITY. State the mechanism: "X is happening → which forces Y → producing Z outcome for the subject." Do not just list trends.
@@ -78,13 +100,15 @@ const ANALYTICAL_VOICE = `WRITING STANDARD — read this twice before responding
 - signal.why_it_matters: explain the leading-indicator logic — what does this signal PREDICT, and on what timeline?
 - disruption_paths: name the specific causal chain that would invalidate today's strategy ("If X, then Y collapses because Z").`;
 
-const SOCIAL_PROMPT = (subj, type) => `You are a senior STEEP Social-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
+const SOCIAL_PROMPT = (subj, type, rc) => `You are a senior STEEP Social-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
 
 Cover: demographics with named cohorts, consumer behavior with named segments and brands, labor/work trends with named professions and unions, cultural and identity dynamics, public trust and brand perception, digital literacy gaps, and social license (named NGOs, advocacy groups, communities).
 
 ${ANALYTICAL_VOICE}
 
-Use your training knowledge through 2024. Return ONLY a valid JSON object — no prose, no markdown fences.
+${rc.block}
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
 
 {
   "dimension":"Social","summary":"2-3 sentences. Lead with the single most consequential social force and its strategic implication for ${subj}.","dominant_direction":"ACCELERATING|STABLE|DECELERATING|EMERGING","dimension_confidence":0.75,
@@ -96,13 +120,15 @@ Use your training knowledge through 2024. Return ONLY a valid JSON object — no
 }
 Exactly 3-5 drivers, 3 signals, 3 opportunities, 3 risks, 2 disruption_paths. Every entry must be specific to ${subj} — generic boilerplate will be rejected.`;
 
-const TECH_PROMPT = (subj, type) => `You are a senior STEEP Technological-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
+const TECH_PROMPT = (subj, type, rc) => `You are a senior STEEP Technological-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
 
 Cover: tech maturity with named platforms and stacks, AI/automation with specific model families and capabilities, infrastructure (compute, networks, energy), standards and interoperability, IP landscape (named patents, suits, licensing regimes), cybersecurity (named threat actors, CVEs, regulations), R&D pipeline (named labs, grants, milestones), and convergence effects between adjacent technologies.
 
 ${ANALYTICAL_VOICE}
 
-Use your training knowledge through 2024. Return ONLY a valid JSON object — no prose, no markdown fences.
+${rc.block}
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
 
 {
   "dimension":"Technological","summary":"2-3 sentences. Lead with the single most consequential technological inflection and what it forces ${subj} to decide.","dominant_direction":"ACCELERATING|STABLE|DECELERATING|EMERGING","dimension_confidence":0.75,
@@ -115,13 +141,15 @@ Use your training knowledge through 2024. Return ONLY a valid JSON object — no
 }
 Exactly 3-5 drivers, 3 signals, 3 opportunities, 3 risks, 2 disruption_paths. Every entry must be specific to ${subj}.`;
 
-const ECON_PROMPT = (subj, type) => `You are a senior STEEP Economic-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
+const ECON_PROMPT = (subj, type, rc) => `You are a senior STEEP Economic-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
 
 Cover: macro regime (rates, inflation, growth — named regions), capital markets (cost of capital, IPO/M&A windows, named funds), market structure and competitive intensity (named competitors, market share shifts), pricing power and margin trajectory, demand elasticity by segment, labor cost and availability, supply chain (named bottlenecks, suppliers, logistics chokepoints), trade policy (named tariffs, FTAs, sanctions), and FX exposure.
 
 ${ANALYTICAL_VOICE}
 
-Use your training knowledge through 2024. Return ONLY a valid JSON object — no prose, no markdown fences.
+${rc.block}
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
 
 {
   "dimension":"Economic","summary":"2-3 sentences. Lead with the single most consequential economic force and what margin/growth lever it moves for ${subj}.","dominant_direction":"ACCELERATING|STABLE|DECELERATING|EMERGING","dimension_confidence":0.75,
@@ -134,13 +162,15 @@ Use your training knowledge through 2024. Return ONLY a valid JSON object — no
 }
 Exactly 3-5 drivers, 3 signals, 3 opportunities, 3 risks, 2 disruption_paths. Every entry must be specific to ${subj}.`;
 
-const ENV_PROMPT = (subj, type) => `You are a senior STEEP Environmental-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
+const ENV_PROMPT = (subj, type, rc) => `You are a senior STEEP Environmental-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
 
 Cover: physical climate risk (named regions, perils, asset exposure), energy use and intensity (kWh/unit, named energy sources), carbon and emissions (Scope 1/2/3, named carbon prices and ETS regimes), water and resource scarcity (named basins and inputs), sustainability mandates (named regulations: CSRD, SEC Climate, EU Taxonomy), ESG compliance and capital access, circular-economy pressure, and reputational/litigation exposure.
 
 ${ANALYTICAL_VOICE}
 
-Use your training knowledge through 2024. Return ONLY a valid JSON object — no prose, no markdown fences.
+${rc.block}
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
 
 {
   "dimension":"Environmental","summary":"2-3 sentences. Lead with the single most consequential environmental force and what asset, cost, or license-to-operate it puts at stake for ${subj}.","dominant_direction":"ACCELERATING|STABLE|DECELERATING|EMERGING","dimension_confidence":0.75,
@@ -153,13 +183,15 @@ Use your training knowledge through 2024. Return ONLY a valid JSON object — no
 }
 Exactly 3-5 drivers, 3 signals, 3 opportunities, 3 risks, 2 disruption_paths. Every entry must be specific to ${subj}.`;
 
-const POL_PROMPT = (subj, type) => `You are a senior STEEP Political-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
+const POL_PROMPT = (subj, type, rc) => `You are a senior STEEP Political-dimension analyst at a top strategy firm, advising the C-suite of an organization weighing exposure to "${subj}" (${type}).
 
 Cover: regulation and compliance (named agencies, named rulemakings, enforcement posture), legislation and policy (named bills, named legislators/coalitions), antitrust and competition policy (named investigations, named jurisdictions), trade tariffs and industrial policy (named acts, named subsidies), sanctions and export controls (named entity lists, named end-use controls), geopolitics (named flashpoints, alliance dynamics), data sovereignty and digital governance (named data localization rules, named platforms), and lobbying/coalition dynamics.
 
 ${ANALYTICAL_VOICE}
 
-Use your training knowledge through 2024. Return ONLY a valid JSON object — no prose, no markdown fences.
+${rc.block}
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
 
 {
   "dimension":"Political","summary":"2-3 sentences. Lead with the single most consequential political force and the strategic decision it forces on ${subj} (timing, geography, structure).","dominant_direction":"ACCELERATING|STABLE|DECELERATING|EMERGING","dimension_confidence":0.75,
@@ -172,10 +204,10 @@ Use your training knowledge through 2024. Return ONLY a valid JSON object — no
 }
 Exactly 3-5 drivers, 3 signals, 3 opportunities, 3 risks, 2 disruption_paths. Every entry must be specific to ${subj}.`;
 
-const SYNTHESIS_PROMPT = (subj, type, data) => {
+const SYNTHESIS_PROMPT = (subj, type, data, rc) => {
   const s = (d) => d ? `${d.dominant_direction} — ${d.summary}` : 'unavailable';
   const drivers = (d) => (d?.drivers || []).slice(0, 3).map(dr => `${dr.name} (${dr.direction}, ${dr.impact})`).join('; ');
-  return `You are the senior synthesis partner integrating five STEEP dimension briefings into a single executive intelligence report for "${subj}" (${type}). Your audience is the CEO and board; they will use this to decide where to invest, where to retreat, and what to monitor.
+  return `You are the senior synthesis partner integrating five STEEP dimension briefings into a single executive intelligence report for "${subj}" (${type}), AS OF ${rc.today}. Your audience is the CEO and board; they will use this to decide where to invest, where to retreat, and what to monitor over the next 12-36 months.
 
 DIMENSION BRIEFINGS:
 - Social:        ${s(data.social)}        | Top drivers: ${drivers(data.social)}
@@ -183,6 +215,8 @@ DIMENSION BRIEFINGS:
 - Economic:      ${s(data.economic)}      | Top drivers: ${drivers(data.economic)}
 - Environmental: ${s(data.environmental)} | Top drivers: ${drivers(data.environmental)}
 - Political:     ${s(data.political)}     | Top drivers: ${drivers(data.political)}
+
+${rc.block}
 
 SYNTHESIS STANDARD — read this twice before responding:
 - Do NOT restate the dimension summaries. Your job is to integrate, weight, and find the cross-dimension story the individual analysts could not see alone.
@@ -1527,12 +1561,14 @@ function App() {
       // (local GPU handles one request at a time; sequential shows clear progress)
       const results = { social: null, technological: null, economic: null, environmental: null, political: null };
 
+      const rc = buildRecencyContext();
+
       const agents = [
-        { key: 'social',        dim: 'Social',        prompt: SOCIAL_PROMPT(subject, subjectType) },
-        { key: 'technological', dim: 'Technological', prompt: TECH_PROMPT(subject, subjectType) },
-        { key: 'economic',      dim: 'Economic',      prompt: ECON_PROMPT(subject, subjectType) },
-        { key: 'environmental', dim: 'Environmental', prompt: ENV_PROMPT(subject, subjectType) },
-        { key: 'political',     dim: 'Political',     prompt: POL_PROMPT(subject, subjectType) },
+        { key: 'social',        dim: 'Social',        prompt: SOCIAL_PROMPT(subject, subjectType, rc) },
+        { key: 'technological', dim: 'Technological', prompt: TECH_PROMPT(subject, subjectType, rc) },
+        { key: 'economic',      dim: 'Economic',      prompt: ECON_PROMPT(subject, subjectType, rc) },
+        { key: 'environmental', dim: 'Environmental', prompt: ENV_PROMPT(subject, subjectType, rc) },
+        { key: 'political',     dim: 'Political',     prompt: POL_PROMPT(subject, subjectType, rc) },
       ];
 
       for (const { key, dim, prompt } of agents) {
@@ -1557,7 +1593,7 @@ function App() {
       dispatch({ type: 'SET_STATUS', payload: 'synthesizing' });
       try {
         const synthData = await callAgent(
-          SYNTHESIS_PROMPT(subject, subjectType, results),
+          SYNTHESIS_PROMPT(subject, subjectType, results, rc),
           `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Return only valid JSON matching the schema.`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
