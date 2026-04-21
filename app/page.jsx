@@ -459,6 +459,38 @@ function normalizeAgentData(data) {
   return d;
 }
 
+/**
+ * Fetch fresh sources from Tavily for a given query.
+ * Returns [] silently on any failure so the orchestrator can degrade gracefully.
+ */
+async function fetchResearch(query, max_results = 6) {
+  try {
+    const res = await fetch('/api/research', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, max_results, days: 180 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return data.ok && Array.isArray(data.sources) ? data.sources : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Format an array of {title, url, snippet, published} into a prompt-injection block. */
+function formatSourcesBlock(sources, label = 'RECENT SOURCES') {
+  if (!sources || !sources.length) {
+    return `${label}: NO LIVE SOURCES AVAILABLE — proceed with training-data evidence and flag staleness as instructed in the RECENCY REQUIREMENT.`;
+  }
+  const items = sources.map((s, i) => {
+    const date = s.published ? ` (${s.published.slice(0, 10)})` : '';
+    return `[${i + 1}] ${s.title}${date}\n     URL: ${s.url}\n     ${s.snippet}`;
+  }).join('\n');
+  return `${label} — fetched live, dated within last 6 months. Ground driver.evidence in these where relevant; cite URLs in evidence strings (e.g. "per [reuters.com/...]"). If a source contradicts your training-data prior, defer to the source.
+
+${items}`;
+}
+
 /** Call the /api/analyze proxy and return parsed JSON. */
 async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict) {
   onStatus('researching');
@@ -1563,6 +1595,15 @@ function App() {
 
       const rc = buildRecencyContext();
 
+      // Per-dimension search angles — keep tight so Tavily returns relevant hits
+      const dimQueries = {
+        Social:        `${subject} consumer behavior demographics workforce culture public trust 2025 2026`,
+        Technological: `${subject} technology AI infrastructure platform breakthroughs 2025 2026`,
+        Economic:      `${subject} market financials revenue margins supply chain trade policy 2025 2026`,
+        Environmental: `${subject} sustainability climate carbon emissions ESG regulation 2025 2026`,
+        Political:     `${subject} regulation legislation antitrust policy geopolitics 2025 2026`,
+      };
+
       const agents = [
         { key: 'social',        dim: 'Social',        prompt: SOCIAL_PROMPT(subject, subjectType, rc) },
         { key: 'technological', dim: 'Technological', prompt: TECH_PROMPT(subject, subjectType, rc) },
@@ -1571,11 +1612,21 @@ function App() {
         { key: 'political',     dim: 'Political',     prompt: POL_PROMPT(subject, subjectType, rc) },
       ];
 
+      // Aggregate sources for synthesis to reference cross-dim themes
+      const allSources = [];
+
       for (const { key, dim, prompt } of agents) {
         try {
+          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'researching' });
+          const sources = await fetchResearch(dimQueries[dim], 6);
+          allSources.push(...sources.map(s => ({ ...s, dimension: dim })));
+          const sourcesBlock = formatSourcesBlock(sources, `RECENT ${dim.toUpperCase()} SOURCES`);
+
           const data = await callAgent(
             prompt,
-            `Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Use your training knowledge through 2024. Return only valid JSON matching the schema exactly.`,
+            `Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Ground every driver.evidence entry in the live sources below where relevant — cite the source URL inside the evidence string. Return only valid JSON matching the schema exactly.
+
+${sourcesBlock}`,
             selectedModel,
             (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: s }),
             1500, // room for richer per-driver descriptions and concrete evidence
@@ -1594,7 +1645,9 @@ function App() {
       try {
         const synthData = await callAgent(
           SYNTHESIS_PROMPT(subject, subjectType, results, rc),
-          `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Return only valid JSON matching the schema.`,
+          `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Use the cross-dimension live sources below to anchor cross_dimension_insights and roadmap triggers in real, dated events. Return only valid JSON matching the schema.
+
+${formatSourcesBlock(allSources.slice(0, 12), 'CROSS-DIMENSION LIVE SOURCES')}`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
           2200, // room for full roadmap, richer cross-dimension insights, and executive summary

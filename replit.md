@@ -19,6 +19,7 @@ app/
   globals.css       — Global styles
   api/
     analyze/route.js  — Proxies to Groq with retry-on-ratelimit (SSE stream)
+    research/route.js — Proxies to Tavily for fresh sources (last-6-month window)
     health/route.js   — Checks GROQ_API_KEY and Groq reachability
     models/route.js   — Returns curated Groq model catalog
     pull/route.js     — Returns 410 (not applicable for Groq)
@@ -40,6 +41,7 @@ The AI backend is Groq, not Ollama. Ollama runs but is never called.
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `GROQ_API_KEY` | Yes | — | Groq API key (`gsk_...`) |
+| `TAVILY_API_KEY` | No | — | Tavily search key (`tvly-...`) — when set, agents fetch fresh sources from the last 6 months and ground their evidence in real URLs. Without it, the system gracefully degrades to training-data evidence with staleness flags. |
 | `STEEP_DEFAULT_MODEL` | No | `llama-3.3-70b-versatile` | Override default model |
 
 ## Models (Groq)
