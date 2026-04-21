@@ -82,10 +82,28 @@ export async function POST(request) {
       });
 
       if (groqRes.status === 429) {
-        const errText = await groqRes.text();
-        const waitMs  = parseRetryAfterMs(errText);
+        const errText  = await groqRes.text();
+        const waitMs   = parseRetryAfterMs(errText);
+        const limitKind = classifyRateLimit(errText);
         lastError = errText;
-        console.warn(`[analyze] 429 rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${MAX_RETRIES}`);
+
+        // FAIL FAST when retrying is hopeless or wasteful:
+        //  - Per-day cap (TPD): only the daily reset clears it; retrying burns more quota.
+        //  - Per-minute cap with a wait longer than MAX_RETRY_WAIT_MS.
+        if (limitKind === 'daily' || waitMs > MAX_RETRY_WAIT_MS) {
+          console.warn(`[analyze] ${limitKind} rate limit — failing fast (would need to wait ${Math.round(waitMs/1000)}s)`);
+          return Response.json(
+            {
+              error: errText,
+              errorType: limitKind === 'daily' ? 'rate_limit_daily' : 'rate_limit_long_wait',
+              waitSeconds: Math.round(waitMs / 1000),
+              model: selectedModel,
+            },
+            { status: 429 },
+          );
+        }
+
+        console.warn(`[analyze] minute rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${MAX_RETRIES}`);
         await sleep(waitMs);
         continue; // retry
       }
@@ -112,5 +130,8 @@ export async function POST(request) {
     }
   }
 
-  return Response.json({ error: `Rate limit exceeded after ${MAX_RETRIES} retries: ${lastError}` }, { status: 429 });
+  return Response.json(
+    { error: `Rate limit exceeded after ${MAX_RETRIES} retries: ${lastError}`, errorType: 'rate_limit_minute' },
+    { status: 429 },
+  );
 }

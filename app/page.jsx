@@ -270,6 +270,7 @@ const initialState = {
   activeTab: 'overview',
   roadmapFilter: [],
   error: null,
+  errorType: null,
   // Groq
   groqStatus: 'checking', // checking | online | offline
   availableModels: [],
@@ -293,7 +294,7 @@ function reducer(state, action) {
       const f = state.roadmapFilter, d = action.payload;
       return { ...state, roadmapFilter: f.includes(d) ? f.filter(x => x !== d) : [...f, d] };
     }
-    case 'SET_ERROR': return { ...state, status: 'error', error: action.payload };
+    case 'SET_ERROR': return { ...state, status: 'error', error: action.payload, errorType: action.errorType || null };
     default: return state;
   }
 }
@@ -503,7 +504,11 @@ async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict)
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(err.error || `Agent responded ${res.status}`);
+    const e = new Error(err.error || `Agent responded ${res.status}`);
+    e.errorType   = err.errorType   || null;
+    e.waitSeconds = err.waitSeconds || null;
+    e.modelUsed   = err.model       || null;
+    throw e;
   }
 
   const raw = await readGroqStream(res);
@@ -1558,7 +1563,7 @@ function RoadmapTab({ state, dispatch }) {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus } = state;
+  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels } = state;
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
@@ -1616,7 +1621,12 @@ function App() {
       // Aggregate sources for synthesis to reference cross-dim themes
       const allSources = [];
 
+      let dailyLimitHit = false;
       for (const { key, dim, prompt } of agents) {
+        if (dailyLimitHit) {
+          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
+          continue;
+        }
         try {
           dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'researching' });
           const sources = await fetchResearch(dimQueries[dim], 4);
@@ -1637,10 +1647,24 @@ ${sourcesBlock}`,
         } catch (err) {
           console.error(`${dim} agent error:`, err.message);
           dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
+          if (err.errorType === 'rate_limit_daily') {
+            dailyLimitHit = true;
+            dispatch({
+              type: 'SET_ERROR',
+              errorType: 'rate_limit_daily',
+              payload: `Groq daily token limit reached on ${err.modelUsed || selectedModel}. The free tier allows 100,000 tokens per day on this model. Switch to "llama-3.1-8b-instant" (separate daily quota, faster) from the model dropdown, wait until your daily reset, or upgrade to Groq's Dev tier.`,
+            });
+          }
         }
         // Inter-agent pacing — lets Groq's per-minute token bucket partially refill
         // between heavy calls, sharply reducing 429 retries on the free tier.
         await new Promise(r => setTimeout(r, 4000));
+      }
+
+      // Skip synthesis if we already exhausted the daily quota — it would just fail again.
+      if (dailyLimitHit) {
+        dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
+        return;
       }
 
       // Step 3: synthesis — longer pause lets the TPM bucket recover before
@@ -1662,8 +1686,16 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
       } catch (err) {
         console.error('Synthesis error:', err.message);
         dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
-        dispatch({ type: 'SET_STATUS', payload: 'complete' });
-        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'evidence' });
+        if (err.errorType === 'rate_limit_daily') {
+          dispatch({
+            type: 'SET_ERROR',
+            errorType: 'rate_limit_daily',
+            payload: `Groq daily token limit reached during synthesis on ${err.modelUsed || selectedModel}. The five dimension briefings completed — switch to "llama-3.1-8b-instant" or wait for the daily reset to generate the executive synthesis.`,
+          });
+        } else {
+          dispatch({ type: 'SET_STATUS', payload: 'complete' });
+          dispatch({ type: 'SET_ACTIVE_TAB', payload: 'evidence' });
+        }
       }
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
@@ -1764,10 +1796,32 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
 
         {/* Error */}
         {status === 'error' && state.error && (
-          <div className="mx-3 mb-3 p-3 bg-red-950 border border-red-800 rounded-xl">
-            <p className="text-red-400 text-xs font-semibold mb-1">Error</p>
-            <p className="text-red-300 text-xs leading-relaxed break-words">{state.error}</p>
-            <button onClick={() => dispatch({ type: 'SET_STATUS', payload: 'idle' })} className="mt-2 text-xs text-red-400 hover:text-red-200 underline">Dismiss</button>
+          <div className={`mx-3 mb-3 p-3 rounded-xl border ${state.errorType === 'rate_limit_daily' ? 'bg-amber-950 border-amber-800' : 'bg-red-950 border-red-800'}`}>
+            <p className={`text-xs font-semibold mb-1 ${state.errorType === 'rate_limit_daily' ? 'text-amber-400' : 'text-red-400'}`}>
+              {state.errorType === 'rate_limit_daily' ? 'Daily token limit reached' : 'Error'}
+            </p>
+            <p className={`text-xs leading-relaxed break-words ${state.errorType === 'rate_limit_daily' ? 'text-amber-200' : 'text-red-300'}`}>
+              {state.error}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {state.errorType === 'rate_limit_daily' && availableModels.some(m => m.id === 'llama-3.1-8b-instant') && selectedModel !== 'llama-3.1-8b-instant' && (
+                <button
+                  onClick={() => {
+                    dispatch({ type: 'SET_SELECTED_MODEL', payload: 'llama-3.1-8b-instant' });
+                    dispatch({ type: 'SET_STATUS', payload: 'idle' });
+                  }}
+                  className="text-xs px-2 py-1 rounded bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium"
+                >
+                  Switch to 8B model
+                </button>
+              )}
+              <button
+                onClick={() => dispatch({ type: 'SET_STATUS', payload: 'idle' })}
+                className={`text-xs underline ${state.errorType === 'rate_limit_daily' ? 'text-amber-400 hover:text-amber-200' : 'text-red-400 hover:text-red-200'}`}
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
