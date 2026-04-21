@@ -7,39 +7,36 @@ function cleanApiKey(raw) {
   return key.replace(/^["']|["']$/g, '');
 }
 
-/**
- * GET /api/health
- * Verifies the Groq API key is present and reachable.
- */
-export async function GET() {
-  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
-
-  if (!apiKey) {
-    return Response.json(
-      { ok: false, error: 'GROQ_API_KEY environment variable is not set' },
-      { status: 503 },
-    );
-  }
-
+/** Probe a provider's /models endpoint to confirm the API key works and the service is reachable. */
+async function probe(name, url, apiKey) {
+  if (!apiKey) return { name, ok: false, error: 'API key not configured' };
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/models', {
+    const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(8000),
       cache: 'no-store',
     });
-
-    if (!res.ok) {
-      return Response.json(
-        { ok: false, error: `Groq API responded ${res.status}` },
-        { status: 503 },
-      );
-    }
-
-    return Response.json({ ok: true, provider: 'groq' });
+    if (!res.ok) return { name, ok: false, error: `${res.status}` };
+    return { name, ok: true };
   } catch (err) {
-    return Response.json(
-      { ok: false, error: err.message },
-      { status: 503 },
-    );
+    return { name, ok: false, error: err.message };
   }
+}
+
+/**
+ * GET /api/health
+ * Probes every configured provider in parallel and returns the aggregate status.
+ * The app is considered "online" if at least one provider is reachable.
+ */
+export async function GET() {
+  const results = await Promise.all([
+    probe('groq',     'https://api.groq.com/openai/v1/models',  cleanApiKey(process.env.GROQ_API_KEY)),
+    probe('cerebras', 'https://api.cerebras.ai/v1/models',      cleanApiKey(process.env.CEREBRAS_API_KEY)),
+  ]);
+
+  const anyOk = results.some(r => r.ok);
+  return Response.json(
+    { ok: anyOk, providers: results },
+    { status: anyOk ? 200 : 503 },
+  );
 }

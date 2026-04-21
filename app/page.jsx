@@ -10,11 +10,13 @@ import * as THREE from 'three';
 const RECOMMENDED_MODEL = 'llama-3.3-70b-versatile';
 
 const CATALOG = [
-  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B',        note: 'Recommended — best quality, fast on Groq' },
-  { id: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B Instant', note: 'Fastest — good for quick tests' },
-  { id: 'llama3-8b-8192',          label: 'Llama 3 8B',           note: 'Solid baseline, 8k context' },
-  { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',         note: 'Strong reasoning, 32k context' },
-  { id: 'gemma2-9b-it',            label: 'Gemma 2 9B',           note: 'Good instruction following' },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B',             note: 'Recommended — best quality, fast on Groq' },
+  { id: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B Instant',      note: 'Fastest — separate daily quota from 70B' },
+  { id: 'llama3-8b-8192',          label: 'Llama 3 8B',                note: 'Solid baseline, 8k context' },
+  { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',              note: 'Strong reasoning, 32k context' },
+  { id: 'gemma2-9b-it',            label: 'Gemma 2 9B',                note: 'Good instruction following' },
+  { id: 'cerebras/llama-3.3-70b',  label: 'Llama 3.3 70B (Cerebras)',  note: 'Free tier — separate daily quota from Groq' },
+  { id: 'cerebras/llama3.1-8b',    label: 'Llama 3.1 8B (Cerebras)',   note: 'Free tier — fastest Cerebras option' },
 ];
 
 const SUGGESTED_SUBJECTS = {

@@ -1,6 +1,31 @@
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
-const MAX_RETRIES   = 6;
+const GROQ_API_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+const DEFAULT_MODEL    = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
+const MAX_RETRIES      = 6;
+
+/**
+ * Resolve which provider to use based on the model id.
+ * Cerebras models are prefixed with "cerebras/" in the catalog (e.g. "cerebras/llama-3.3-70b").
+ * Everything else falls through to Groq.
+ */
+function resolveProvider(modelId) {
+  if (modelId && modelId.startsWith('cerebras/')) {
+    return {
+      name:    'cerebras',
+      url:     CEREBRAS_API_URL,
+      apiKey:  cleanApiKey(process.env.CEREBRAS_API_KEY),
+      keyName: 'CEREBRAS_API_KEY',
+      model:   modelId.slice('cerebras/'.length),
+    };
+  }
+  return {
+    name:    'groq',
+    url:     GROQ_API_URL,
+    apiKey:  cleanApiKey(process.env.GROQ_API_KEY),
+    keyName: 'GROQ_API_KEY',
+    model:   modelId,
+  };
+}
 
 /** Strip accidental "GROQ_API_KEY=..." or surrounding quotes from the secret value. */
 function cleanApiKey(raw) {
@@ -44,11 +69,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * Final line:     data: [DONE]
  */
 export async function POST(request) {
-  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
-  if (!apiKey) {
-    return Response.json({ error: 'GROQ_API_KEY is not configured' }, { status: 503 });
-  }
-
   const { systemPrompt, userMessage, model, numPredict } = await request.json();
 
   if (!systemPrompt || !userMessage) {
@@ -56,8 +76,14 @@ export async function POST(request) {
   }
 
   const selectedModel = model || DEFAULT_MODEL;
+  const provider      = resolveProvider(selectedModel);
+
+  if (!provider.apiKey) {
+    return Response.json({ error: `${provider.keyName} is not configured` }, { status: 503 });
+  }
+
   const body = JSON.stringify({
-    model: selectedModel,
+    model: provider.model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userMessage   },
@@ -72,11 +98,11 @@ export async function POST(request) {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const groqRes = await fetch(GROQ_API_URL, {
+      const groqRes = await fetch(provider.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${provider.apiKey}`,
         },
         body,
       });
@@ -98,6 +124,7 @@ export async function POST(request) {
               errorType: limitKind === 'daily' ? 'rate_limit_daily' : 'rate_limit_long_wait',
               waitSeconds: Math.round(waitMs / 1000),
               model: selectedModel,
+              provider: provider.name,
             },
             { status: 429 },
           );
