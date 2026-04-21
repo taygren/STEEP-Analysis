@@ -40,26 +40,37 @@ The AI backend is Groq, not Ollama. Ollama runs but is never called.
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `GROQ_API_KEY` | Yes | — | Groq API key (`gsk_...`) |
+| `GROQ_API_KEY` | One required | — | Groq API key (`gsk_...`) |
+| `CEREBRAS_API_KEY` | One required | — | Cerebras Cloud API key — separate daily quota from Groq, often faster (~2,000 tok/sec). Either GROQ or CEREBRAS must be set; both work simultaneously and are selectable from the Provider dropdown. |
 | `TAVILY_API_KEY` | No | — | Tavily search key (`tvly-...`) — when set, agents fetch fresh sources from the last 6 months and ground their evidence in real URLs. Without it, the system gracefully degrades to training-data evidence with staleness flags. |
 | `STEEP_DEFAULT_MODEL` | No | `llama-3.3-70b-versatile` | Override default model |
 
-## Models (Groq)
+## Providers & Models
 
-| Model ID | Label | Notes |
-|---|---|---|
-| `llama-3.3-70b-versatile` | Llama 3.3 70B | Default — best quality |
-| `llama-3.1-8b-instant` | Llama 3.1 8B Instant | Fastest, higher rate-limit headroom |
-| `llama3-8b-8192` | Llama 3 8B | Solid baseline, 8k context |
-| `mixtral-8x7b-32768` | Mixtral 8×7B | Strong reasoning, 32k context |
-| `gemma2-9b-it` | Gemma 2 9B | Good instruction following |
+The app supports multiple OpenAI-compatible providers. Each provider has its own daily quota — when one is exhausted, switch to the other from the Provider dropdown (or use the in-app one-click recovery banner).
+
+**Groq** (`GROQ_API_KEY`)
+| Model ID | Notes |
+|---|---|
+| `llama-3.3-70b-versatile` | Best quality on Groq · 100k tokens/day free |
+| `llama-3.1-8b-instant`    | Fastest on Groq · separate daily quota from 70B |
+
+**Cerebras** (`CEREBRAS_API_KEY`)
+| Model ID | Notes |
+|---|---|
+| `llama-3.3-70b`                  | ~2,000 tok/sec · separate daily quota from Groq |
+| `llama-4-scout-17b-16e-instruct` | Newest Llama 4, fast and capable |
+| `llama3.1-8b`                    | Fastest, lowest token cost |
+
+To add another provider, append an entry to `PROVIDERS` in `app/api/analyze/route.js` and `app/api/health/route.js`, plus an entry to `ALL_MODELS` in `app/api/models/route.js` and `CATALOG` in `app/page.jsx`. Any OpenAI-compatible chat-completions endpoint with SSE streaming and `response_format: { type: 'json_object' }` will work.
 
 ## Rate Limit Handling
 
-Groq free tier: 12,000 TPM on Llama 3.3 70B.
-- analyze/route.js retries on 429 up to 4 times, parsing retry delay from Groq's error message
-- 3-second pause inserted before synthesis agent call
-- Dimension agents: 1,200 max_tokens; synthesis agent: 1,800 max_tokens
+- analyze/route.js retries per-minute (TPM) rate limits up to 6 times, parsing the retry delay from the provider's error message (handles `8m18.528s` / `1h2m3.4s` / `5.2s` formats).
+- Per-day (TPD) caps and any wait > 90 seconds fail fast with `errorType: 'rate_limit_daily'` so the daily quota isn't burned on hopeless retries.
+- The orchestrator aborts the run on the first daily-cap hit and surfaces an amber banner with a one-click "Switch to [other provider]" button (the alternate provider has a separate daily quota).
+- Inter-agent pacing: 4 s between dimension agents, 10 s before synthesis, lets the per-minute token bucket refill on free tiers.
+- Dimension agents: 1,500 max_tokens; synthesis agent: 2,200 max_tokens.
 
 ## UI Tabs
 

@@ -1,8 +1,30 @@
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = process.env.STEEP_DEFAULT_MODEL || 'llama-3.3-70b-versatile';
-const MAX_RETRIES   = 6;
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-provider analyze proxy (OpenAI-compatible chat completions)
+//
+// All supported providers expose an OpenAI-style /chat/completions endpoint with
+// SSE streaming, JSON-object response_format, and Bearer auth. To add another
+// provider, append an entry to PROVIDERS — no other code change required.
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** Strip accidental "GROQ_API_KEY=..." or surrounding quotes from the secret value. */
+const PROVIDERS = {
+  groq: {
+    label:   'Groq',
+    url:     'https://api.groq.com/openai/v1/chat/completions',
+    envKey:  'GROQ_API_KEY',
+    default: 'llama-3.3-70b-versatile',
+  },
+  cerebras: {
+    label:   'Cerebras',
+    url:     'https://api.cerebras.ai/v1/chat/completions',
+    envKey:  'CEREBRAS_API_KEY',
+    default: 'llama-3.3-70b',
+  },
+};
+
+const MAX_RETRIES       = 6;
+const MAX_RETRY_WAIT_MS = 90_000;
+
+/** Strip accidental "NAME=..." prefix or surrounding quotes from secret values. */
 function cleanApiKey(raw) {
   if (!raw) return raw;
   let key = raw.trim().replace(/^["']|["']$/g, '');
@@ -11,7 +33,7 @@ function cleanApiKey(raw) {
   return key.replace(/^["']|["']$/g, '');
 }
 
-/** Parse Groq's "try again in 8m18.528s" / "1h2m3.4s" / "5.2s" format. Returns ms. */
+/** Parse "try again in 8m18.528s" / "1h2m3.4s" / "5.2s" — returns ms. */
 function parseRetryAfterMs(errorText) {
   const m = errorText.match(/try again in\s+(?:(\d+)h)?(?:(\d+)m)?([\d.]+)?s/i);
   if (!m) return 5000;
@@ -21,41 +43,47 @@ function parseRetryAfterMs(errorText) {
   return Math.ceil((hours * 3600 + minutes * 60 + seconds) * 1000) + 500;
 }
 
-/** Detect whether a Groq 429 is a per-day (TPD) cap vs a per-minute (TPM) cap. */
+/** Detect whether a 429 is a per-day cap vs per-minute cap. */
 function classifyRateLimit(errorText) {
-  if (/tokens per day|TPD/i.test(errorText))    return 'daily';
-  if (/tokens per minute|TPM/i.test(errorText)) return 'minute';
+  if (/tokens per day|requests per day|TPD|RPD|daily/i.test(errorText))     return 'daily';
+  if (/tokens per minute|requests per minute|TPM|RPM|per minute/i.test(errorText)) return 'minute';
   return 'unknown';
 }
 
-/** Maximum we're willing to wait inside a single request before failing fast. */
-const MAX_RETRY_WAIT_MS = 90_000;
-
-/** Sleep for ms milliseconds. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * POST /api/analyze
- * Body: { systemPrompt, userMessage, model, numPredict }
+ * Body: { systemPrompt, userMessage, model, numPredict, provider? }
  *
- * Calls Groq's chat completions API with automatic retry on 429 rate-limit errors.
- * Streams the SSE response (OpenAI format) back to the client.
- * Each data line: { choices: [{ delta: { content } }] }
- * Final line:     data: [DONE]
+ * Routes to the requested provider (default: groq), retries transient
+ * per-minute rate limits, and fails fast on per-day caps so the daily
+ * quota isn't burned on hopeless retries. Streams the SSE response back.
  */
 export async function POST(request) {
-  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
-  if (!apiKey) {
-    return Response.json({ error: 'GROQ_API_KEY is not configured' }, { status: 503 });
+  const { systemPrompt, userMessage, model, numPredict, provider = 'groq' } = await request.json();
+
+  const cfg = PROVIDERS[provider];
+  if (!cfg) {
+    return Response.json(
+      { error: `Unknown provider: ${provider}. Supported: ${Object.keys(PROVIDERS).join(', ')}` },
+      { status: 400 },
+    );
   }
 
-  const { systemPrompt, userMessage, model, numPredict } = await request.json();
+  const apiKey = cleanApiKey(process.env[cfg.envKey]);
+  if (!apiKey) {
+    return Response.json(
+      { error: `${cfg.envKey} is not configured for provider "${provider}"`, provider },
+      { status: 503 },
+    );
+  }
 
   if (!systemPrompt || !userMessage) {
     return Response.json({ error: 'systemPrompt and userMessage are required' }, { status: 400 });
   }
 
-  const selectedModel = model || DEFAULT_MODEL;
+  const selectedModel = model || cfg.default;
   const body = JSON.stringify({
     model: selectedModel,
     messages: [
@@ -72,49 +100,50 @@ export async function POST(request) {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const groqRes = await fetch(GROQ_API_URL, {
-        method: 'POST',
+      const upstream = await fetch(cfg.url, {
+        method:  'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type':  'application/json',
           'Authorization': `Bearer ${apiKey}`,
         },
         body,
       });
 
-      if (groqRes.status === 429) {
-        const errText  = await groqRes.text();
-        const waitMs   = parseRetryAfterMs(errText);
+      if (upstream.status === 429) {
+        const errText   = await upstream.text();
+        const waitMs    = parseRetryAfterMs(errText);
         const limitKind = classifyRateLimit(errText);
         lastError = errText;
 
-        // FAIL FAST when retrying is hopeless or wasteful:
-        //  - Per-day cap (TPD): only the daily reset clears it; retrying burns more quota.
-        //  - Per-minute cap with a wait longer than MAX_RETRY_WAIT_MS.
+        // Fail fast when retrying is hopeless or wasteful:
+        //   - Per-day cap: only the daily reset clears it; retrying burns more quota.
+        //   - Any wait longer than MAX_RETRY_WAIT_MS.
         if (limitKind === 'daily' || waitMs > MAX_RETRY_WAIT_MS) {
-          console.warn(`[analyze] ${limitKind} rate limit — failing fast (would need to wait ${Math.round(waitMs/1000)}s)`);
+          console.warn(`[analyze:${provider}] ${limitKind} rate limit — failing fast (would need ${Math.round(waitMs/1000)}s)`);
           return Response.json(
             {
               error: errText,
               errorType: limitKind === 'daily' ? 'rate_limit_daily' : 'rate_limit_long_wait',
               waitSeconds: Math.round(waitMs / 1000),
               model: selectedModel,
+              provider,
             },
             { status: 429 },
           );
         }
 
-        console.warn(`[analyze] minute rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${MAX_RETRIES}`);
+        console.warn(`[analyze:${provider}] minute rate limit — waiting ${waitMs}ms before retry ${attempt + 1}/${MAX_RETRIES}`);
         await sleep(waitMs);
-        continue; // retry
+        continue;
       }
 
-      if (!groqRes.ok) {
-        const text = await groqRes.text();
-        return Response.json({ error: text }, { status: groqRes.status });
+      if (!upstream.ok) {
+        const text = await upstream.text();
+        return Response.json({ error: text, provider, model: selectedModel }, { status: upstream.status });
       }
 
-      // Success — stream through
-      return new Response(groqRes.body, {
+      // Success — stream OpenAI-format SSE through to the client unchanged
+      return new Response(upstream.body, {
         headers: {
           'Content-Type':      'text/event-stream',
           'Cache-Control':     'no-cache',
@@ -131,7 +160,11 @@ export async function POST(request) {
   }
 
   return Response.json(
-    { error: `Rate limit exceeded after ${MAX_RETRIES} retries: ${lastError}`, errorType: 'rate_limit_minute' },
+    {
+      error: `Rate limit exceeded after ${MAX_RETRIES} retries: ${lastError}`,
+      errorType: 'rate_limit_minute',
+      provider,
+    },
     { status: 429 },
   );
 }
