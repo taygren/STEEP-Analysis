@@ -7,24 +7,14 @@ import * as THREE from 'three';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 
-const RECOMMENDED_PROVIDER = 'groq';
-const RECOMMENDED_MODEL    = 'llama-3.3-70b-versatile';
+const RECOMMENDED_MODEL = 'llama-3.3-70b-versatile';
 
-const PROVIDER_LABELS = {
-  groq:     'Groq',
-  cerebras: 'Cerebras',
-};
-
-// Multi-provider catalog. Filtered at runtime against /api/models so only
-// providers with a configured API key are surfaced in the UI.
 const CATALOG = [
-  // Groq
-  { id: 'llama-3.3-70b-versatile', provider: 'groq', label: 'Llama 3.3 70B',        note: 'Best quality on Groq · 100k tokens/day free' },
-  { id: 'llama-3.1-8b-instant',    provider: 'groq', label: 'Llama 3.1 8B Instant', note: 'Fastest on Groq · separate daily quota from 70B' },
-  // Cerebras (separate daily quota — great fallback when Groq is exhausted)
-  { id: 'llama-3.3-70b',                   provider: 'cerebras', label: 'Llama 3.3 70B',     note: 'Cerebras · ~2,000 tok/sec · separate daily quota' },
-  { id: 'llama-4-scout-17b-16e-instruct',  provider: 'cerebras', label: 'Llama 4 Scout 17B', note: 'Cerebras · newest Llama 4, fast and capable' },
-  { id: 'llama3.1-8b',                     provider: 'cerebras', label: 'Llama 3.1 8B',      note: 'Cerebras · fastest, lowest token cost' },
+  { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B',        note: 'Recommended — best quality, fast on Groq' },
+  { id: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B Instant', note: 'Fastest — good for quick tests' },
+  { id: 'llama3-8b-8192',          label: 'Llama 3 8B',           note: 'Solid baseline, 8k context' },
+  { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',         note: 'Strong reasoning, 32k context' },
+  { id: 'gemma2-9b-it',            label: 'Gemma 2 9B',           note: 'Good instruction following' },
 ];
 
 const SUGGESTED_SUBJECTS = {
@@ -284,8 +274,6 @@ const initialState = {
   // Groq
   groqStatus: 'checking', // checking | online | offline
   availableModels: [],
-  configuredProviders: { groq: false, cerebras: false },
-  selectedProvider: RECOMMENDED_PROVIDER,
   selectedModel: RECOMMENDED_MODEL,
 };
 
@@ -293,14 +281,6 @@ function reducer(state, action) {
   switch (action.type) {
     case 'SET_SUBJECT':       return { ...state, subject: action.payload };
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
-    case 'SET_SELECTED_PROVIDER': {
-      // When switching provider, snap selectedModel to that provider's first model
-      const firstModel = CATALOG.find(m => m.provider === action.payload);
-      return { ...state, selectedProvider: action.payload, selectedModel: firstModel ? firstModel.id : state.selectedModel };
-    }
-    case 'SET_PROVIDER_AND_MODEL':
-      return { ...state, selectedProvider: action.provider, selectedModel: action.model };
-    case 'SET_CONFIGURED_PROVIDERS': return { ...state, configuredProviders: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
     case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats() };
@@ -514,12 +494,12 @@ ${items}`;
 }
 
 /** Call the /api/analyze proxy and return parsed JSON. */
-async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict, provider) {
+async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict) {
   onStatus('researching');
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ systemPrompt, userMessage, model, numPredict, provider }),
+    body: JSON.stringify({ systemPrompt, userMessage, model, numPredict }),
   });
 
   if (!res.ok) {
@@ -539,8 +519,8 @@ async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict,
   return parsed;
 }
 
-/** Lightweight subject classification (uses the selected provider/model). */
-async function classifySubject(subject, model, provider) {
+/** Lightweight classification using Ollama. */
+async function classifySubject(subject, model) {
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
@@ -549,7 +529,6 @@ async function classifySubject(subject, model, provider) {
         systemPrompt: 'You classify inputs. Reply with ONLY the single word "trend" or "company". No other output.',
         userMessage:  `Is "${subject}" a technology trend / phenomenon / movement, or a company / brand / organization? Reply with one word: trend or company.`,
         model,
-        provider,
       }),
     });
     const raw  = await readGroqStream(res);
@@ -606,18 +585,13 @@ function SectionHdr({ children }) {
 // ═══════════════════════════════════════════════════════════════════
 
 function GroqPanel({ state, dispatch }) {
-  const { groqStatus, selectedProvider, selectedModel, configuredProviders } = state;
-
-  const providerKeys   = Object.keys(PROVIDER_LABELS);
-  const providerModels = CATALOG.filter(m => m.provider === selectedProvider);
-  const providerEnvKey = selectedProvider === 'cerebras' ? 'CEREBRAS_API_KEY' : 'GROQ_API_KEY';
-  const providerConfigured = !!configuredProviders[selectedProvider];
+  const { groqStatus, selectedModel } = state;
 
   return (
     <div className="px-4 py-4 border-b border-slate-800 space-y-3">
       {/* Status row */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-400">{PROVIDER_LABELS[selectedProvider]}</span>
+        <span className="text-xs font-medium text-slate-400">Groq</span>
         <div className="flex items-center gap-1.5">
           <div className={`w-2 h-2 rounded-full ${groqStatus === 'online' ? 'bg-green-400' : groqStatus === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-500'}`} />
           <span className={`text-xs ${groqStatus === 'online' ? 'text-green-400' : groqStatus === 'checking' ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -626,41 +600,21 @@ function GroqPanel({ state, dispatch }) {
         </div>
       </div>
 
-      {!providerConfigured && groqStatus !== 'checking' && (
+      {groqStatus === 'offline' && (
         <div className="bg-red-950 border border-red-800 rounded-lg p-2">
-          <p className="text-red-300 text-xs leading-relaxed">
-            Set <code className="font-mono bg-red-900 px-1 rounded">{providerEnvKey}</code> in your environment variables.
-          </p>
+          <p className="text-red-300 text-xs leading-relaxed">Set <code className="font-mono bg-red-900 px-1 rounded">GROQ_API_KEY</code> in your environment variables.</p>
         </div>
       )}
 
-      {/* Provider selector */}
-      <div>
-        <label className="block text-xs text-slate-500 mb-1">Provider</label>
-        <select
-          value={selectedProvider}
-          onChange={e => dispatch({ type: 'SET_SELECTED_PROVIDER', payload: e.target.value })}
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 transition-colors appearance-none"
-        >
-          {providerKeys.map(p => (
-            <option key={p} value={p}>
-              {PROVIDER_LABELS[p]}{configuredProviders[p] ? '' : ' (no key)'}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Model selector — filtered by provider */}
+      {/* Model selector */}
       <div>
         <label className="block text-xs text-slate-500 mb-1">Model</label>
         <select
           value={selectedModel}
           onChange={e => dispatch({ type: 'SET_SELECTED_MODEL', payload: e.target.value })}
           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 transition-colors appearance-none"
-          disabled={providerModels.length === 0}
         >
-          {providerModels.length === 0 && <option>No models available</option>}
-          {providerModels.map(m => (
+          {CATALOG.map(m => (
             <option key={m.id} value={m.id}>{m.label}</option>
           ))}
         </select>
@@ -1609,50 +1563,27 @@ function RoadmapTab({ state, dispatch }) {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, selectedProvider, groqStatus, availableModels } = state;
+  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels } = state;
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
 
-  // ── On mount: discover which providers are configured and probe their health ──
+  // ── On mount: check Ollama health and list models ──
   useEffect(() => {
     (async () => {
       try {
-        const mRes  = await fetch('/api/models');
-        const mData = await mRes.json();
-        const configured = mData.providers || { groq: false, cerebras: false };
-        dispatch({ type: 'SET_CONFIGURED_PROVIDERS', payload: configured });
-        dispatch({ type: 'SET_MODELS', payload: mData.models || [] });
-
-        // If the default provider has no key but another provider does, switch to that one
-        if (!configured[selectedProvider]) {
-          const fallback = Object.entries(configured).find(([, v]) => v)?.[0];
-          if (fallback) {
-            const firstModel = (mData.models || []).find(m => m.provider === fallback);
-            if (firstModel) {
-              dispatch({ type: 'SET_PROVIDER_AND_MODEL', provider: fallback, model: firstModel.id });
-            }
-          }
-        }
-      } catch {
-        // Non-fatal — health check below will surface the offline state
-      }
-    })();
-  }, []);
-
-  // ── Probe health of the currently selected provider ──
-  useEffect(() => {
-    (async () => {
-      dispatch({ type: 'SET_GROQ_STATUS', status: 'checking' });
-      try {
-        const hRes  = await fetch(`/api/health?provider=${selectedProvider}`);
+        const hRes  = await fetch('/api/health');
         const hData = await hRes.json();
         dispatch({ type: 'SET_GROQ_STATUS', status: hData.ok ? 'online' : 'offline' });
+
+        const mRes  = await fetch('/api/models');
+        const mData = await mRes.json();
+        dispatch({ type: 'SET_MODELS', payload: mData.models || [] });
       } catch {
         dispatch({ type: 'SET_GROQ_STATUS', status: 'offline' });
       }
     })();
-  }, [selectedProvider]);
+  }, []);
 
   // ── ANALYSIS ORCHESTRATOR ──
   const handleAnalysis = useCallback(async () => {
@@ -1661,7 +1592,7 @@ function App() {
 
     try {
       // Step 1: classify
-      const subjectType = await classifySubject(subject, selectedModel, selectedProvider);
+      const subjectType = await classifySubject(subject, selectedModel);
       dispatch({ type: 'SET_SUBJECT_TYPE', payload: subjectType });
 
       // Step 2: run 5 dimension agents sequentially
@@ -1710,7 +1641,6 @@ ${sourcesBlock}`,
             selectedModel,
             (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: s }),
             1500, // room for richer per-driver descriptions and concrete evidence
-            selectedProvider,
           );
           results[key] = data;
           dispatch({ type: 'SET_STEEP_DATA', dimension: key, data });
@@ -1722,7 +1652,7 @@ ${sourcesBlock}`,
             dispatch({
               type: 'SET_ERROR',
               errorType: 'rate_limit_daily',
-              payload: `Daily token limit reached on ${PROVIDER_LABELS[selectedProvider]} (${err.modelUsed || selectedModel}). Switch to a different provider — they each have their own separate daily quota — or wait for your daily reset. The "Switch provider" button below will move you to an available alternative.`,
+              payload: `Groq daily token limit reached on ${err.modelUsed || selectedModel}. The free tier allows 100,000 tokens per day on this model. Switch to "llama-3.1-8b-instant" (separate daily quota, faster) from the model dropdown, wait until your daily reset, or upgrade to Groq's Dev tier.`,
             });
           }
         }
@@ -1750,7 +1680,6 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
           selectedModel,
           (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
           2200, // room for full roadmap, richer cross-dimension insights, and executive summary
-          selectedProvider,
         );
         dispatch({ type: 'SET_SYNTHESIS', data: synthData });
         dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });
@@ -1761,7 +1690,7 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
           dispatch({
             type: 'SET_ERROR',
             errorType: 'rate_limit_daily',
-            payload: `Daily token limit reached during synthesis on ${PROVIDER_LABELS[selectedProvider]} (${err.modelUsed || selectedModel}). The five dimension briefings completed — switch provider (separate daily quota) or wait for daily reset to generate the executive synthesis.`,
+            payload: `Groq daily token limit reached during synthesis on ${err.modelUsed || selectedModel}. The five dimension briefings completed — switch to "llama-3.1-8b-instant" or wait for the daily reset to generate the executive synthesis.`,
           });
         } else {
           dispatch({ type: 'SET_STATUS', payload: 'complete' });
@@ -1771,7 +1700,7 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
     } catch (err) {
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
-  }, [subject, selectedModel, selectedProvider, groqStatus]);
+  }, [subject, selectedModel, groqStatus]);
 
   const tabs = [
     { key: 'overview',  label: 'Overview',  icon: '◉' },
@@ -1875,22 +1804,17 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
               {state.error}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {state.errorType === 'rate_limit_daily' && (() => {
-                // Find an available model on a DIFFERENT provider (separate daily quota)
-                const altModel = availableModels.find(m => m.provider !== selectedProvider);
-                if (!altModel) return null;
-                return (
-                  <button
-                    onClick={() => {
-                      dispatch({ type: 'SET_PROVIDER_AND_MODEL', provider: altModel.provider, model: altModel.name });
-                      dispatch({ type: 'SET_STATUS', payload: 'idle' });
-                    }}
-                    className="text-xs px-2 py-1 rounded bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium"
-                  >
-                    Switch to {PROVIDER_LABELS[altModel.provider]} ({altModel.label})
-                  </button>
-                );
-              })()}
+              {state.errorType === 'rate_limit_daily' && availableModels.some(m => m.id === 'llama-3.1-8b-instant') && selectedModel !== 'llama-3.1-8b-instant' && (
+                <button
+                  onClick={() => {
+                    dispatch({ type: 'SET_SELECTED_MODEL', payload: 'llama-3.1-8b-instant' });
+                    dispatch({ type: 'SET_STATUS', payload: 'idle' });
+                  }}
+                  className="text-xs px-2 py-1 rounded bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium"
+                >
+                  Switch to 8B model
+                </button>
+              )}
               <button
                 onClick={() => dispatch({ type: 'SET_STATUS', payload: 'idle' })}
                 className={`text-xs underline ${state.errorType === 'rate_limit_daily' ? 'text-amber-400 hover:text-amber-200' : 'text-red-400 hover:text-red-200'}`}
@@ -1902,7 +1826,7 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
         )}
 
         <div className="px-5 py-3 border-t border-slate-800 mt-auto">
-          <p className="text-slate-700 text-xs">{PROVIDER_LABELS[selectedProvider]} · {selectedModel}</p>
+          <p className="text-slate-700 text-xs">Groq · {selectedModel}</p>
         </div>
       </aside>
 
