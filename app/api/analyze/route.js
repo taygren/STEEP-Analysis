@@ -11,11 +11,25 @@ function cleanApiKey(raw) {
   return key.replace(/^["']|["']$/g, '');
 }
 
-/** Parse "Please try again in X.XXXs" from a Groq 429 error message. Returns ms. */
+/** Parse Groq's "try again in 8m18.528s" / "1h2m3.4s" / "5.2s" format. Returns ms. */
 function parseRetryAfterMs(errorText) {
-  const match = errorText.match(/try again in\s+([\d.]+)s/i);
-  return match ? Math.ceil(parseFloat(match[1]) * 1000) + 500 : 5000;
+  const m = errorText.match(/try again in\s+(?:(\d+)h)?(?:(\d+)m)?([\d.]+)?s/i);
+  if (!m) return 5000;
+  const hours   = parseInt(m[1] || '0', 10);
+  const minutes = parseInt(m[2] || '0', 10);
+  const seconds = parseFloat(m[3] || '0');
+  return Math.ceil((hours * 3600 + minutes * 60 + seconds) * 1000) + 500;
 }
+
+/** Detect whether a Groq 429 is a per-day (TPD) cap vs a per-minute (TPM) cap. */
+function classifyRateLimit(errorText) {
+  if (/tokens per day|TPD/i.test(errorText))    return 'daily';
+  if (/tokens per minute|TPM/i.test(errorText)) return 'minute';
+  return 'unknown';
+}
+
+/** Maximum we're willing to wait inside a single request before failing fast. */
+const MAX_RETRY_WAIT_MS = 90_000;
 
 /** Sleep for ms milliseconds. */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
