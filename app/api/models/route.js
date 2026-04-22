@@ -16,8 +16,6 @@ const GROQ_MODELS = [
 
 const CEREBRAS_MODELS = [
   { name: 'cerebras/qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B Instruct (Cerebras)', note: 'Top-tier reasoning — separate daily quota from Groq', provider: 'cerebras' },
-  { name: 'cerebras/gpt-oss-120b',                   label: 'GPT-OSS 120B (Cerebras)',         note: 'Strong open GPT — separate daily quota from Groq',    provider: 'cerebras' },
-  { name: 'cerebras/zai-glm-4.7',                    label: 'GLM 4.7 (Cerebras)',              note: 'Z.ai GLM — fast, capable instruction following',      provider: 'cerebras' },
   { name: 'cerebras/llama3.1-8b',                    label: 'Llama 3.1 8B (Cerebras)',         note: 'Fastest Cerebras option — good for quick tests',      provider: 'cerebras' },
 ];
 

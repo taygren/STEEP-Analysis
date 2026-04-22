@@ -82,6 +82,12 @@ export async function POST(request) {
     return Response.json({ error: `${provider.keyName} is not configured` }, { status: 503 });
   }
 
+  // Cerebras models tend to be more verbose (especially Qwen 235B), so the same
+  // max_tokens that fits Groq's Llama can truncate the JSON mid-array on Cerebras.
+  // We double the budget for Cerebras since the daily token cap is far larger there.
+  const baseMaxTokens = numPredict || 1200;
+  const effectiveMaxTokens = provider.name === 'cerebras' ? baseMaxTokens * 2 : baseMaxTokens;
+
   const body = JSON.stringify({
     model: provider.model,
     messages: [
@@ -90,7 +96,7 @@ export async function POST(request) {
     ],
     stream: true,
     temperature: 0.1,
-    max_tokens: numPredict || 1200,
+    max_tokens: effectiveMaxTokens,
     response_format: { type: 'json_object' },
   });
 
