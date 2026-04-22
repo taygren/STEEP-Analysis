@@ -2,6 +2,7 @@
 
 import { useState, useReducer, useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
+import { QUANTUM_COMPUTING_EXAMPLE } from '../lib/quantumComputingExample';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -297,6 +298,11 @@ function reducer(state, action) {
       return { ...state, roadmapFilter: f.includes(d) ? f.filter(x => x !== d) : [...f, d] };
     }
     case 'SET_ERROR': return { ...state, status: 'error', error: action.payload, errorType: action.errorType || null };
+    case 'LOAD_EXAMPLE': {
+      const ex = action.payload;
+      const allComplete = { social:'complete', technological:'complete', economic:'complete', environmental:'complete', political:'complete', synthesis:'complete' };
+      return { ...state, subject: ex.subject, subjectType: ex.subjectType, status:'complete', error:null, errorType:null, steepData: ex.steepData, synthesis: ex.synthesis, agentStatuses: allComplete, activeTab:'overview' };
+    }
     default: return state;
   }
 }
@@ -1795,6 +1801,24 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
             ))}
           </nav>
         )}
+
+        {/* Examples */}
+        <div className="px-3 py-3 border-t border-slate-800">
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
+          <button
+            onClick={() => dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE })}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">⚛</span>
+            <span className="text-left leading-tight">
+              <span className="block text-xs font-medium">Quantum Computing</span>
+              <span className="block text-slate-600 text-xs">Pre-run example</span>
+            </span>
+            {status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject && (
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+            )}
+          </button>
+        </div>
 
         {/* Error */}
         {status === 'error' && state.error && (
