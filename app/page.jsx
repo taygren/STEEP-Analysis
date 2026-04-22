@@ -15,8 +15,10 @@ const CATALOG = [
   { id: 'llama3-8b-8192',          label: 'Llama 3 8B',                note: 'Solid baseline, 8k context' },
   { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8×7B',              note: 'Strong reasoning, 32k context' },
   { id: 'gemma2-9b-it',            label: 'Gemma 2 9B',                note: 'Good instruction following' },
-  { id: 'cerebras/llama-3.3-70b',  label: 'Llama 3.3 70B (Cerebras)',  note: 'Free tier — separate daily quota from Groq' },
-  { id: 'cerebras/llama3.1-8b',    label: 'Llama 3.1 8B (Cerebras)',   note: 'Free tier — fastest Cerebras option' },
+  { id: 'cerebras/qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B Instruct (Cerebras)', note: 'Top-tier reasoning — separate daily quota from Groq' },
+  { id: 'cerebras/gpt-oss-120b',                   label: 'GPT-OSS 120B (Cerebras)',         note: 'Strong open GPT — separate daily quota from Groq' },
+  { id: 'cerebras/zai-glm-4.7',                    label: 'GLM 4.7 (Cerebras)',              note: 'Z.ai GLM — fast, capable instruction following' },
+  { id: 'cerebras/llama3.1-8b',                    label: 'Llama 3.1 8B (Cerebras)',         note: 'Fastest Cerebras option — good for quick tests' },
 ];
 
 const SUGGESTED_SUBJECTS = {
