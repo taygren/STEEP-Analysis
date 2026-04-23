@@ -256,6 +256,91 @@ Requirements:
 - cross_dimension_insights: 2-3 entries — each must name a real cross-dimension causal mechanism, not a single-dimension observation`;
 };
 
+const INVESTMENT_THESIS_PROMPT = (ticker, companyName, fund) => {
+  const fmt = (v, prefix = '', suffix = '', decimals = 2) =>
+    v != null ? `${prefix}${typeof v === 'number' ? v.toFixed(decimals) : v}${suffix}` : 'N/A';
+  const pct = (v) => v != null ? `${(v * 100).toFixed(1)}%` : 'N/A';
+  const bn  = (v) => v != null ? `$${(v / 1e9).toFixed(1)}B` : 'N/A';
+  const usd = (v) => v != null ? `$${v.toFixed(2)}` : 'N/A';
+
+  const technicalContext = (() => {
+    const lines = [];
+    if (fund.current_price != null && fund.ma50 != null) {
+      const diff50 = ((fund.current_price - fund.ma50) / fund.ma50 * 100).toFixed(1);
+      lines.push(`Price vs 50-day MA: ${diff50 > 0 ? '+' : ''}${diff50}% (${usd(fund.current_price)} vs ${usd(fund.ma50)})`);
+    }
+    if (fund.current_price != null && fund.ma200 != null) {
+      const diff200 = ((fund.current_price - fund.ma200) / fund.ma200 * 100).toFixed(1);
+      lines.push(`Price vs 200-day MA: ${diff200 > 0 ? '+' : ''}${diff200}% (${usd(fund.current_price)} vs ${usd(fund.ma200)})`);
+    }
+    if (fund.week52_high != null && fund.week52_low != null) {
+      lines.push(`52-week range: ${usd(fund.week52_low)} – ${usd(fund.week52_high)}`);
+    }
+    return lines.join('\n');
+  })();
+
+  return `You are a senior equity research analyst and portfolio manager at a top-tier investment firm. Generate a disciplined, data-grounded investment thesis for ${ticker} (${companyName}).
+
+LIVE FUNDAMENTAL DATA (as of today):
+Valuation:
+  P/E (TTM):          ${fmt(fund.pe_ratio)}x
+  Forward P/E:        ${fmt(fund.forward_pe)}x
+  P/B:                ${fmt(fund.price_to_book)}x
+  P/S:                ${fmt(fund.price_to_sales)}x
+  EV/EBITDA:          ${fmt(fund.ev_to_ebitda)}x
+  PEG:                ${fmt(fund.peg_ratio)}
+  Market Cap:         ${bn(fund.market_cap)}
+  Current Price:      ${usd(fund.current_price)}
+  Upside to Consensus Target: ${fund.upside_pct != null ? (fund.upside_pct * 100).toFixed(1) + '%' : 'N/A'}
+
+Profitability & Quality:
+  Revenue (TTM):      ${bn(fund.revenue)}
+  Revenue Growth YoY: ${pct(fund.revenue_growth)}
+  Gross Margin:       ${pct(fund.gross_margin)}
+  Operating Margin:   ${pct(fund.operating_margin)}
+  Net Margin:         ${pct(fund.profit_margin)}
+  ROE:                ${pct(fund.return_on_equity)}
+  Free Cash Flow:     ${bn(fund.free_cashflow)}
+  Debt/Equity:        ${fmt(fund.debt_to_equity)}
+  Beta:               ${fmt(fund.beta)}
+  Dividend Yield:     ${pct(fund.dividend_yield)}
+
+Technical Setup:
+${technicalContext}
+
+Analyst Consensus:
+  Rating:             ${fund.analyst_rating}
+  Target (Mean):      ${usd(fund.analyst_target_mean)}
+  Target Range:       ${usd(fund.analyst_target_low)} – ${usd(fund.analyst_target_high)}
+  Analysts Covering:  ${fund.analyst_count ?? 'N/A'}
+  Buy / Hold / Sell:  ${fund.buy_count ?? '?'} / ${fund.hold_count ?? '?'} / ${fund.sell_count ?? '?'}
+
+WRITING STANDARD — apply strictly:
+- Every claim must be specific and grounded in the data above or the STEEP context.
+- Show causality: "X metric/trend → forces Y → producing Z outcome for the investment case."
+- Bull and bear cases must be DISTINCT, non-overlapping drivers — not just rephrased versions of each other.
+- Valuation assessment must comment on relative attractiveness vs peers and vs history if you can credibly do so.
+- time_horizon must be a specific range (e.g. "12–18 months") not a generic label.
+- NO hedging theatre ("may", "could potentially") — take a clear stance.
+- key_catalysts: specific, observable events (earnings beats, product launches, regulatory decisions, macro pivots) not generic trends.
+- entry_strategy: specific about price levels relative to the current price and technical levels above.
+
+Return ONLY a valid JSON object — no prose, no markdown fences.
+
+{
+  "stance": "bullish|neutral|bearish",
+  "confidence": 0.7,
+  "thesis": "3 crisp sentences. Sentence 1: the core investment case in one line. Sentence 2: the primary value driver and its mechanism. Sentence 3: the primary risk and why the bull case still holds (or doesn't).",
+  "bull_case": ["specific driver naming the mechanism and magnitude", "second driver", "third driver"],
+  "bear_case": ["specific risk naming the causal chain", "second risk", "third risk"],
+  "valuation_assessment": "2 sentences. Is the stock cheap, fair, or expensive on key multiples relative to peers/history? What must materialize for the multiple to expand?",
+  "time_horizon": "e.g. 12-24 months",
+  "key_catalysts": ["specific observable event or milestone"],
+  "key_risks": ["specific risk with named causal mechanism"],
+  "entry_strategy": "Specific guidance: levels, conditions, or events that would represent an attractive entry point given the current price and technicals."
+}`;
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // STATE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
@@ -266,6 +351,10 @@ const blankStats = () => ({ social: 'idle', technological: 'idle', economic: 'id
 const initialState = {
   subject: '',
   subjectType: null,
+  ticker: null,             // NYSE/NASDAQ ticker if publicly-traded company (e.g. 'AAPL')
+  fundamentals: null,       // fetched from /api/fundamentals
+  investmentThesis: null,   // AI-generated thesis
+  thesisStatus: 'idle',     // idle | loading | complete | error
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -286,8 +375,12 @@ function reducer(state, action) {
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats() };
+    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle' };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
+    case 'SET_TICKER':        return { ...state, ticker: action.payload };
+    case 'SET_FUNDAMENTALS':  return { ...state, fundamentals: action.data };
+    case 'SET_INVESTMENT_THESIS': return { ...state, investmentThesis: action.data };
+    case 'SET_THESIS_STATUS': return { ...state, thesisStatus: action.payload };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
@@ -527,26 +620,43 @@ async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict)
   return parsed;
 }
 
-/** Lightweight classification using Ollama. */
+/**
+ * Classify the subject and extract its stock ticker if it is a publicly-traded company.
+ * Returns { type: 'company' | 'trend', ticker: string | null }
+ */
 async function classifySubject(subject, model) {
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemPrompt: 'You classify inputs. Reply with ONLY the single word "trend" or "company". No other output.',
-        userMessage:  `Is "${subject}" a technology trend / phenomenon / movement, or a company / brand / organization? Reply with one word: trend or company.`,
+        systemPrompt: `You are a financial classifier. Classify the input and return ONLY a valid JSON object — no prose, no markdown fences.
+Schema: {"type":"company","ticker":"AAPL"} or {"type":"trend","ticker":null}
+- type: "company" if the input is a specific named company, brand, or organization. "trend" if it is a technology trend, movement, industry phenomenon, or concept.
+- ticker: The PRIMARY US stock exchange ticker symbol if the company is publicly traded (NYSE, NASDAQ, NYSE American). Examples: Apple → AAPL, Microsoft → MSFT, Google → GOOGL, Tesla → TSLA, Netflix → NFLX, Amazon → AMZN, Nvidia → NVDA, Meta → META, JPMorgan → JPM, Walmart → WMT, TSMC → TSM, Samsung → SSNLF.
+- Set ticker to null if the company is private (e.g. SpaceX, Stripe, OpenAI, Anthropic), non-profit, a government entity, or if type is "trend".`,
+        userMessage: `Classify: "${subject}"`,
         model,
+        numPredict: 60,
       }),
     });
-    const raw  = await readGroqStream(res);
+    const raw = await readGroqStream(res);
+    // Try JSON parse first, then fallback to text heuristics
+    try {
+      const obj = extractJSON(raw);
+      if (obj && (obj.type === 'company' || obj.type === 'trend')) {
+        return { type: obj.type, ticker: obj.ticker || null };
+      }
+    } catch {}
+    // Text fallback
     const text = raw.toLowerCase().trim();
-    if (text.includes('company')) return 'company';
-    return 'trend';
+    const type = text.includes('company') ? 'company' : 'trend';
+    const tickerMatch = raw.match(/[A-Z]{1,5}/g);
+    return { type, ticker: null };
   } catch {
-    // Heuristic fallback
     const corps = ['inc','corp','ltd','llc','apple','google','microsoft','amazon','meta','nvidia','tesla','anthropic','openai','samsung','boeing','walmart','jpmorgan','netflix','spotify','uber','airbnb','stripe','spacex'];
-    return corps.some(w => subject.toLowerCase().includes(w)) ? 'company' : 'trend';
+    const isCompany = corps.some(w => subject.toLowerCase().includes(w));
+    return { type: isCompany ? 'company' : 'trend', ticker: null };
   }
 }
 
@@ -1566,12 +1676,338 @@ function RoadmapTab({ state, dispatch }) {
 
 
 // ═══════════════════════════════════════════════════════════════════
+// INVESTMENT THESIS TAB
+// ═══════════════════════════════════════════════════════════════════
+
+function fmtNum(v, opts = {}) {
+  if (v == null) return 'N/A';
+  const { prefix = '', suffix = '', decimals = 2, pct = false } = opts;
+  const n = pct ? v * 100 : v;
+  return `${prefix}${n.toFixed(decimals)}${pct ? '%' : suffix}`;
+}
+
+function fmtBn(v) {
+  if (v == null) return 'N/A';
+  const abs = Math.abs(v);
+  if (abs >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6)  return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${v.toFixed(0)}`;
+}
+
+function fmtUsd(v) {
+  if (v == null) return 'N/A';
+  return `$${v.toFixed(2)}`;
+}
+
+function MetricRow({ label, value, highlight }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+      <span className="text-slate-400 text-xs">{label}</span>
+      <span className={`text-xs font-semibold tabular-nums ${highlight ? highlight : 'text-white'}`}>{value}</span>
+    </div>
+  );
+}
+
+function MetricCard({ title, icon, children }) {
+  return (
+    <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+        <span>{icon}</span>{title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+const STANCE_CLS = {
+  bullish: 'bg-emerald-900 text-emerald-300 border border-emerald-700',
+  neutral: 'bg-yellow-900 text-yellow-300 border border-yellow-700',
+  bearish: 'bg-red-900 text-red-300 border border-red-700',
+};
+
+const STANCE_ICON = { bullish: '▲', neutral: '◈', bearish: '▼' };
+
+function TechnicalSetupCard({ fund }) {
+  const { current_price: cp, ma50, ma200, week52_high: hi, week52_low: lo } = fund;
+
+  const RangeBar = ({ label, value, lo: rangeL, hi: rangeH, color }) => {
+    if (value == null || rangeL == null || rangeH == null) return null;
+    const pct = Math.max(0, Math.min(100, ((value - rangeL) / (rangeH - rangeL)) * 100));
+    return (
+      <div className="mb-3">
+        <div className="flex justify-between text-xs text-slate-500 mb-1">
+          <span>{label}</span>
+          <span className="text-white font-semibold">{fmtUsd(value)}</span>
+        </div>
+        <div className="relative h-1.5 bg-slate-700 rounded-full">
+          <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-600 to-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+          <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white bg-slate-900 shadow" style={{ left: `calc(${pct}% - 5px)` }} />
+        </div>
+        <div className="flex justify-between text-xs text-slate-600 mt-0.5">
+          <span>{fmtUsd(rangeL)}</span>
+          <span>{fmtUsd(rangeH)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const maRow = (label, ma) => {
+    if (cp == null || ma == null) return null;
+    const diff = ((cp - ma) / ma * 100);
+    const pos = diff >= 0;
+    return (
+      <div className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+        <span className="text-slate-400 text-xs">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500 text-xs tabular-nums">{fmtUsd(ma)}</span>
+          <span className={`text-xs font-semibold tabular-nums ${pos ? 'text-emerald-400' : 'text-red-400'}`}>
+            {pos ? '+' : ''}{diff.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <MetricCard title="Technical Setup" icon="📈">
+      <RangeBar label="52-Week Range" value={cp} lo={lo} hi={hi} />
+      {maRow('vs 50-Day MA', ma50)}
+      {maRow('vs 200-Day MA', ma200)}
+    </MetricCard>
+  );
+}
+
+function AnalystConsensusCard({ fund }) {
+  const { buy_count: buys, hold_count: holds, sell_count: sells, analyst_target_mean, analyst_target_high, analyst_target_low, analyst_count, analyst_rating, current_price: cp, upside_pct } = fund;
+  const total = (buys || 0) + (holds || 0) + (sells || 0);
+
+  const RatingBar = ({ label, count, color }) => {
+    if (count == null || total === 0) return null;
+    const w = (count / total * 100).toFixed(0);
+    return (
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-slate-400 text-xs w-10 text-right">{label}</span>
+        <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-2 rounded-full transition-all" style={{ width: `${w}%`, background: color }} />
+        </div>
+        <span className="text-slate-400 text-xs w-4">{count}</span>
+      </div>
+    );
+  };
+
+  const ratingColor = analyst_rating?.toLowerCase().includes('buy') ? 'text-emerald-400' :
+    analyst_rating?.toLowerCase().includes('hold') ? 'text-yellow-400' : 'text-red-400';
+
+  return (
+    <MetricCard title="Analyst Consensus" icon="👥">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <span className={`text-lg font-bold ${ratingColor}`}>{analyst_rating || 'N/A'}</span>
+          <span className="text-slate-500 text-xs ml-2">{analyst_count ? `${analyst_count} analysts` : ''}</span>
+        </div>
+        {upside_pct != null && (
+          <div className={`text-sm font-bold ${upside_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {upside_pct >= 0 ? '▲' : '▼'} {Math.abs(upside_pct * 100).toFixed(1)}% upside
+          </div>
+        )}
+      </div>
+      <RatingBar label="Buy"  count={buys}  color="#10b981" />
+      <RatingBar label="Hold" count={holds} color="#f59e0b" />
+      <RatingBar label="Sell" count={sells} color="#ef4444" />
+      <div className="mt-3 pt-3 border-t border-slate-700">
+        <div className="flex justify-between text-xs text-slate-500 mb-1">
+          <span>Low</span><span className="text-slate-300 font-semibold">Consensus Target</span><span>High</span>
+        </div>
+        <div className="flex justify-between text-xs font-semibold">
+          <span className="text-slate-400">{fmtUsd(analyst_target_low)}</span>
+          <span className="text-white text-sm">{fmtUsd(analyst_target_mean)}</span>
+          <span className="text-slate-400">{fmtUsd(analyst_target_high)}</span>
+        </div>
+      </div>
+    </MetricCard>
+  );
+}
+
+function InvestmentThesisTab({ state }) {
+  const { fundamentals: fund, investmentThesis: thesis, thesisStatus, ticker, subject } = state;
+
+  if (thesisStatus === 'loading' || (!fund && thesisStatus !== 'error')) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Spinner size={32} />
+          <p className="text-slate-400 text-sm mt-4">Fetching market data &amp; building thesis…</p>
+          <p className="text-slate-600 text-xs mt-1">{ticker}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (thesisStatus === 'error' || !fund) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center max-w-sm">
+          <p className="text-red-400 font-semibold">Couldn't build investment thesis</p>
+          <p className="text-slate-500 text-xs mt-2">Data may be unavailable for this ticker, or a rate limit was hit. The STEEP analysis above is still complete.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const stance = thesis?.stance || 'neutral';
+  const stanceCls = STANCE_CLS[stance] || STANCE_CLS.neutral;
+  const stanceIcon = STANCE_ICON[stance] || '◈';
+
+  const priceDayChange = fund.price_change_pct;
+  const priceChangeColor = priceDayChange >= 0 ? 'text-emerald-400' : 'text-red-400';
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Company header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-black text-white">{fund.company_name}</h1>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-700 text-slate-300 text-sm font-mono font-bold">{fund.ticker}</span>
+            <span className="text-slate-500 text-sm">{fund.exchange}</span>
+          </div>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <span className="text-3xl font-black text-white tabular-nums">{fmtUsd(fund.current_price)}</span>
+            {priceDayChange != null && (
+              <span className={`text-sm font-semibold ${priceChangeColor}`}>
+                {priceDayChange >= 0 ? '+' : ''}{(priceDayChange * 100).toFixed(2)}% today
+              </span>
+            )}
+          </div>
+        </div>
+        {thesis && (
+          <div className="flex flex-col items-end gap-2">
+            <span className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wide ${stanceCls}`}>
+              {stanceIcon} {stance}
+            </span>
+            {thesis.confidence != null && (
+              <span className="text-slate-500 text-xs">Confidence: {(thesis.confidence * 100).toFixed(0)}%</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* AI Thesis — full width */}
+      {thesis && (
+        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <span>◈</span>Investment Thesis
+          </h3>
+          <p className="text-slate-200 text-sm leading-relaxed mb-4">{thesis.thesis}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">▲ Bull Case</p>
+              <ul className="space-y-2">
+                {(thesis.bull_case || []).map((item, i) => (
+                  <li key={i} className="flex gap-2 items-start">
+                    <span className="text-emerald-600 text-xs flex-shrink-0 mt-0.5 font-bold">{i + 1}.</span>
+                    <span className="text-slate-300 text-xs leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">▼ Bear Case</p>
+              <ul className="space-y-2">
+                {(thesis.bear_case || []).map((item, i) => (
+                  <li key={i} className="flex gap-2 items-start">
+                    <span className="text-red-600 text-xs flex-shrink-0 mt-0.5 font-bold">{i + 1}.</span>
+                    <span className="text-slate-300 text-xs leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {thesis.valuation_assessment && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Valuation Assessment</p>
+              <p className="text-slate-300 text-xs leading-relaxed">{thesis.valuation_assessment}</p>
+            </div>
+          )}
+          {(thesis.key_catalysts?.length > 0 || thesis.entry_strategy) && (
+            <div className="mt-4 pt-4 border-t border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {thesis.key_catalysts?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1.5">⚡ Key Catalysts</p>
+                  <ul className="space-y-1">
+                    {thesis.key_catalysts.map((c, i) => (
+                      <li key={i} className="flex gap-1.5">
+                        <span className="text-blue-600 text-xs flex-shrink-0">•</span>
+                        <span className="text-slate-300 text-xs leading-snug">{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {thesis.entry_strategy && (
+                <div>
+                  <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-1.5">⏱ Entry Strategy</p>
+                  <p className="text-slate-300 text-xs leading-relaxed">{thesis.entry_strategy}</p>
+                  {thesis.time_horizon && (
+                    <p className="text-slate-500 text-xs mt-1">Time horizon: {thesis.time_horizon}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Metrics grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Valuation */}
+        <MetricCard title="Valuation" icon="⚖️">
+          <MetricRow label="P/E (TTM)"      value={fund.pe_ratio      != null ? `${fund.pe_ratio.toFixed(1)}×`       : 'N/A'} />
+          <MetricRow label="Forward P/E"    value={fund.forward_pe    != null ? `${fund.forward_pe.toFixed(1)}×`     : 'N/A'} />
+          <MetricRow label="Price / Book"   value={fund.price_to_book != null ? `${fund.price_to_book.toFixed(1)}×`  : 'N/A'} />
+          <MetricRow label="Price / Sales"  value={fund.price_to_sales != null ? `${fund.price_to_sales.toFixed(1)}×` : 'N/A'} />
+          <MetricRow label="EV / EBITDA"    value={fund.ev_to_ebitda  != null ? `${fund.ev_to_ebitda.toFixed(1)}×`  : 'N/A'} />
+          <MetricRow label="Market Cap"     value={fmtBn(fund.market_cap)} />
+          <MetricRow label="EPS (TTM)"      value={fund.eps           != null ? `$${fund.eps.toFixed(2)}`            : 'N/A'} />
+        </MetricCard>
+
+        {/* Financial quality */}
+        <MetricCard title="Financial Quality" icon="📊">
+          <MetricRow label="Revenue (TTM)"   value={fmtBn(fund.revenue)} />
+          <MetricRow label="Revenue Growth"  value={fund.revenue_growth != null ? `${(fund.revenue_growth * 100).toFixed(1)}%` : 'N/A'}
+            highlight={fund.revenue_growth > 0.1 ? 'text-emerald-400' : fund.revenue_growth < 0 ? 'text-red-400' : 'text-white'} />
+          <MetricRow label="Gross Margin"    value={fund.gross_margin  != null ? `${(fund.gross_margin * 100).toFixed(1)}%` : 'N/A'} />
+          <MetricRow label="Net Margin"      value={fund.profit_margin != null ? `${(fund.profit_margin * 100).toFixed(1)}%` : 'N/A'}
+            highlight={fund.profit_margin > 0.15 ? 'text-emerald-400' : fund.profit_margin < 0 ? 'text-red-400' : 'text-white'} />
+          <MetricRow label="ROE"             value={fund.return_on_equity != null ? `${(fund.return_on_equity * 100).toFixed(1)}%` : 'N/A'} />
+          <MetricRow label="Free Cash Flow"  value={fmtBn(fund.free_cashflow)} />
+          <MetricRow label="Debt / Equity"   value={fund.debt_to_equity != null ? fund.debt_to_equity.toFixed(2) : 'N/A'}
+            highlight={fund.debt_to_equity > 2 ? 'text-red-400' : fund.debt_to_equity < 0.5 ? 'text-emerald-400' : 'text-white'} />
+        </MetricCard>
+
+        {/* Technical setup */}
+        <TechnicalSetupCard fund={fund} />
+
+        {/* Analyst consensus */}
+        <AnalystConsensusCard fund={fund} />
+      </div>
+
+      <p className="text-slate-700 text-xs text-center pb-2">
+        Data from Yahoo Finance · Not financial advice · For research purposes only
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels } = state;
+  const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels,
+          ticker, fundamentals, investmentThesis, thesisStatus } = state;
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
@@ -1599,9 +2035,12 @@ function App() {
     dispatch({ type: 'START_ANALYSIS' });
 
     try {
-      // Step 1: classify
-      const subjectType = await classifySubject(subject, selectedModel);
+      // Step 1: classify (returns { type, ticker })
+      const classification  = await classifySubject(subject, selectedModel);
+      const subjectType = classification.type;
+      let   activeTicker = classification.ticker;
       dispatch({ type: 'SET_SUBJECT_TYPE', payload: subjectType });
+      if (activeTicker) dispatch({ type: 'SET_TICKER', payload: activeTicker });
 
       // Step 2: run 5 dimension agents sequentially
       // (local GPU handles one request at a time; sequential shows clear progress)
@@ -1690,6 +2129,46 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
           2200, // room for full roadmap, richer cross-dimension insights, and executive summary
         );
         dispatch({ type: 'SET_SYNTHESIS', data: synthData });
+
+        // Step 4: Investment Thesis (runs after synthesis, only when we have a ticker)
+        if (activeTicker) {
+          dispatch({ type: 'SET_THESIS_STATUS', payload: 'loading' });
+          try {
+            const fundRes = await fetch(`/api/fundamentals?ticker=${encodeURIComponent(activeTicker)}`);
+            const fundData = await fundRes.json();
+            if (fundData.found) {
+              dispatch({ type: 'SET_FUNDAMENTALS', data: fundData });
+              // Build a compact STEEP context block for the thesis agent
+              const steepContext = Object.entries(results)
+                .filter(([, d]) => d)
+                .map(([dim, d]) => `${dim}: ${d.dominant_direction} — ${(d.summary || '').slice(0, 150)}`)
+                .join('\n');
+              const thesisData = await callAgent(
+                INVESTMENT_THESIS_PROMPT(activeTicker, fundData.company_name, fundData),
+                `Generate the investment thesis for ${activeTicker} (${fundData.company_name}).
+
+STEEP ANALYSIS CONTEXT (from 5 specialist agents):
+${steepContext}
+
+Integrate the STEEP context where relevant — especially macro tailwinds/headwinds from Economic, regulatory risks from Political, and demand signals from Social. Return only valid JSON matching the schema.`,
+                selectedModel,
+                (s) => dispatch({ type: 'SET_THESIS_STATUS', payload: s === 'complete' ? 'complete' : 'loading' }),
+                1600,
+              );
+              dispatch({ type: 'SET_INVESTMENT_THESIS', data: thesisData });
+              dispatch({ type: 'SET_THESIS_STATUS', payload: 'complete' });
+            } else {
+              // Ticker not found in Yahoo Finance — treat as private
+              activeTicker = null;
+              dispatch({ type: 'SET_TICKER', payload: null });
+              dispatch({ type: 'SET_THESIS_STATUS', payload: 'idle' });
+            }
+          } catch (err) {
+            console.error('Investment thesis error:', err.message);
+            dispatch({ type: 'SET_THESIS_STATUS', payload: 'error' });
+          }
+        }
+
         dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });
       } catch (err) {
         console.error('Synthesis error:', err.message);
@@ -1710,10 +2189,12 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
     }
   }, [subject, selectedModel, groqStatus]);
 
+  const hasTicker = Boolean(ticker && isComplete);
   const tabs = [
     { key: 'overview',  label: 'Overview',  icon: '◉' },
     { key: 'forcemap',  label: 'Force Map', icon: '◈' },
     { key: 'roadmap',   label: 'Roadmap',   icon: '→' },
+    ...(hasTicker ? [{ key: 'thesis', label: 'Investment Thesis', icon: '◎', badge: thesisStatus }] : []),
   ];
 
   return (
@@ -2065,11 +2546,15 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
         {/* Results */}
         {isComplete && (
           <div className="min-h-full flex flex-col">
-            <div className="flex items-center gap-1 px-6 pt-5 pb-0 border-b border-slate-800 flex-shrink-0">
+            <div className="flex items-center gap-1 px-6 pt-5 pb-0 border-b border-slate-800 flex-shrink-0 overflow-x-auto">
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all -mb-px ${activeTab === tab.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'}`}>
-                  <span>{tab.icon}</span><span>{tab.label}</span>
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === tab.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'}`}>
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                  {tab.badge === 'loading' && <Spinner size={10} />}
+                  {tab.badge === 'complete' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                  {tab.badge === 'error'   && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
                 </button>
               ))}
             </div>
@@ -2077,6 +2562,7 @@ ${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
               {activeTab === 'overview' && <OverviewTab state={state} />}
               {activeTab === 'forcemap' && <ForceMapTab state={state} />}
               {activeTab === 'roadmap'  && <RoadmapTab  state={state} dispatch={dispatch} />}
+              {activeTab === 'thesis'   && <InvestmentThesisTab state={state} />}
             </div>
           </div>
         )}
