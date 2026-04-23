@@ -407,7 +407,24 @@ function reducer(state, action) {
     case 'LOAD_EXAMPLE': {
       const ex = action.payload;
       const allComplete = { social:'complete', technological:'complete', economic:'complete', environmental:'complete', political:'complete', synthesis:'complete' };
-      return { ...state, subject: ex.subject, subjectType: ex.subjectType, status:'complete', error:null, errorType:null, steepData: ex.steepData, synthesis: ex.synthesis, agentStatuses: allComplete, activeTab:'overview' };
+      return {
+        ...state,
+        subject: ex.subject,
+        subjectType: ex.subjectType,
+        status: 'complete',
+        error: null,
+        errorType: null,
+        steepData: ex.steepData,
+        synthesis: ex.synthesis,
+        agentStatuses: allComplete,
+        activeTab: 'overview',
+        ticker: ex.ticker ?? null,
+        fundamentals: ex.fundamentals ?? null,
+        investmentThesis: ex.investmentThesis ?? null,
+        thesisStatus: ex.investmentThesis ? 'complete' : 'idle',
+        sentimentData: ex.sentimentData ?? null,
+        macroData: ex.macroData ?? null,
+      };
     }
     default: return state;
   }
