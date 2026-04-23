@@ -23,7 +23,7 @@
  * }
  */
 
-const ADANOS_BASE = 'https://api.adanos.com';
+const ADANOS_BASE = 'https://api.adanos.org';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -39,7 +39,7 @@ export async function GET(request) {
   }
 
   const headers = {
-    Authorization: `Bearer ${apiKey}`,
+    'X-API-Key': apiKey,
     Accept: 'application/json',
     'User-Agent': 'STEEP-Analysis-Platform/1.0',
   };
