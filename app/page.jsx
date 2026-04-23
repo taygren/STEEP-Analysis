@@ -363,6 +363,8 @@ const initialState = {
   fundamentals: null,       // fetched from /api/fundamentals
   investmentThesis: null,   // AI-generated thesis
   thesisStatus: 'idle',     // idle | loading | complete | error
+  sentimentData: null,      // Adanos sentiment signals (null when key absent or non-public company)
+  macroData: null,          // Live macro indicators (Yahoo Finance + BLS)
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -383,12 +385,14 @@ function reducer(state, action) {
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle' };
+    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
     case 'SET_TICKER':        return { ...state, ticker: action.payload };
     case 'SET_FUNDAMENTALS':  return { ...state, fundamentals: action.data };
     case 'SET_INVESTMENT_THESIS': return { ...state, investmentThesis: action.data };
     case 'SET_THESIS_STATUS': return { ...state, thesisStatus: action.payload };
+    case 'SET_SENTIMENT_DATA': return { ...state, sentimentData: action.data };
+    case 'SET_MACRO_DATA':    return { ...state, macroData: action.data };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
@@ -602,6 +606,48 @@ function formatSourcesBlock(sources, label = 'RECENT SOURCES') {
 ${items}`;
 }
 
+/** Build a [LIVE SENTIMENT DATA] prompt block from Adanos payload. */
+function buildSentimentBlock(s) {
+  if (!s?.found) return '';
+  const sign = s.composite_sentiment_score >= 0 ? '+' : '';
+  const trend = (s.composite_trend || 'stable').toUpperCase();
+  const platformLines = (s.platforms || []).map(p =>
+    `  ${p.name.padEnd(7)} buzz=${p.buzz?.toFixed(0) ?? 'N/A'}  sentiment=${p.sentiment_score >= 0 ? '+' : ''}${p.sentiment_score?.toFixed(2) ?? 'N/A'}  bullish=${p.bullish_pct?.toFixed(0) ?? '?'}%  bearish=${p.bearish_pct?.toFixed(0) ?? '?'}%  mentions=${p.mentions ?? '?'}`
+  ).join('\n');
+  return `[LIVE SENTIMENT DATA — ${s.ticker} as of today]
+Composite buzz score:  ${s.composite_buzz?.toFixed(0) ?? 'N/A'} / 100
+Trend:                 ${trend}
+Sentiment score:       ${sign}${s.composite_sentiment_score?.toFixed(2) ?? 'N/A'} (−1 bearish → +1 bullish)
+Bullish / Bearish:     ${s.composite_bullish_pct?.toFixed(0) ?? '?'}% / ${s.composite_bearish_pct?.toFixed(0) ?? '?'}%
+Platform breakdown:
+${platformLines}
+
+Instructions: Treat this sentiment data as a leading social indicator. Integrate buzz trend and sentiment direction as evidence for or against consumer/investor sentiment drivers. Cite it explicitly (e.g. "Reddit sentiment +0.4, bullish 62%").`;
+}
+
+/** Build a [LIVE MACRO CONTEXT] prompt block from macro payload. */
+function buildMacroBlock(m) {
+  if (!m?.found) return '';
+  const ind = m.indicators ?? {};
+  const fmt = (k, decimals = 2) => {
+    const v = ind[k]?.value;
+    const d = ind[k]?.delta;
+    const u = ind[k]?.unit ?? '';
+    if (v == null) return 'N/A';
+    const dStr = d != null ? ` (${d >= 0 ? '+' : ''}${d.toFixed(decimals)}${u} vs prior)` : '';
+    return `${v.toFixed(decimals)}${u}${dStr}`;
+  };
+  return `[LIVE MACRO CONTEXT — as of ${m.fetched_at?.slice(0,10) ?? 'today'}]
+10Y Treasury Yield:   ${fmt('yield_10y')}
+Short-term rates:     ${fmt('rates_short')} (13W T-Bill)
+Unemployment rate:    ${fmt('unemployment')}  ${ind.unemployment?.period ?? ''}
+CPI YoY:              ${fmt('cpi_yoy')}
+S&P 500:              ${fmt('sp500', 0)} ${ind.sp500?.delta != null ? `(${ind.sp500.delta >= 0 ? '+' : ''}${ind.sp500.delta?.toFixed(0)} vs 1mo prior)` : ''}
+VIX (Volatility):     ${fmt('vix', 1)}
+
+Instructions: Use these live macro readings as the empirical baseline for the Economic dimension analysis. Reference specific values (e.g. "with the 10Y at ${ind.yield_10y?.value?.toFixed(2) ?? 'X'}%, discount rates compress growth multiples"). Flag whether the macro regime is tightening, easing, or neutral.`;
+}
+
 /** Call the /api/analyze proxy and return parsed JSON. */
 async function callAgent(systemPrompt, userMessage, model, onStatus, numPredict) {
   onStatus('researching');
@@ -807,8 +853,214 @@ function ProgressPanel({ agentStatuses, status }) {
 // TAB 1 — EXECUTIVE OVERVIEW
 // ═══════════════════════════════════════════════════════════════════
 
+// ─────────────────────────────────────────────────────────────────
+// SENTIMENT PULSE — Social card subsection (Adanos data)
+// ─────────────────────────────────────────────────────────────────
+function SentimentPulseSection({ sentiment }) {
+  if (!sentiment?.found) return null;
+  const { composite_buzz, composite_trend, composite_sentiment_score, composite_bullish_pct, composite_bearish_pct, platforms } = sentiment;
+
+  const trendIcon  = composite_trend === 'rising' ? '▲' : composite_trend === 'falling' ? '▼' : '—';
+  const trendColor = composite_trend === 'rising' ? 'text-emerald-400' : composite_trend === 'falling' ? 'text-red-400' : 'text-slate-400';
+  const sentColor  = (composite_sentiment_score ?? 0) >= 0.1 ? 'text-emerald-400' : (composite_sentiment_score ?? 0) <= -0.1 ? 'text-red-400' : 'text-yellow-400';
+
+  const buzz = Math.min(100, Math.max(0, composite_buzz ?? 0));
+  const bullPct = composite_bullish_pct ?? 50;
+  const bearPct = composite_bearish_pct ?? 50;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-700">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <span>📡</span>Sentiment Pulse
+      </p>
+
+      {/* Buzz gauge + trend */}
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex-1">
+          <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+            <span>Buzz</span>
+            <span className="text-white font-semibold">{buzz.toFixed(0)}/100</span>
+          </div>
+          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-600 to-purple-500 rounded-full" style={{ width: `${buzz}%` }} />
+          </div>
+        </div>
+        <span className={`text-sm font-bold ${trendColor} flex-shrink-0`}>{trendIcon} {composite_trend || 'stable'}</span>
+      </div>
+
+      {/* Bull / Bear bar */}
+      <div className="mb-2">
+        <div className="flex justify-between text-xs mb-0.5">
+          <span className="text-emerald-400">▲ {bullPct.toFixed(0)}% bullish</span>
+          <span className={`font-semibold ${sentColor}`}>{(composite_sentiment_score ?? 0) >= 0 ? '+' : ''}{(composite_sentiment_score ?? 0).toFixed(2)}</span>
+          <span className="text-red-400">{bearPct.toFixed(0)}% bearish ▼</span>
+        </div>
+        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden flex">
+          <div className="h-full bg-emerald-600" style={{ width: `${bullPct}%` }} />
+          <div className="h-full bg-red-600" style={{ width: `${bearPct}%` }} />
+        </div>
+      </div>
+
+      {/* Platform chips */}
+      {(platforms || []).length > 0 && (
+        <div className="flex gap-1.5 flex-wrap">
+          {platforms.map(p => (
+            <div key={p.name} className="px-2 py-1 rounded-lg bg-slate-900 text-xs flex items-center gap-1.5">
+              <span className="text-slate-400">{p.name}</span>
+              <span className={p.sentiment_score >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                {p.sentiment_score >= 0 ? '+' : ''}{p.sentiment_score.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LIVE MACRO STRIP — Economic card subsection (Yahoo Finance + BLS)
+// ─────────────────────────────────────────────────────────────────
+function LiveMacroStrip({ macro }) {
+  if (!macro?.found) return null;
+  const ind = macro.indicators ?? {};
+
+  const chips = [
+    { key: 'yield_10y',   label: '10Y',    decimals: 2 },
+    { key: 'rates_short', label: 'T-Bill', decimals: 2 },
+    { key: 'unemployment',label: 'Unemp',  decimals: 1 },
+    { key: 'cpi_yoy',     label: 'CPI YoY',decimals: 1 },
+    { key: 'sp500',       label: 'S&P 500', decimals: 0 },
+    { key: 'vix',         label: 'VIX',    decimals: 1 },
+  ];
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-700">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <span>📊</span>Live Macro Signals
+      </p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {chips.map(({ key, label, decimals }) => {
+          const ind2 = ind[key];
+          if (!ind2) return null;
+          const v = ind2.value;
+          const d = ind2.delta;
+          const u = ind2.unit ?? '';
+          if (v == null) return null;
+          const up = d != null && d > 0;
+          const dn = d != null && d < 0;
+          const arrow = up ? '▲' : dn ? '▼' : '—';
+          const arrowCls = up ? 'text-emerald-400' : dn ? 'text-red-400' : 'text-slate-500';
+          return (
+            <div key={key} className="bg-slate-900 rounded-lg px-2 py-1.5">
+              <div className="text-slate-500 text-xs mb-0.5">{label}</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-white text-sm font-semibold tabular-nums">
+                  {v.toFixed(decimals)}{u}
+                </span>
+                <span className={`text-xs ${arrowCls}`}>{arrow}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// MARKET SENTIMENT CARD — Investment Thesis tab (Adanos data)
+// ─────────────────────────────────────────────────────────────────
+function MarketSentimentCard({ sentiment }) {
+  if (!sentiment?.found) return null;
+  const { composite_buzz, composite_trend, composite_sentiment_score, composite_bullish_pct, composite_bearish_pct, trend_history, platforms } = sentiment;
+
+  const trendIcon  = composite_trend === 'rising' ? '▲' : composite_trend === 'falling' ? '▼' : '—';
+  const trendColor = composite_trend === 'rising' ? 'text-emerald-400' : composite_trend === 'falling' ? 'text-red-400' : 'text-slate-400';
+  const sentScore  = composite_sentiment_score ?? 0;
+  const sentPct    = Math.round((sentScore + 1) / 2 * 100); // map -1..+1 → 0..100%
+
+  // CSS sparkline from trend_history (newest first → reverse for left-to-right)
+  const sparkVals = [...(trend_history || [])].reverse().slice(-7);
+  const sparkMax  = Math.max(...sparkVals, 1);
+
+  return (
+    <MetricCard title="Market Sentiment" icon="📡">
+      {/* Composite score bar */}
+      <div className="mb-3">
+        <div className="flex justify-between text-xs text-slate-500 mb-1">
+          <span>Bearish</span>
+          <span className="text-white font-semibold">
+            {sentScore >= 0 ? '+' : ''}{sentScore.toFixed(2)} composite score
+          </span>
+          <span>Bullish</span>
+        </div>
+        <div className="relative h-2 bg-slate-700 rounded-full">
+          <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-600 via-yellow-500 to-emerald-500 rounded-full w-full opacity-30" />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white bg-slate-800 shadow"
+            style={{ left: `calc(${sentPct}% - 6px)` }}
+          />
+        </div>
+      </div>
+
+      {/* Buzz + trend */}
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <span className="text-slate-400 text-xs">Buzz: </span>
+          <span className="text-white font-semibold text-sm">{(composite_buzz ?? 0).toFixed(0)}/100</span>
+        </div>
+        <span className={`text-sm font-bold ${trendColor}`}>{trendIcon} {composite_trend || 'stable'}</span>
+      </div>
+
+      {/* Bull / Bear split */}
+      <div className="flex justify-between text-xs mb-3">
+        <span className="text-emerald-400 font-semibold">▲ {(composite_bullish_pct ?? 50).toFixed(0)}% bull</span>
+        <span className="text-red-400 font-semibold">{(composite_bearish_pct ?? 50).toFixed(0)}% bear ▼</span>
+      </div>
+
+      {/* Sparkline from trend history */}
+      {sparkVals.length > 1 && (
+        <div className="mb-3">
+          <p className="text-xs text-slate-500 mb-1">7-day buzz trend</p>
+          <div className="flex items-end gap-0.5 h-8">
+            {sparkVals.map((v, i) => (
+              <div
+                key={i}
+                className="flex-1 bg-blue-500 rounded-sm opacity-70"
+                style={{ height: `${Math.max(8, (v / sparkMax) * 100)}%` }}
+                title={`${v.toFixed(0)}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Per-platform breakdown */}
+      {(platforms || []).length > 0 && (
+        <div className="space-y-1.5 border-t border-slate-700 pt-2 mt-1">
+          {platforms.map(p => (
+            <div key={p.name} className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 w-14">{p.name}</span>
+              <div className="flex-1 mx-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={p.sentiment_score >= 0 ? 'h-full bg-emerald-500 rounded-full' : 'h-full bg-red-500 rounded-full ml-auto'}
+                  style={{ width: `${Math.min(100, Math.abs(p.sentiment_score) * 100)}%` }}
+                />
+              </div>
+              <span className={p.sentiment_score >= 0 ? 'text-emerald-400 font-semibold tabular-nums' : 'text-red-400 font-semibold tabular-nums'}>
+                {p.sentiment_score >= 0 ? '+' : ''}{p.sentiment_score.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </MetricCard>
+  );
+}
+
 function OverviewTab({ state }) {
-  const { steepData, synthesis, subject, subjectType } = state;
+  const { steepData, synthesis, subject, subjectType, sentimentData, macroData } = state;
   const [openEvidence, setOpenEvidence] = useState({});
   if (!synthesis) return null;
   const dims = [
@@ -873,6 +1125,8 @@ function OverviewTab({ state }) {
                     <span className="text-slate-600 ml-auto">{Math.round(d.dimension_confidence * 100)}% conf</span>
                   )}
                 </div>
+                {key === 'social' && <SentimentPulseSection sentiment={sentimentData} />}
+                {key === 'economic' && <LiveMacroStrip macro={macroData} />}
               </div>
             );
           })}
@@ -1892,7 +2146,7 @@ function AnalystConsensusCard({ fund }) {
 }
 
 function InvestmentThesisTab({ state }) {
-  const { fundamentals: fund, investmentThesis: thesis, thesisStatus, ticker, subject } = state;
+  const { fundamentals: fund, investmentThesis: thesis, thesisStatus, ticker, subject, sentimentData } = state;
 
   if (thesisStatus === 'loading' || (!fund && thesisStatus !== 'error')) {
     return (
@@ -2053,6 +2307,9 @@ function InvestmentThesisTab({ state }) {
 
         {/* Analyst consensus */}
         <AnalystConsensusCard fund={fund} />
+
+        {/* Market sentiment (Adanos — only shown when data is available) */}
+        <MarketSentimentCard sentiment={sentimentData} />
       </div>
 
       <p className="text-slate-700 text-xs text-center pb-2">
@@ -2110,7 +2367,32 @@ function App() {
 
       const rc = buildRecencyContext();
 
-      // Per-dimension search angles — keep tight so Tavily returns relevant hits
+      // ── Pre-fetch live data in parallel before agents run ─────────────────
+      // Macro data (always; no key required)
+      let macroPayload = null;
+      try {
+        const macroRes = await fetch('/api/macro');
+        const macroJson = await macroRes.json();
+        if (macroJson.found) {
+          macroPayload = macroJson;
+          dispatch({ type: 'SET_MACRO_DATA', data: macroJson });
+        }
+      } catch { /* non-fatal — economic agent runs without live macro */ }
+
+      // Sentiment data (only when ticker is known and key may be set)
+      let sentimentPayload = null;
+      if (activeTicker) {
+        try {
+          const sentRes = await fetch(`/api/sentiment?ticker=${encodeURIComponent(activeTicker)}`);
+          const sentJson = await sentRes.json();
+          if (sentJson.found) {
+            sentimentPayload = sentJson;
+            dispatch({ type: 'SET_SENTIMENT_DATA', data: sentJson });
+          }
+        } catch { /* non-fatal — social agent runs without sentiment grounding */ }
+      }
+
+      // ── Per-dimension search angles — keep tight so Tavily returns relevant hits
       const dimQueries = {
         Social:        `${subject} consumer behavior demographics workforce culture public trust 2025 2026`,
         Technological: `${subject} technology AI infrastructure platform breakthroughs 2025 2026`,
@@ -2142,9 +2424,17 @@ function App() {
           allSources.push(...sources.map(s => ({ ...s, dimension: dim })));
           const sourcesBlock = formatSourcesBlock(sources, `RECENT ${dim.toUpperCase()} SOURCES`);
 
+          // Build live-data injection blocks for Social and Economic agents
+          let liveDataBlock = '';
+          if (key === 'social' && sentimentPayload) {
+            liveDataBlock = buildSentimentBlock(sentimentPayload) + '\n\n';
+          } else if (key === 'economic' && macroPayload) {
+            liveDataBlock = buildMacroBlock(macroPayload) + '\n\n';
+          }
+
           const data = await callAgent(
             prompt,
-            `Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Ground every driver.evidence entry in the live sources below where relevant — cite the source URL inside the evidence string. Return only valid JSON matching the schema exactly.
+            `${liveDataBlock}Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Ground every driver.evidence entry in the live sources below where relevant — cite the source URL inside the evidence string. Return only valid JSON matching the schema exactly.
 
 ${sourcesBlock}`,
             selectedModel,
