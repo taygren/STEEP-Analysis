@@ -3,6 +3,7 @@
 import { useState, useReducer, useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { QUANTUM_COMPUTING_EXAMPLE } from '../lib/quantumComputingExample';
+import { APPLE_EXAMPLE } from '../lib/appleExample';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -2648,6 +2649,19 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="block text-slate-600 text-xs">Pre-run example</span>
             </span>
             {status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject && (
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+            )}
+          </button>
+          <button
+            onClick={() => dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE })}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">🍎</span>
+            <span className="text-left leading-tight">
+              <span className="block text-xs font-medium">Apple</span>
+              <span className="block text-slate-600 text-xs">Pre-run example</span>
+            </span>
+            {status === 'complete' && subject === APPLE_EXAMPLE.subject && (
               <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
             )}
           </button>

@@ -26,6 +26,7 @@ const YF_HEADERS = {
 };
 
 const BLS_BASE = 'https://api.bls.gov/publicAPI/v2';
+const BLS_V1_BASE = 'https://api.bls.gov/publicAPI/v1';
 
 export async function GET() {
   try {
@@ -83,65 +84,172 @@ async function fetchYahooMacro() {
   };
 }
 
-// ── BLS: unemployment and CPI (no API key required for single-series v1) ────
+// ── BLS: unemployment and CPI ─────────────────────────────────────────────
+// Strategy: try v2 multi-series POST (most efficient), retry up to 3 times
+// with exponential backoff, then fall back to v1 single-series GETs.
+
 async function fetchBlsMacro() {
+  const NULL_RESULT = {
+    unemployment: { value: null, delta: null, label: 'Unemployment Rate', unit: '%', period: null },
+    cpi_yoy:      { value: null, delta: null, label: 'CPI YoY',           unit: '%', period: null },
+  };
+
+  // Attempt v2 multi-series with retries
+  let v2Data = null;
   try {
-    // Fetch multiple series in one batch request (v2 supports multi-series)
-    const res = await fetch(`${BLS_BASE}/timeseries/data/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'STEEP-Analysis-Platform/1.0' },
-      body: JSON.stringify({
-        seriesid: ['LNS14000000', 'CUUR0000SA0'],  // unemployment, CPI
-        startyear: '2024',
-        endyear:   '2026',
-      }),
-    });
-
-    if (!res.ok) throw new Error(`BLS API returned ${res.status}`);
-    const json = await res.json();
-    if (json.status !== 'REQUEST_SUCCEEDED') throw new Error(`BLS error: ${json.status}`);
-
-    const series = json.Results?.series ?? [];
-    const unempSeries = series.find(s => s.seriesID === 'LNS14000000')?.data ?? [];
-    const cpiSeries   = series.find(s => s.seriesID === 'CUUR0000SA0')?.data  ?? [];
-
-    // Unemployment: latest vs prior month
-    const unemp0 = safeNum(unempSeries[0]?.value);
-    const unemp1 = safeNum(unempSeries[1]?.value);
-    const unempDelta = unemp0 != null && unemp1 != null ? unemp0 - unemp1 : null;
-
-    // CPI YoY: need 13 data points (current month + same month last year)
-    // BLS returns newest-first; index 0 = most recent month, index 12 = same month last year
-    const cpi0 = safeNum(cpiSeries[0]?.value);
-    const cpi12 = safeNum(cpiSeries[12]?.value);
-    const cpiYoY = cpi0 != null && cpi12 != null ? ((cpi0 - cpi12) / cpi12) * 100 : null;
-    const cpiMoM = cpi0 != null && safeNum(cpiSeries[1]?.value) != null
-      ? ((cpi0 - cpiSeries[1].value) / cpiSeries[1].value) * 100 : null;
-
-    return {
-      unemployment: {
-        value: unemp0,
-        delta: unempDelta,
-        label: 'Unemployment Rate',
-        unit: '%',
-        period: unempSeries[0]?.periodName ? `${unempSeries[0].periodName} ${unempSeries[0].year}` : null,
-      },
-      cpi_yoy: {
-        value: cpiYoY,
-        delta: cpiMoM,   // delta = MoM change
-        label: 'CPI YoY',
-        unit: '%',
-        period: cpiSeries[0]?.periodName ? `${cpiSeries[0].periodName} ${cpiSeries[0].year}` : null,
-      },
-    };
-
+    v2Data = await fetchWithRetry(() => fetchBlsV2(), 3, 800);
   } catch (err) {
-    console.warn('[macro] BLS fetch failed:', err.message);
-    return {
-      unemployment: { value: null, delta: null, label: 'Unemployment Rate', unit: '%', period: null },
-      cpi_yoy:      { value: null, delta: null, label: 'CPI YoY',           unit: '%', period: null },
-    };
+    console.warn('[macro] BLS v2 failed after retries:', err.message);
   }
+
+  if (v2Data) return v2Data;
+
+  // Fallback: v1 single-series GETs (simpler, more permissive)
+  console.info('[macro] Falling back to BLS v1 single-series endpoints');
+  try {
+    const v1Data = await fetchBlsV1Fallback();
+    if (v1Data) return v1Data;
+  } catch (err) {
+    console.warn('[macro] BLS v1 fallback failed:', err.message);
+  }
+
+  return NULL_RESULT;
+}
+
+/**
+ * Retry wrapper with exponential backoff + jitter.
+ * Only retries on transient errors (network failures, timeouts, 5xx).
+ * Deterministic 4xx errors are re-thrown immediately.
+ * @param {() => Promise<T>} fn  — async function to retry
+ * @param {number} maxAttempts
+ * @param {number} baseDelayMs  — initial delay; doubles each attempt
+ */
+async function fetchWithRetry(fn, maxAttempts, baseDelayMs) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await fn();
+      return result;
+    } catch (err) {
+      lastErr = err;
+      // Don't retry deterministic 4xx failures
+      const msg = err.message ?? '';
+      const is4xx = /HTTP 4\d\d/.test(msg);
+      if (is4xx) throw err;
+
+      if (attempt < maxAttempts) {
+        const base = baseDelayMs * Math.pow(2, attempt - 1);
+        const jitter = Math.random() * base * 0.3;  // ±30% jitter
+        const delay = Math.round(base + jitter);
+        console.warn(`[macro] BLS attempt ${attempt} failed (${msg}); retrying in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/** Single attempt at BLS v2 multi-series POST */
+async function fetchBlsV2() {
+  const currentYear = new Date().getFullYear().toString();
+  const startYear   = (new Date().getFullYear() - 2).toString();
+
+  const res = await fetch(`${BLS_BASE}/timeseries/data/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'STEEP-Analysis-Platform/1.0',
+    },
+    body: JSON.stringify({
+      seriesid: ['LNS14000000', 'CUUR0000SA0'],
+      startyear: startYear,
+      endyear:   currentYear,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) throw new Error(`BLS v2 HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.status !== 'REQUEST_SUCCEEDED') {
+    throw new Error(`BLS v2 status: ${json.status} — ${(json.message ?? []).join('; ')}`);
+  }
+
+  return parseBLSSeries(json.Results?.series ?? []);
+}
+
+/** Fallback: BLS v1 single-series GETs (no key, simpler) */
+async function fetchBlsV1Fallback() {
+  const [unempRes, cpiRes] = await Promise.all([
+    fetch(`${BLS_V1_BASE}/timeseries/data/LNS14000000`, {
+      headers: { 'User-Agent': 'STEEP-Analysis-Platform/1.0' },
+      signal: AbortSignal.timeout(8000),
+    }),
+    fetch(`${BLS_V1_BASE}/timeseries/data/CUUR0000SA0`, {
+      headers: { 'User-Agent': 'STEEP-Analysis-Platform/1.0' },
+      signal: AbortSignal.timeout(8000),
+    }),
+  ]);
+
+  if (!unempRes.ok || !cpiRes.ok) {
+    throw new Error(`BLS v1 HTTP errors: unemp=${unempRes.status} cpi=${cpiRes.status}`);
+  }
+
+  const [unempJson, cpiJson] = await Promise.all([unempRes.json(), cpiRes.json()]);
+
+  if (unempJson.status !== 'REQUEST_SUCCEEDED' || cpiJson.status !== 'REQUEST_SUCCEEDED') {
+    throw new Error('BLS v1 response status failed');
+  }
+
+  const series = [
+    ...(unempJson.Results?.series ?? []),
+    ...(cpiJson.Results?.series   ?? []),
+  ];
+
+  return parseBLSSeries(series);
+}
+
+/** Parse BLS series array into indicator objects */
+function parseBLSSeries(series) {
+  const unempSeries = series.find(s => s.seriesID === 'LNS14000000')?.data ?? [];
+  const cpiSeries   = series.find(s => s.seriesID === 'CUUR0000SA0')?.data  ?? [];
+
+  // Unemployment: latest vs prior month
+  const unemp0 = safeNum(unempSeries[0]?.value);
+  const unemp1 = safeNum(unempSeries[1]?.value);
+  const unempDelta = unemp0 != null && unemp1 != null ? unemp0 - unemp1 : null;
+
+  // CPI YoY: index 0 = most recent month, index 12 = same month last year
+  const cpi0  = safeNum(cpiSeries[0]?.value);
+  const cpi12 = safeNum(cpiSeries[12]?.value);
+  const cpi1  = safeNum(cpiSeries[1]?.value);
+  const cpiYoY = cpi0 != null && cpi12 != null ? ((cpi0 - cpi12) / cpi12) * 100 : null;
+  const cpiMoM = cpi0 != null && cpi1  != null ? ((cpi0 - cpi1)  / cpi1)  * 100 : null;
+
+  // Only return data if we got meaningful values
+  if (unemp0 == null && cpiYoY == null) {
+    throw new Error('BLS series parsed but all values are null');
+  }
+
+  return {
+    unemployment: {
+      value: unemp0,
+      delta: unempDelta,
+      label: 'Unemployment Rate',
+      unit:  '%',
+      period: unempSeries[0]?.periodName
+        ? `${unempSeries[0].periodName} ${unempSeries[0].year}`
+        : null,
+    },
+    cpi_yoy: {
+      value: cpiYoY,
+      delta: cpiMoM,
+      label: 'CPI YoY',
+      unit:  '%',
+      period: cpiSeries[0]?.periodName
+        ? `${cpiSeries[0].periodName} ${cpiSeries[0].year}`
+        : null,
+    },
+  };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
