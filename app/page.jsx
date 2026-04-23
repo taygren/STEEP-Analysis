@@ -276,6 +276,12 @@ const INVESTMENT_THESIS_PROMPT = (ticker, companyName, fund) => {
     if (fund.week52_high != null && fund.week52_low != null) {
       lines.push(`52-week range: ${usd(fund.week52_low)} – ${usd(fund.week52_high)}`);
     }
+    if (fund.tech_support != null || fund.tech_resistance != null) {
+      lines.push(`Technical support: ${usd(fund.tech_support)}  |  Resistance: ${usd(fund.tech_resistance)}  |  Stop-loss: ${usd(fund.tech_stop_loss)}`);
+    }
+    if (fund.tech_trend_short || fund.tech_trend_mid || fund.tech_trend_long) {
+      lines.push(`Trend signals (Trading Central): short-term ${fund.tech_trend_short || 'N/A'}, mid-term ${fund.tech_trend_mid || 'N/A'}, long-term ${fund.tech_trend_long || 'N/A'}`);
+    }
     return lines.join('\n');
   })();
 
@@ -291,6 +297,8 @@ Valuation:
   PEG:                ${fmt(fund.peg_ratio)}
   Market Cap:         ${bn(fund.market_cap)}
   Current Price:      ${usd(fund.current_price)}
+  Sector:             ${fund.sector || 'N/A'} / ${fund.industry || 'N/A'}
+  Valuation Signal:   ${fund.valuation_signal || 'N/A'}${fund.valuation_description ? ` (${fund.valuation_description} ${fund.valuation_relative || ''})`.trim() : ''}
   Upside to Consensus Target: ${fund.upside_pct != null ? (fund.upside_pct * 100).toFixed(1) + '%' : 'N/A'}
 
 Profitability & Quality:
@@ -651,8 +659,11 @@ Schema: {"type":"company","ticker":"AAPL"} or {"type":"trend","ticker":null}
     // Text fallback
     const text = raw.toLowerCase().trim();
     const type = text.includes('company') ? 'company' : 'trend';
-    const tickerMatch = raw.match(/[A-Z]{1,5}/g);
-    return { type, ticker: null };
+    // Use the tickerMatch extracted from the raw text — filter common English words
+    const tickerMatch = raw.match(/\b[A-Z]{2,5}\b/g);
+    const COMMON = new Set(['AN','AS','AT','BE','BY','IF','IN','IS','IT','OF','ON','OR','TO','THE','AND','FOR','NOT','BUT','YES','NULL','TYPE','TREND','COMPANY','TICKER','SET','API','LLM','CEO','CTO','CFO','IPO','ETF','SP','US','EU']);
+    const potentialTicker = tickerMatch?.find(t => !COMMON.has(t)) ?? null;
+    return { type, ticker: potentialTicker };
   } catch {
     const corps = ['inc','corp','ltd','llc','apple','google','microsoft','amazon','meta','nvidia','tesla','anthropic','openai','samsung','boeing','walmart','jpmorgan','netflix','spotify','uber','airbnb','stripe','spacex'];
     const isCompany = corps.some(w => subject.toLowerCase().includes(w));
@@ -1729,9 +1740,14 @@ const STANCE_CLS = {
 const STANCE_ICON = { bullish: '▲', neutral: '◈', bearish: '▼' };
 
 function TechnicalSetupCard({ fund }) {
-  const { current_price: cp, ma50, ma200, week52_high: hi, week52_low: lo } = fund;
+  const {
+    current_price: cp, ma50, ma200, week52_high: hi, week52_low: lo,
+    tech_trend_short, tech_trend_mid, tech_trend_long,
+    tech_support, tech_resistance, tech_stop_loss,
+    valuation_signal, valuation_description, valuation_relative,
+  } = fund;
 
-  const RangeBar = ({ label, value, lo: rangeL, hi: rangeH, color }) => {
+  const RangeBar = ({ label, value, lo: rangeL, hi: rangeH }) => {
     if (value == null || rangeL == null || rangeH == null) return null;
     const pct = Math.max(0, Math.min(100, ((value - rangeL) / (rangeH - rangeL)) * 100));
     return (
@@ -1757,7 +1773,7 @@ function TechnicalSetupCard({ fund }) {
     const diff = ((cp - ma) / ma * 100);
     const pos = diff >= 0;
     return (
-      <div className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+      <div className="flex items-center justify-between py-1.5 border-b border-slate-800 last:border-0">
         <span className="text-slate-400 text-xs">{label}</span>
         <div className="flex items-center gap-2">
           <span className="text-slate-500 text-xs tabular-nums">{fmtUsd(ma)}</span>
@@ -1769,11 +1785,57 @@ function TechnicalSetupCard({ fund }) {
     );
   };
 
+  const trendIcon = (dir) => dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
+  const trendCls  = (dir) => dir === 'up' ? 'text-emerald-400' : dir === 'down' ? 'text-red-400' : 'text-slate-500';
+
+  const hasTrends = tech_trend_short || tech_trend_mid || tech_trend_long;
+  const hasSR     = tech_support != null || tech_resistance != null;
+
+  const valSignalCls = valuation_signal?.toLowerCase().includes('under')
+    ? 'text-emerald-400'
+    : valuation_signal?.toLowerCase().includes('over')
+      ? 'text-red-400'
+      : 'text-yellow-400';
+
   return (
     <MetricCard title="Technical Setup" icon="📈">
       <RangeBar label="52-Week Range" value={cp} lo={lo} hi={hi} />
       {maRow('vs 50-Day MA', ma50)}
       {maRow('vs 200-Day MA', ma200)}
+
+      {hasSR && (
+        <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
+          {tech_support    != null && <div className="flex justify-between text-xs"><span className="text-slate-500">Support</span><span className="text-emerald-400 font-semibold tabular-nums">{fmtUsd(tech_support)}</span></div>}
+          {tech_resistance != null && <div className="flex justify-between text-xs"><span className="text-slate-500">Resistance</span><span className="text-red-400 font-semibold tabular-nums">{fmtUsd(tech_resistance)}</span></div>}
+          {tech_stop_loss  != null && <div className="flex justify-between text-xs"><span className="text-slate-500">Stop-Loss</span><span className="text-slate-400 tabular-nums">{fmtUsd(tech_stop_loss)}</span></div>}
+        </div>
+      )}
+
+      {hasTrends && (
+        <div className="mt-2 pt-2 border-t border-slate-800">
+          <p className="text-xs text-slate-600 mb-1">Trend (Trading Central)</p>
+          <div className="flex gap-3">
+            {[['S', tech_trend_short], ['M', tech_trend_mid], ['L', tech_trend_long]].map(([lbl, dir]) => (
+              <div key={lbl} className="flex flex-col items-center gap-0.5">
+                <span className={`text-sm font-bold ${trendCls(dir)}`}>{trendIcon(dir)}</span>
+                <span className="text-slate-600 text-xs">{lbl}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {valuation_signal && (
+        <div className="mt-2 pt-2 border-t border-slate-800">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 text-xs">Valuation Signal</span>
+            <span className={`text-xs font-semibold ${valSignalCls}`}>
+              {valuation_signal}
+              {valuation_description ? ` · ${valuation_description}` : ''}
+            </span>
+          </div>
+        </div>
+      )}
     </MetricCard>
   );
 }
@@ -2189,7 +2251,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
     }
   }, [subject, selectedModel, groqStatus]);
 
-  const hasTicker = Boolean(ticker && isComplete);
+  const hasTicker = Boolean(ticker && isComplete && thesisStatus !== 'idle');
   const tabs = [
     { key: 'overview',  label: 'Overview',  icon: '◉' },
     { key: 'forcemap',  label: 'Force Map', icon: '◈' },

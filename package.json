@@ -17,7 +17,8 @@
     "next": "^14.2.30",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.165.0"
+    "three": "^0.165.0",
+    "yahoo-finance2": "^2.13.4"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",
