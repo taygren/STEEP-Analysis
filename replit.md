@@ -37,6 +37,7 @@ lib/
   bigCycle/engine.js    — Instrument attributes, capacity definitions, scoring logic, LLM prompts
   quantumComputingExample.js — Pre-run example
   appleExample.js       — Pre-run Apple example (with full fundamentals + thesis)
+  walmartExample.js     — Pre-run Walmart example (tariff/Big Cycle/Snapshot)
 scripts/
   post-merge.sh         — Post-merge setup (npm install)
 start-dev.sh            — Replit startup script (starts Ollama legacy + Next.js)
