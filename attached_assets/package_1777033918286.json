@@ -1,0 +1,33 @@
+{
+  "name": "steep-analysis-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered STEEP Analysis Platform using Ollama for local LLM inference",
+  "scripts": {
+    "dev": "next dev -p 5000 -H 0.0.0.0",
+    "dev:ollama": "bash start-dev.sh",
+    "build": "next build",
+    "start": "next start -p 5000 -H 0.0.0.0",
+    "lint": "next lint",
+    "setup": "bash scripts/setup.sh",
+    "setup:win": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1",
+    "go": "bash scripts/start.sh"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "next": "^14.2.30",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.165.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.30"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

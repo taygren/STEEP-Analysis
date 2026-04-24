@@ -4,17 +4,17 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "functions": {
-    "app/api/analyze/route.js": {
-      "maxDuration": 60
-    },
-    "app/api/pull/route.js": {
-      "maxDuration": 60
-    },
-    "app/api/health/route.js": {
-      "maxDuration": 10
-    },
-    "app/api/models/route.js": {
-      "maxDuration": 10
-    }
+    "app/api/analyze/route.js": { "maxDuration": 60 },
+    "app/api/research/route.js": { "maxDuration": 20 },
+    "app/api/fundamentals/route.js": { "maxDuration": 30 },
+    "app/api/macro/route.js": { "maxDuration": 30 },
+    "app/api/sentiment/route.js": { "maxDuration": 20 },
+    "app/api/snapshot/route.js": { "maxDuration": 60 },
+    "app/api/big-cycle/route.js": { "maxDuration": 60 },
+    "app/api/thought-leadership/route.js": { "maxDuration": 10 },
+    "app/api/thought-leadership/admin/route.js": { "maxDuration": 10 },
+    "app/api/pull/route.js": { "maxDuration": 60 },
+    "app/api/health/route.js": { "maxDuration": 10 },
+    "app/api/models/route.js": { "maxDuration": 10 }
   }
 }

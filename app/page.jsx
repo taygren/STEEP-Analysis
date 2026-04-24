@@ -4,6 +4,12 @@ import { useState, useReducer, useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { QUANTUM_COMPUTING_EXAMPLE } from '../lib/quantumComputingExample';
 import { APPLE_EXAMPLE } from '../lib/appleExample';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import { INSTRUMENT_ATTRIBUTES, GEOECONOMIC_CAPACITIES, STRATEGIC_UTILITY_CLASSES, computeSeverityScore, classifySeverity } from '../lib/bigCycle/engine';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -366,6 +372,10 @@ const initialState = {
   thesisStatus: 'idle',     // idle | loading | complete | error
   sentimentData: null,      // Adanos sentiment signals (null when key absent or non-public company)
   macroData: null,          // Live macro indicators (Yahoo Finance + BLS)
+  snapshotData: null,       // AI-generated time-bound snapshot
+  snapshotStatus: 'idle',   // idle | loading | complete | error
+  bigCycleData: null,       // Big Cycle Decision Engine assessment
+  bigCycleStatus: 'idle',   // idle | loading | complete | error
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -386,14 +396,18 @@ function reducer(state, action) {
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null };
+    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null, snapshotData: null, snapshotStatus: 'idle', bigCycleData: null, bigCycleStatus: 'idle' };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
     case 'SET_TICKER':        return { ...state, ticker: action.payload };
     case 'SET_FUNDAMENTALS':  return { ...state, fundamentals: action.data };
     case 'SET_INVESTMENT_THESIS': return { ...state, investmentThesis: action.data };
     case 'SET_THESIS_STATUS': return { ...state, thesisStatus: action.payload };
-    case 'SET_SENTIMENT_DATA': return { ...state, sentimentData: action.data };
-    case 'SET_MACRO_DATA':    return { ...state, macroData: action.data };
+    case 'SET_SENTIMENT_DATA':  return { ...state, sentimentData: action.data };
+    case 'SET_MACRO_DATA':      return { ...state, macroData: action.data };
+    case 'SET_SNAPSHOT_DATA':   return { ...state, snapshotData: action.data, snapshotStatus: 'complete' };
+    case 'SET_SNAPSHOT_STATUS': return { ...state, snapshotStatus: action.payload };
+    case 'SET_BIG_CYCLE_DATA':  return { ...state, bigCycleData: action.data, bigCycleStatus: 'complete' };
+    case 'SET_BIG_CYCLE_STATUS':return { ...state, bigCycleStatus: action.payload };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
@@ -424,6 +438,10 @@ function reducer(state, action) {
         thesisStatus: ex.investmentThesis ? 'complete' : 'idle',
         sentimentData: ex.sentimentData ?? null,
         macroData: ex.macroData ?? null,
+        snapshotData: ex.snapshotData ?? null,
+        snapshotStatus: ex.snapshotData ? 'complete' : 'idle',
+        bigCycleData: ex.bigCycleData ?? null,
+        bigCycleStatus: ex.bigCycleData ? 'complete' : 'idle',
       };
     }
     default: return state;
@@ -1077,7 +1095,803 @@ function MarketSentimentCard({ sentiment }) {
   );
 }
 
-function OverviewTab({ state }) {
+// ═══════════════════════════════════════════════════════════════════
+// SNAPSHOT PANEL — compact time-bound brief inside OverviewTab
+// ═══════════════════════════════════════════════════════════════════
+function SnapshotPanel({ state, dispatch }) {
+  const { subject, subjectType, selectedModel, snapshotData, snapshotStatus } = state;
+  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const generate = async (force = false) => {
+    dispatch({ type: 'SET_SNAPSHOT_STATUS', payload: 'loading' });
+    try {
+      const res = await fetch('/api/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, subjectType, asOfDate, model: selectedModel, forceRefresh: force }),
+      });
+      const json = await res.json();
+      if (json.found && json.snapshot) {
+        dispatch({ type: 'SET_SNAPSHOT_DATA', data: json.snapshot });
+      } else {
+        dispatch({ type: 'SET_SNAPSHOT_STATUS', payload: 'error' });
+      }
+    } catch {
+      dispatch({ type: 'SET_SNAPSHOT_STATUS', payload: 'error' });
+    }
+  };
+
+  const dirColor = (d) => d === 'positive' ? 'text-emerald-400' : d === 'negative' ? 'text-red-400' : 'text-yellow-400';
+  const dirArrow = (d) => d === 'positive' ? '▲' : d === 'negative' ? '▼' : '—';
+
+  const postureColors = { Opportunistic: '#10b981', Cautious: '#f59e0b', Defensive: '#ef4444', Transformative: '#8b5cf6' };
+
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <SectionHdr>Intelligence Snapshot</SectionHdr>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={asOfDate}
+            onChange={e => setAsOfDate(e.target.value)}
+            className="text-xs bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-slate-300 focus:outline-none focus:border-blue-500"
+          />
+          {snapshotStatus === 'loading' ? (
+            <div className="px-3 py-1.5 rounded-lg bg-slate-700 flex items-center gap-2 text-xs text-slate-400">
+              <Spinner size={12} /><span>Generating…</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => generate(false)}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs text-white font-semibold transition-colors"
+            >
+              {snapshotData ? 'Refresh' : 'Generate Snapshot'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {!snapshotData && snapshotStatus !== 'loading' && (
+        <p className="text-slate-500 text-sm text-center py-4">
+          Generate a concise intelligence brief for a specific date — useful for comparing posture over time.
+        </p>
+      )}
+
+      {snapshotStatus === 'error' && (
+        <p className="text-red-400 text-sm">Snapshot generation failed. Please try again.</p>
+      )}
+
+      {snapshotData && (
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <span
+              className="px-3 py-1 rounded-full text-xs font-bold"
+              style={{ backgroundColor: (postureColors[snapshotData.overallPosture] || '#64748b') + '25', color: postureColors[snapshotData.overallPosture] || '#94a3b8' }}
+            >
+              {snapshotData.overallPosture}
+            </span>
+            <span className="text-slate-500 text-xs">As of {snapshotData.asOfDate}</span>
+            {snapshotData.model && <span className="text-slate-600 text-xs ml-auto">via {snapshotData.model.split('/').pop()}</span>}
+          </div>
+
+          {/* Executive summary */}
+          <p className="text-slate-200 text-sm leading-relaxed">{snapshotData.executiveSummary}</p>
+
+          {/* Dimension snapshot grid */}
+          {snapshotData.dimensionSnapshots && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {Object.entries(snapshotData.dimensionSnapshots).map(([dim, snap]) => (
+                <div key={dim} className="bg-slate-900 rounded-lg px-3 py-2.5" style={{ borderLeft: `3px solid ${COLORS[dim.charAt(0).toUpperCase() + dim.slice(1)] || '#64748b'}` }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-slate-400 text-xs font-semibold capitalize">{dim}</span>
+                    <span className={`text-xs font-bold ${dirColor(snap.direction)}`}>{dirArrow(snap.direction)}</span>
+                  </div>
+                  <p className="text-slate-200 text-xs leading-snug">{snap.headline}</p>
+                  {snap.topDriver && <p className="text-slate-600 text-xs mt-0.5 truncate">{snap.topDriver}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Catalysts */}
+          {(snapshotData.topCatalysts || []).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Top Catalysts</p>
+              <div className="space-y-1.5">
+                {snapshotData.topCatalysts.map((c, i) => (
+                  <div key={i} className="flex items-start gap-2.5 text-xs">
+                    <span className="text-slate-500 mt-0.5 flex-shrink-0">⚡</span>
+                    <div>
+                      <span className="text-slate-200">{c.event}</span>
+                      {c.timeframe && <span className="text-slate-500 ml-1.5">{c.timeframe}</span>}
+                    </div>
+                    <span className={`ml-auto flex-shrink-0 font-semibold ${dirColor(c.direction)}`}>{c.impact}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Watch items */}
+          {(snapshotData.watchItems || []).length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {snapshotData.watchItems.map((w, i) => (
+                <span key={i} className="px-2 py-1 rounded-full bg-slate-900 text-slate-400 text-xs border border-slate-700">👁 {w}</span>
+              ))}
+            </div>
+          )}
+
+          {snapshotData.confidenceNote && (
+            <p className="text-slate-600 text-xs italic">{snapshotData.confidenceNote}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA VISUALIZATION TAB
+// ═══════════════════════════════════════════════════════════════════
+const DIRECTION_SCORE = { ACCELERATING: 9, EMERGING: 7, STABLE: 5, DECELERATING: 3 };
+
+function DataVizTab({ state }) {
+  const { steepData, synthesis, fundamentals, sentimentData, subject } = state;
+  if (!synthesis) return <div className="text-slate-600 text-center py-20">Run an analysis to see visualizations.</div>;
+
+  // ── Data preparation ────────────────────────────────────────────
+  const dims = ['social', 'technological', 'economic', 'environmental', 'political'];
+  const dimLabels = { social: 'Social', technological: 'Tech', economic: 'Economic', environmental: 'Enviro', political: 'Political' };
+
+  // Radar: direction score × confidence
+  const radarData = dims.map(d => {
+    const data = steepData[d];
+    const dirScore = DIRECTION_SCORE[data?.dominant_direction] ?? 5;
+    const conf = data?.dimension_confidence ?? 0.5;
+    const value = Math.round(dirScore * conf * 10) / 10;
+    return { dim: dimLabels[d], value, fullMark: 10 };
+  });
+
+  // Bar: opportunities vs risks per dimension
+  const oppRiskData = dims.map(d => {
+    const data = steepData[d];
+    return {
+      dim: dimLabels[d],
+      opportunities: (data?.opportunities || []).length,
+      risks: (data?.risks || []).length,
+      drivers: (data?.drivers || []).length,
+    };
+  });
+
+  // Driver impact distribution
+  const impactData = dims.map(d => {
+    const drivers = steepData[d]?.drivers || [];
+    return {
+      dim: dimLabels[d],
+      High: drivers.filter(dr => dr.impact === 'high').length,
+      Medium: drivers.filter(dr => dr.impact === 'medium').length,
+      Low: drivers.filter(dr => dr.impact === 'low').length,
+    };
+  });
+
+  // Confidence bars
+  const confData = dims.map(d => ({
+    dim: dimLabels[d],
+    confidence: Math.round((steepData[d]?.dimension_confidence ?? 0) * 100),
+    color: COLORS[dimLabels[d]],
+  }));
+
+  const CHART_COLORS = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981', opportunities: '#10b981', risks: '#ef4444', drivers: '#3b82f6' };
+
+  return (
+    <div className="space-y-8 fade-in">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">{subject} — Data Visualization</h2>
+        <p className="text-slate-500 text-sm">Interactive charts from the current analysis.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* STEEP Momentum Radar */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">STEEP Momentum Scores</h3>
+          <p className="text-xs text-slate-500 mb-4">Direction × confidence — higher = stronger positive momentum</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={100}>
+              <PolarGrid stroke="#334155" />
+              <PolarAngleAxis dataKey="dim" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fill: '#475569', fontSize: 10 }} />
+              <Radar name="Momentum" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Opportunities vs Risks */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Opportunities vs Risks</h3>
+          <p className="text-xs text-slate-500 mb-4">Count per dimension identified by agents</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={oppRiskData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <XAxis dataKey="dim" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#475569', fontSize: 11 }} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+              <Bar dataKey="opportunities" name="Opportunities" fill={CHART_COLORS.opportunities} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="risks"         name="Risks"         fill={CHART_COLORS.risks}         radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Driver Impact Distribution */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Driver Impact Distribution</h3>
+          <p className="text-xs text-slate-500 mb-4">High / Medium / Low impact drivers per dimension</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={impactData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <XAxis dataKey="dim" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#475569', fontSize: 11 }} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+              <Bar dataKey="High"   name="High"   stackId="a" fill={CHART_COLORS.High}   />
+              <Bar dataKey="Medium" name="Medium" stackId="a" fill={CHART_COLORS.Medium} />
+              <Bar dataKey="Low"    name="Low"    stackId="a" fill={CHART_COLORS.Low}    radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Dimension Confidence */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Agent Confidence by Dimension</h3>
+          <p className="text-xs text-slate-500 mb-4">Self-reported confidence from each dimension agent (0–100%)</p>
+          <div className="space-y-3 mt-2">
+            {confData.map(({ dim, confidence, color }) => (
+              <div key={dim}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-400">{dim}</span>
+                  <span className="text-white font-semibold">{confidence}%</span>
+                </div>
+                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${confidence}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Market KPIs (company only) */}
+      {fundamentals && (
+        <div>
+          <h3 className="text-sm font-semibold text-white mb-3">Market Snapshot</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { label: 'Price', value: fundamentals.current_price != null ? `$${fundamentals.current_price.toFixed(2)}` : 'N/A' },
+              { label: 'P/E', value: fundamentals.pe_ratio != null ? `${fundamentals.pe_ratio.toFixed(1)}×` : 'N/A' },
+              { label: 'Mkt Cap', value: fundamentals.market_cap != null ? `$${(fundamentals.market_cap / 1e9).toFixed(0)}B` : 'N/A' },
+              { label: 'Rev Growth', value: fundamentals.revenue_growth != null ? `${(fundamentals.revenue_growth * 100).toFixed(1)}%` : 'N/A' },
+              { label: 'Net Margin', value: fundamentals.profit_margin != null ? `${(fundamentals.profit_margin * 100).toFixed(1)}%` : 'N/A' },
+              { label: 'FCF', value: fundamentals.free_cashflow != null ? `$${(fundamentals.free_cashflow / 1e9).toFixed(0)}B` : 'N/A' },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
+                <div className="text-slate-500 text-xs mb-1">{label}</div>
+                <div className="text-white font-bold">{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sentiment widget */}
+      {sentimentData?.found && (
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-white mb-3">Social Sentiment Overview</h3>
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="text-center">
+              <div className="text-2xl font-black text-white">{(sentimentData.composite_buzz ?? 0).toFixed(0)}</div>
+              <div className="text-slate-500 text-xs">Buzz / 100</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-black ${(sentimentData.composite_sentiment_score ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {(sentimentData.composite_sentiment_score ?? 0) >= 0 ? '+' : ''}{(sentimentData.composite_sentiment_score ?? 0).toFixed(2)}
+              </div>
+              <div className="text-slate-500 text-xs">Sentiment</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black text-emerald-400">{(sentimentData.composite_bullish_pct ?? 50).toFixed(0)}%</div>
+              <div className="text-slate-500 text-xs">Bullish</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black text-red-400">{(sentimentData.composite_bearish_pct ?? 50).toFixed(0)}%</div>
+              <div className="text-slate-500 text-xs">Bearish</div>
+            </div>
+            <div className="flex-1 min-w-[120px]">
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden flex">
+                <div className="h-full bg-emerald-600" style={{ width: `${sentimentData.composite_bullish_pct ?? 50}%` }} />
+                <div className="h-full bg-red-600" style={{ width: `${sentimentData.composite_bearish_pct ?? 50}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BIG CYCLE DECISION ENGINE TAB
+// ═══════════════════════════════════════════════════════════════════
+function BigCycleTab({ state, dispatch }) {
+  const { subject, subjectType, steepData, synthesis, selectedModel, bigCycleData, bigCycleStatus } = state;
+
+  const runAssessment = async () => {
+    dispatch({ type: 'SET_BIG_CYCLE_STATUS', payload: 'loading' });
+    try {
+      const res = await fetch('/api/big-cycle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, subjectType, steepData, synthesis, model: selectedModel }),
+      });
+      const json = await res.json();
+      if (json.found && json.assessment) {
+        dispatch({ type: 'SET_BIG_CYCLE_DATA', data: json.assessment });
+      } else {
+        dispatch({ type: 'SET_BIG_CYCLE_STATUS', payload: 'error' });
+      }
+    } catch {
+      dispatch({ type: 'SET_BIG_CYCLE_STATUS', payload: 'error' });
+    }
+  };
+
+  const ScoreBar = ({ score, color = '#3b82f6' }) => (
+    <div className="flex items-center gap-2 flex-1">
+      <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, (score / 10) * 100))}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-white text-xs font-bold tabular-nums w-5 text-right">{score}</span>
+    </div>
+  );
+
+  const a = bigCycleData;
+  const utilityClass = a ? STRATEGIC_UTILITY_CLASSES.find(c => c.key === a.strategicUtility?.class) : null;
+  const severity = a ? classifySeverity(a.overallSeverityScore) : null;
+  const cyclePhaseColors = { expansion: '#10b981', late_cycle: '#f59e0b', peak: '#ef4444', contraction: '#ef4444', transition: '#8b5cf6', uncertain: '#64748b' };
+
+  if (!synthesis) {
+    return <div className="text-slate-600 text-center py-20">Complete a STEEP analysis first, then run the Big Cycle assessment.</div>;
+  }
+
+  return (
+    <div className="space-y-6 fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Big Cycle Decision Engine</h2>
+          <p className="text-slate-500 text-sm mt-0.5">Geoeconomic instrument assessment • Strategic utility • Cycle positioning</p>
+        </div>
+        {bigCycleStatus !== 'loading' && (
+          <button onClick={runAssessment} className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold transition-colors flex items-center gap-2">
+            <span>⬡</span>
+            {bigCycleData ? 'Re-run Assessment' : 'Run Big Cycle Assessment'}
+          </button>
+        )}
+        {bigCycleStatus === 'loading' && (
+          <div className="flex items-center gap-2 text-slate-400 text-sm px-4 py-2">
+            <Spinner size={16} /><span>Running assessment…</span>
+          </div>
+        )}
+      </div>
+
+      {bigCycleStatus === 'error' && (
+        <div className="bg-red-950 border border-red-800 rounded-xl p-4 text-red-400 text-sm">Assessment failed. Please try again.</div>
+      )}
+
+      {!bigCycleData && bigCycleStatus === 'idle' && (
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-10 text-center">
+          <div className="text-4xl mb-4">⬡</div>
+          <h3 className="text-white font-semibold mb-2">Geoeconomic Intelligence Layer</h3>
+          <p className="text-slate-400 text-sm max-w-lg mx-auto">
+            The Big Cycle engine scores geoeconomic instruments, classifies strategic utility, and assesses US capacity positions — grounded in your STEEP analysis context.
+          </p>
+        </div>
+      )}
+
+      {a && (
+        <div className="space-y-6">
+
+          {/* Cycle phase + severity */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Cycle Phase</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-lg font-bold capitalize" style={{ color: cyclePhaseColors[a.cyclePhase] || '#64748b' }}>
+                  {(a.cyclePhase || 'Unknown').replace(/_/g, ' ')}
+                </span>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">{a.cyclePhaseRationale}</p>
+            </div>
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Overall Severity Score</p>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-4xl font-black" style={{ color: severity?.color }}>{a.overallSeverityScore ?? 'N/A'}</span>
+                <span className="text-sm font-semibold px-2 py-0.5 rounded-full" style={{ color: severity?.color, backgroundColor: (severity?.color || '#64748b') + '20' }}>{severity?.label}</span>
+              </div>
+              <ScoreBar score={a.overallSeverityScore ?? 0} color={severity?.color || '#64748b'} />
+            </div>
+          </div>
+
+          {/* Primary instruments */}
+          {(a.primaryInstruments || []).length > 0 && (
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <SectionHdr>Geoeconomic Instruments</SectionHdr>
+              <div className="space-y-5 mt-2">
+                {a.primaryInstruments.map((inst, i) => {
+                  const scores = inst.attributeScores || {};
+                  return (
+                    <div key={i} className={i > 0 ? 'pt-5 border-t border-slate-700' : ''}>
+                      <h4 className="text-white font-semibold mb-1">{inst.name}</h4>
+                      <p className="text-slate-400 text-xs mb-3 leading-relaxed">{inst.relevance}</p>
+                      <div className="space-y-2">
+                        {INSTRUMENT_ATTRIBUTES.map(attr => (
+                          <div key={attr.key} className="flex items-center gap-3">
+                            <span className="text-slate-500 text-xs w-28 flex-shrink-0">{attr.icon} {attr.label}</span>
+                            <ScoreBar score={scores[attr.key] ?? 0} color="#3b82f6" />
+                          </div>
+                        ))}
+                      </div>
+                      {inst.scoreRationale && <p className="text-slate-600 text-xs mt-2 leading-relaxed italic">{inst.scoreRationale}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Strategic utility + capacities */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {a.strategicUtility && (
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+                <SectionHdr>Strategic Utility</SectionHdr>
+                {utilityClass && (
+                  <div className="flex items-center gap-2 mb-3 mt-1">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: utilityClass.color + '20', color: utilityClass.color }}>
+                      {utilityClass.label}
+                    </span>
+                  </div>
+                )}
+                <p className="text-slate-300 text-sm leading-relaxed">{a.strategicUtility.rationale}</p>
+              </div>
+            )}
+            {a.capacities && (
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+                <SectionHdr>US Geoeconomic Capacities</SectionHdr>
+                <div className="space-y-3 mt-2">
+                  {GEOECONOMIC_CAPACITIES.map(cap => {
+                    const c = a.capacities[cap.key];
+                    if (!c) return null;
+                    return (
+                      <div key={cap.key}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-slate-400 text-xs flex-1">{cap.label}</span>
+                          <ScoreBar score={c.score ?? 0} color="#8b5cf6" />
+                        </div>
+                        <p className="text-slate-600 text-xs leading-relaxed">{c.rationale}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Company positioning */}
+          {a.companyPositioning && (
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+              <SectionHdr>Positioning & Adaptation</SectionHdr>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Exposure Channels</p>
+                  <ul className="space-y-1">
+                    {(a.companyPositioning.exposureChannels || []).map((ch, i) => (
+                      <li key={i} className="text-slate-300 text-sm flex items-start gap-2"><span className="text-slate-600 mt-0.5">→</span>{ch}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-3">
+                  {a.companyPositioning.primaryRisk && (
+                    <div>
+                      <p className="text-xs font-semibold text-red-400 uppercase tracking-widest mb-1">Primary Risk</p>
+                      <p className="text-slate-300 text-xs leading-relaxed">{a.companyPositioning.primaryRisk}</p>
+                    </div>
+                  )}
+                  {a.companyPositioning.primaryOpportunity && (
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-1">Primary Opportunity</p>
+                      <p className="text-slate-300 text-xs leading-relaxed">{a.companyPositioning.primaryOpportunity}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {a.companyPositioning.cycleAdaptation && (
+                <div className="mt-4 pt-4 border-t border-slate-700">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Cycle Adaptation</p>
+                  <p className="text-slate-200 text-sm leading-relaxed">{a.companyPositioning.cycleAdaptation}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Watch items */}
+          {(a.keyWatchItems || []).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {a.keyWatchItems.map((w, i) => (
+                <span key={i} className="px-3 py-1.5 rounded-full bg-slate-800 border border-purple-800 text-purple-300 text-xs">👁 {w}</span>
+              ))}
+            </div>
+          )}
+
+          <p className="text-slate-700 text-xs text-center">
+            Assessment via {a.model?.split('/').pop()} · {a.generatedAt ? new Date(a.generatedAt).toLocaleString() : ''}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THOUGHT LEADERSHIP PANEL — sidebar destination
+// ═══════════════════════════════════════════════════════════════════
+function ThoughtLeadershipPanel() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [adminToken, setAdminToken] = useState(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem('tl_admin_token') || '') : ''
+  );
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [editPost, setEditPost] = useState(null);
+  const [adminPosts, setAdminPosts] = useState([]);
+  const [adminError, setAdminError] = useState('');
+  const [form, setForm] = useState({ title: '', dek: '', contentMarkdown: '', geoKeywords: '', status: 'draft' });
+  const [saving, setSaving] = useState(false);
+
+  const isAdmin = Boolean(adminToken && adminToken.length > 4);
+
+  useEffect(() => {
+    fetch('/api/thought-leadership?limit=20')
+      .then(r => r.json())
+      .then(d => { setPosts(d.posts || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/thought-leadership/admin', { headers: { 'x-admin-token': adminToken } })
+      .then(r => r.json())
+      .then(d => setAdminPosts(d.posts || []))
+      .catch(() => {});
+  }, [isAdmin, adminToken, saving]);
+
+  const saveToken = (t) => {
+    setAdminToken(t);
+    if (typeof window !== 'undefined') localStorage.setItem('tl_admin_token', t);
+  };
+
+  const savePost = async () => {
+    setSaving(true); setAdminError('');
+    try {
+      const payload = {
+        ...form,
+        geoKeywords: form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
+        ...(editPost ? { id: editPost.id, createdAt: editPost.createdAt } : {}),
+      };
+      const res = await fetch('/api/thought-leadership/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setEditPost(data.post);
+      setShowAdminForm(false);
+    } catch (e) { setAdminError(e.message); }
+    setSaving(false);
+  };
+
+  const togglePublish = async (post) => {
+    const newStatus = post.status === 'published' ? 'draft' : 'published';
+    await fetch('/api/thought-leadership/admin', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ id: post.id, status: newStatus }),
+    });
+    setSaving(s => !s);
+  };
+
+  const deletePost = async (id) => {
+    if (!confirm('Delete this post?')) return;
+    await fetch('/api/thought-leadership/admin', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ id }),
+    });
+    setSaving(s => !s);
+  };
+
+  const startEdit = (post) => {
+    setEditPost(post);
+    setForm({
+      title: post.title || '',
+      dek: post.dek || '',
+      contentMarkdown: post.contentMarkdown || '',
+      geoKeywords: (post.geoKeywords || []).join(', '),
+      status: post.status || 'draft',
+    });
+    setShowAdminForm(true);
+  };
+
+  const newPost = () => {
+    setEditPost(null);
+    setForm({ title: '', dek: '', contentMarkdown: '', geoKeywords: '', status: 'draft' });
+    setShowAdminForm(true);
+  };
+
+  // Single post view
+  if (selectedPost) {
+    return (
+      <div className="max-w-3xl mx-auto py-6 space-y-6 fade-in">
+        <button onClick={() => setSelectedPost(null)} className="text-slate-500 hover:text-white text-sm flex items-center gap-1.5">← Back to posts</button>
+        <div>
+          <h1 className="text-2xl font-black text-white mb-2">{selectedPost.title}</h1>
+          {selectedPost.dek && <p className="text-slate-400 text-base leading-relaxed mb-3">{selectedPost.dek}</p>}
+          <div className="flex gap-2 flex-wrap mb-4">
+            {(selectedPost.geoKeywords || []).map(k => (
+              <span key={k} className="px-2 py-0.5 rounded-full bg-blue-900 text-blue-300 text-xs">{k}</span>
+            ))}
+            {selectedPost.publishedAt && <span className="text-slate-600 text-xs ml-auto">{new Date(selectedPost.publishedAt).toLocaleDateString()}</span>}
+          </div>
+        </div>
+        <div className="prose prose-invert prose-sm max-w-none">
+          {(selectedPost.excerpt || selectedPost.contentMarkdown || '').split('\n').map((line, i) => (
+            line.startsWith('## ') ? <h2 key={i} className="text-white text-lg font-bold mt-6 mb-2">{line.slice(3)}</h2>
+            : line.startsWith('# ')  ? <h1 key={i} className="text-white text-xl font-black mt-6 mb-2">{line.slice(2)}</h1>
+            : line.startsWith('- ')  ? <li key={i} className="text-slate-300 text-sm ml-4">{line.slice(2)}</li>
+            : line.trim()             ? <p key={i} className="text-slate-300 text-sm leading-relaxed mb-3">{line}</p>
+            : <div key={i} className="h-2" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Admin form
+  if (showAdminForm) {
+    return (
+      <div className="max-w-2xl mx-auto py-6 space-y-4 fade-in">
+        <div className="flex items-center justify-between">
+          <h2 className="text-white font-bold">{editPost ? 'Edit Post' : 'New Post'}</h2>
+          <button onClick={() => setShowAdminForm(false)} className="text-slate-500 hover:text-white text-sm">← Back</button>
+        </div>
+        {adminError && <div className="bg-red-950 border border-red-800 rounded-lg p-3 text-red-400 text-xs">{adminError}</div>}
+        <div className="space-y-3">
+          <div>
+            <label className="text-slate-500 text-xs mb-1 block">Title</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-slate-500 text-xs mb-1 block">Dek / Subtitle</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              value={form.dek} onChange={e => setForm(f => ({ ...f, dek: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-slate-500 text-xs mb-1 block">Content (Markdown)</label>
+            <textarea rows={14} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-blue-500 resize-y"
+              value={form.contentMarkdown} onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-slate-500 text-xs mb-1 block">GEO Keywords (comma-separated)</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              value={form.geoKeywords} onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
+              placeholder="tariffs, semiconductors, US-China, sanctions" />
+          </div>
+          <div className="flex items-center gap-3">
+            <select className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none"
+              value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+            <button onClick={savePost} disabled={saving} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm rounded-lg font-semibold">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto py-6 space-y-6 fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-black text-white">Thought Leadership</h2>
+          <p className="text-slate-500 text-sm mt-0.5">GEO-optimized strategic intelligence briefs</p>
+        </div>
+        {isAdmin && (
+          <button onClick={newPost} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg font-semibold">+ New Post</button>
+        )}
+      </div>
+
+      {/* Admin token input (collapsed when set) */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <details>
+          <summary className="text-slate-500 text-xs cursor-pointer select-none">
+            {isAdmin ? '🔓 Admin mode active' : '🔒 Admin login'}
+          </summary>
+          <div className="mt-3 flex gap-2">
+            <input
+              type="password"
+              placeholder="Admin token"
+              value={adminToken}
+              onChange={e => saveToken(e.target.value)}
+              className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </details>
+      </div>
+
+      {/* Published posts list */}
+      <div>
+        {loading && <div className="text-slate-500 text-sm text-center py-8">Loading posts…</div>}
+        {!loading && (isAdmin ? adminPosts : posts).length === 0 && (
+          <div className="text-slate-600 text-sm text-center py-10">
+            {isAdmin ? 'No posts yet. Create the first one.' : 'No published posts yet.'}
+          </div>
+        )}
+        <div className="space-y-3">
+          {(isAdmin ? adminPosts : posts).map(post => (
+            <div key={post.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors group">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 cursor-pointer" onClick={() => setSelectedPost(post)}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-white font-semibold text-sm group-hover:text-blue-300 transition-colors">{post.title}</h3>
+                    {isAdmin && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${post.status === 'published' ? 'bg-emerald-900 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
+                        {post.status}
+                      </span>
+                    )}
+                  </div>
+                  {post.dek && <p className="text-slate-400 text-xs leading-relaxed mb-2">{post.dek}</p>}
+                  {post.excerpt && <p className="text-slate-600 text-xs leading-relaxed line-clamp-2">{post.excerpt}…</p>}
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {(post.geoKeywords || []).slice(0, 4).map(k => (
+                      <span key={k} className="px-1.5 py-0.5 rounded bg-blue-900 text-blue-400 text-xs">{k}</span>
+                    ))}
+                    {post.publishedAt && <span className="text-slate-600 text-xs ml-auto">{new Date(post.publishedAt).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button onClick={() => startEdit(post)} className="text-xs text-slate-500 hover:text-white px-2 py-1 rounded bg-slate-700">Edit</button>
+                    <button onClick={() => togglePublish(post)} className="text-xs text-slate-500 hover:text-white px-2 py-1 rounded bg-slate-700">
+                      {post.status === 'published' ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button onClick={() => deletePost(post.id)} className="text-xs text-red-500 hover:text-red-300 px-2 py-1 rounded bg-slate-700">Delete</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({ state, dispatch }) {
   const { steepData, synthesis, subject, subjectType, sentimentData, macroData } = state;
   const [openEvidence, setOpenEvidence] = useState({});
   if (!synthesis) return null;
@@ -1103,6 +1917,8 @@ function OverviewTab({ state }) {
         <SectionHdr>Executive Summary</SectionHdr>
         <p className="text-slate-200 leading-relaxed text-sm">{synthesis.executive_summary}</p>
       </div>
+
+      <SnapshotPanel state={state} dispatch={dispatch} />
 
       <div>
         <SectionHdr>STEEP Dimension Assessments</SectionHdr>
@@ -2560,12 +3376,18 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   }, [subject, selectedModel, groqStatus]);
 
   const hasTicker = Boolean(ticker && isComplete && thesisStatus !== 'idle');
-  const tabs = [
-    { key: 'overview',  label: 'Overview',  icon: '◉' },
-    { key: 'forcemap',  label: 'Force Map', icon: '◈' },
-    { key: 'roadmap',   label: 'Roadmap',   icon: '→' },
-    ...(hasTicker ? [{ key: 'thesis', label: 'Investment Thesis', icon: '◎', badge: thesisStatus }] : []),
+
+  const coreTabs = [
+    { key: 'overview', label: 'Overview',  icon: '◉' },
+    { key: 'forcemap', label: 'Force Map', icon: '◈' },
+    { key: 'roadmap',  label: 'Roadmap',   icon: '→' },
+    ...(hasTicker ? [{ key: 'thesis', label: 'Thesis', icon: '◎', badge: thesisStatus }] : []),
   ];
+  const topOnlyTabs = isComplete ? [
+    { key: 'dataviz',  label: 'Data Viz',  icon: '▦' },
+    { key: 'bigcycle', label: 'Big Cycle', icon: '⬡' },
+  ] : [];
+  const tabs = [...coreTabs, ...topOnlyTabs];
 
   return (
     <div className="flex h-screen bg-slate-900 overflow-hidden">
@@ -2642,7 +3464,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {isComplete && (
           <nav className="flex-1 px-3 py-3">
             <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Dashboard</p>
-            {tabs.map(tab => (
+            {coreTabs.map(tab => (
               <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === tab.key ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
                 <span className="text-base leading-none">{tab.icon}</span>
@@ -2652,6 +3474,19 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             ))}
           </nav>
         )}
+
+        {/* Thought Leadership — always-visible sidebar destination */}
+        <div className="px-3 py-3 border-t border-slate-800">
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Intelligence</p>
+          <button
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' })}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">✍</span>
+            <span>Thought Leadership</span>
+            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+          </button>
+        </div>
 
         {/* Examples */}
         <div className="px-3 py-3 border-t border-slate-800">
@@ -2722,8 +3557,16 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 overflow-y-auto">
+
+        {/* Thought Leadership — accessible at any time from sidebar */}
+        {activeTab === 'thoughtleadership' && (
+          <div className="h-full overflow-y-auto px-6 py-6">
+            <ThoughtLeadershipPanel />
+          </div>
+        )}
+
         {/* Idle */}
-        {status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && status === 'idle' && (
           <div className="overflow-y-auto px-8 py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -2891,7 +3734,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {isRunning && (
+        {activeTab !== 'thoughtleadership' && isRunning && (
           <div className="h-full flex items-center justify-center px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -2927,7 +3770,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {isComplete && (
+        {activeTab !== 'thoughtleadership' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-6 pt-5 pb-0 border-b border-slate-800 flex-shrink-0 overflow-x-auto">
               {tabs.map(tab => (
@@ -2941,11 +3784,14 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                 </button>
               ))}
             </div>
-            <div className={`flex-1 ${activeTab === 'forcemap' ? 'p-4' : 'p-6'}`}>
-              {activeTab === 'overview' && <OverviewTab state={state} />}
-              {activeTab === 'forcemap' && <ForceMapTab state={state} />}
-              {activeTab === 'roadmap'  && <RoadmapTab  state={state} dispatch={dispatch} />}
-              {activeTab === 'thesis'   && <InvestmentThesisTab state={state} />}
+            <div className={`flex-1 overflow-y-auto ${activeTab === 'forcemap' ? 'p-4' : 'p-6'}`}>
+              {activeTab === 'overview'         && <OverviewTab          state={state} dispatch={dispatch} />}
+              {activeTab === 'forcemap'         && <ForceMapTab          state={state} />}
+              {activeTab === 'roadmap'          && <RoadmapTab           state={state} dispatch={dispatch} />}
+              {activeTab === 'thesis'           && <InvestmentThesisTab  state={state} />}
+              {activeTab === 'dataviz'          && <DataVizTab           state={state} />}
+              {activeTab === 'bigcycle'         && <BigCycleTab          state={state} dispatch={dispatch} />}
+              {activeTab === 'thoughtleadership'&& <ThoughtLeadershipPanel />}
             </div>
           </div>
         )}

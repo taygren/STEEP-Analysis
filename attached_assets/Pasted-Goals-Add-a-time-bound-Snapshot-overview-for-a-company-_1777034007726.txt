@@ -1,0 +1,440 @@
+Goals
+
+
+
+
+
+Add a time-bound Snapshot overview for a company or trend that leverages your existing synthesis pipeline (/api/analyze + SYNTHESIS_PROMPT) and can be saved/recalled.
+
+
+
+Add a Thought Leadership destination in the sidebar that allows only you to author/publish GEO-optimized content that persists (stored in Vercel KV/DB).
+
+
+
+Add Data Visualization and Big Cycle Decision Engine as top menu options within the Analyze Output/results area.
+
+Key repo reality (what we’ll build on)
+
+
+
+
+
+The app is a single-page UI in [app/page.jsx](app/page.jsx); the results experience is driven by an in-file tab system (tabs array + activeTab) and renders OverviewTab, ForceMapTab, RoadmapTab, InvestmentThesisTab.
+
+
+
+All LLM work (dimension agents + synthesis) ultimately calls [app/api/analyze/route.js](app/api/analyze/route.js).
+
+UX / IA changes
+
+
+
+
+
+Split navigation concerns in [app/page.jsx](app/page.jsx):
+
+
+
+
+
+Sidebar-only item: ThoughtLeadership
+
+
+
+Top-menu-only items: DataViz, BigCycle
+
+
+
+Existing tabs remain available in both (Overview/ForceMap/Roadmap/Thesis)
+
+Proposed UI surfaces
+
+
+
+
+
+Sidebar: Thought Leadership
+
+
+
+
+
+List view (all users): published posts, search, tags
+
+
+
+Admin drawer/panel (only with admin token present): new/edit/publish/unpublish
+
+
+
+Top menu: Data Visualization
+
+
+
+
+
+Interactive chart workspace using the analysis output state (steepData, synthesis, dataSnapshot, adanosBundle, optionally future series)
+
+
+
+Top menu: Big Cycle Decision Engine
+
+
+
+
+
+Company/trend-specific geoeconomic instrument assessment with the 3 outputs you listed
+
+
+
+For trends: interpret and score from the United States perspective
+
+Data model + persistence
+
+Thought Leadership (Vercel KV/DB)
+
+
+
+
+
+Storage: @vercel/kv (or equivalent KV driver), keyed by:
+
+
+
+
+
+thoughtleadership:post:<id> → full post JSON
+
+
+
+thoughtleadership:index → sorted list of ids (or use a ZSET keyed by publishedAt)
+
+
+
+Post schema (JSON):
+
+
+
+
+
+id, slug, title, dek, contentMarkdown, geoKeywords[], regions[], instruments[], companies[], publishedAt, updatedAt, status (draft|published)
+
+Snapshot layer (Vercel KV/DB)
+
+
+
+
+
+Storage: snapshot:<subjectHash>:<asOfDate> → snapshot JSON
+
+
+
+Snapshot schema:
+
+
+
+
+
+subject, subjectType, asOfDate, createdAt
+
+
+
+inputs: minimal references (selected model, optional market snapshot ids)
+
+
+
+snapshotSynthesis: compact synthesis output designed for “fast overview”
+
+Server/API changes
+
+1) Admin auth (shared secret)
+
+
+
+
+
+Add ADMIN_PUBLISH_TOKEN env var.
+
+
+
+Admin-only routes require header x-admin-token matching ADMIN_PUBLISH_TOKEN.
+
+2) Thought Leadership API routes
+
+Add new Next routes:
+
+
+
+
+
+[app/api/thought-leadership/route.js](app/api/thought-leadership/route.js)
+
+
+
+
+
+GET: list published posts (filter/search support)
+
+
+
+[app/api/thought-leadership/admin/route.js](app/api/thought-leadership/admin/route.js)
+
+
+
+
+
+POST: create/update draft
+
+
+
+PUT: publish/unpublish
+
+
+
+DELETE: delete
+
+
+
+All admin methods enforce x-admin-token
+
+3) Snapshot API routes
+
+
+
+
+
+[app/api/snapshot/route.js](app/api/snapshot/route.js)
+
+
+
+
+
+POST: generate or fetch a stored snapshot for { subject, subjectType, asOfDate }
+
+
+
+Internally calls /api/analyze using a new SNAPSHOT_PROMPT(...) (shorter than full synthesis; designed for time-bound overview)
+
+
+
+Stores result to KV keyed by subject+date
+
+4) Big Cycle Decision Engine API route
+
+
+
+
+
+[app/api/big-cycle/route.js](app/api/big-cycle/route.js)
+
+
+
+
+
+POST: accept { subject, subjectType, steepData, synthesis, dataSnapshot, adanosBundle }
+
+
+
+Use the synthesizer pattern (same LLM proxy) to return JSON with:
+
+
+
+
+
+instrumentAttributes: Precision/Impact/Circumvention/Visibility/Speed (0–10 or 1–5; we’ll standardize)
+
+
+
+strategicUtility: one of your six classes + rationale
+
+
+
+capacities: SizeAsymmetries/StrategicDependencies/MarketGravity/InstitutionalEffectiveness + rationale
+
+
+
+companyPositioning: exposure channels + main takeaways
+
+
+
+For subjectType=trend, the system prompt hardcodes “from US perspective”.
+
+Client-side implementation steps
+
+1) Navigation refactor (minimal-risk)
+
+
+
+
+
+In [app/page.jsx](app/page.jsx), replace single tabs array with:
+
+
+
+
+
+coreTabs (existing)
+
+
+
+topOnlyTabs (DataViz, BigCycle)
+
+
+
+sidebarOnlyItems (ThoughtLeadership)
+
+
+
+Keep activeTab in reducer; add keys for new panels.
+
+2) Thought Leadership UI
+
+
+
+
+
+Add a new panel component in app/page.jsx (or extract to app/components/... if you prefer) that:
+
+
+
+
+
+Fetches list via /api/thought-leadership
+
+
+
+If admin token exists (stored locally in browser, e.g. session/local storage), enables editor + publish actions via /api/thought-leadership/admin
+
+
+
+Renders markdown for readers
+
+3) Snapshot overview layer
+
+
+
+
+
+Add a compact “Snapshot” subpanel inside OverviewTab (or a dedicated top tab if you prefer) with:
+
+
+
+
+
+Date picker / “As of today” default
+
+
+
+Button: Generate snapshot → /api/snapshot
+
+
+
+Display the returned snapshot synthesis + “last generated” time
+
+4) Data Visualization tab
+
+
+
+
+
+Add a new DataVizTab that:
+
+
+
+
+
+Starts with 3–5 high-signal visualizations that are immediately available from current state (no new data pulls required):
+
+
+
+
+
+STEEP dimension directional scores (radar/bar)
+
+
+
+Driver impact distribution per dimension
+
+
+
+Market snapshot KPIs (if company)
+
+
+
+Sentiment/attention series if present in adanosBundle
+
+
+
+Use a lightweight charting library (we’ll choose during implementation based on bundle size + SSR friendliness; common defaults: recharts or @nivo/*).
+
+5) Big Cycle Decision Engine tab
+
+
+
+
+
+Add BigCycleTab UI:
+
+
+
+
+
+“Run Big Cycle Assessment” button
+
+
+
+Displays:
+
+
+
+
+
+Instrument attribute scores + narrative
+
+
+
+Strategic utility mapping
+
+
+
+Geoeconomic capacities assessment
+
+
+
+Uses /api/big-cycle results; optionally render the “engine.js” style score bars for the 5 instrument attributes (adapted to your UI styling).
+
+Integration of GeoEcon-Engine logic
+
+
+
+
+
+Use your repo as conceptual + scoring reference (functions like scoreGeoeconomicInstrument and the attribute weighting) from [GeoEcon-Engine](https://github.com/taygren/GeoEcon-Engine).
+
+
+
+We’ll implement a small internal module (e.g. lib/bigCycle/engine.js) that:
+
+
+
+
+
+Standardizes weights and score scales
+
+
+
+Can compute a severity score once the LLM returns attribute scores
+
+Environment variables
+
+
+
+
+
+ADMIN_PUBLISH_TOKEN (required for admin write endpoints)
+
+
+
+KV/DB vars required by your chosen Vercel KV/DB provider (e.g., KV_REST_API_URL, KV_REST_API_TOKEN if using Vercel KV)
+
