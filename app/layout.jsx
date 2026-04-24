@@ -2,7 +2,13 @@ import './globals.css';
 
 export const metadata = {
   title: 'STEEP Analysis Platform',
-  description: 'AI-powered multi-agent STEEP analysis using local Ollama LLMs',
+  description: 'AI-powered six-agent STEEP analysis using Groq cloud inference',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {

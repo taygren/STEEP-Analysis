@@ -2352,21 +2352,21 @@ function ForceMapTab({ state }) {
   }, [state.steepData, state.subject, state.subjectType]);
 
   return (
-    <div className="flex gap-0" style={{ height: 'calc(100vh - 140px)', minHeight: 500 }}>
-      {/* 3-D canvas */}
-      <div className="relative flex-1 min-w-0">
+    <div className="relative" style={{ height: 'calc(100vh - 140px)', minHeight: 400 }}>
+      {/* 3-D canvas — fills full container */}
+      <div className="absolute inset-0">
         <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
 
         {/* Legend */}
-        <div className="absolute top-4 left-4 bg-slate-950 bg-opacity-90 border border-slate-700 rounded-xl p-3 text-xs space-y-1">
-          <p className="text-slate-500 font-semibold uppercase tracking-wider mb-2">Dimensions</p>
+        <div className="absolute top-4 left-4 bg-slate-950 bg-opacity-90 border border-slate-700 rounded-xl p-2.5 text-xs space-y-1">
+          <p className="text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Dimensions</p>
           {Object.entries(COLORS).map(([d, c]) => (
             <div key={d} className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
               <span className="text-slate-300">{d}</span>
             </div>
           ))}
-          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1 hidden md:block">
             <p className="text-slate-500 font-semibold uppercase tracking-wider">Drivers</p>
             {[['#10b981','Positive'],['#ef4444','Negative'],['#f59e0b','Mixed']].map(([c, l]) => (
               <div key={l} className="flex items-center gap-2">
@@ -2376,7 +2376,7 @@ function ForceMapTab({ state }) {
             ))}
             <p className="text-slate-600 mt-1">Node size = impact</p>
           </div>
-          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+          <div className="mt-2 pt-2 border-t border-slate-700 space-y-1 hidden md:block">
             <p className="text-slate-500 font-semibold uppercase tracking-wider">Cross-dim Arcs</p>
             {[['#10b981','Reinforcing'],['#ef4444','Countervailing'],['#8b5cf6','Emerging']].map(([c, l]) => (
               <div key={l} className="flex items-center gap-2">
@@ -2384,14 +2384,15 @@ function ForceMapTab({ state }) {
                 <span className="text-slate-400">{l}</span>
               </div>
             ))}
-            <p className="text-slate-600 mt-1">Click bead for insight</p>
+            <p className="text-slate-600 mt-1">Tap bead for insight</p>
           </div>
         </div>
 
         {/* Controls bar */}
         <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <div className="bg-slate-950 bg-opacity-80 border border-slate-700 rounded-lg px-3 py-1.5">
-            <p className="text-slate-600 text-xs">Drag to rotate · Scroll to zoom · Click nodes</p>
+            <p className="text-slate-600 text-xs hidden md:block">Drag to rotate · Scroll to zoom · Click nodes</p>
+            <p className="text-slate-600 text-xs md:hidden">Touch to rotate · Pinch to zoom · Tap nodes</p>
           </div>
           <button
             onClick={() => setAutoRotate(r => !r)}
@@ -2402,10 +2403,12 @@ function ForceMapTab({ state }) {
         </div>
       </div>
 
-      {/* Right side panel — shown when a node is selected */}
+      {/* Detail panel — bottom sheet on mobile, right panel on desktop */}
       <div
-        className="flex-shrink-0 overflow-y-auto transition-all duration-300 bg-slate-950 border-l border-slate-800"
-        style={{ width: tooltip ? 280 : 0, opacity: tooltip ? 1 : 0, pointerEvents: tooltip ? 'auto' : 'none' }}
+        className={`absolute z-20 overflow-y-auto transition-opacity duration-300 bg-slate-950/95 backdrop-blur-sm border-slate-800
+          bottom-0 left-0 right-0 max-h-[55%] rounded-t-2xl border-t
+          md:inset-y-0 md:right-0 md:left-auto md:w-72 md:max-h-none md:rounded-none md:rounded-l-xl md:border-t-0 md:border-l
+          ${tooltip ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
         {tooltip && (
           <div className="p-4 space-y-4 text-xs fade-in">
@@ -3166,6 +3169,9 @@ function App() {
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const closeSidebar = () => setSidebarOpen(false);
+
   // ── On mount: check Ollama health and list models ──
   useEffect(() => {
     (async () => {
@@ -3393,13 +3399,21 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   return (
     <div className="flex h-screen bg-slate-900 overflow-hidden">
 
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={closeSidebar} />
+      )}
+
       {/* ── SIDEBAR ── */}
-      <aside className="w-64 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col overflow-y-auto">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-950 border-r border-slate-800 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         {/* Branding */}
         <div className="px-5 py-4 border-b border-slate-800">
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white">S</div>
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
             <span className="font-bold text-white">STEEP Platform</span>
+            <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
           </div>
           <p className="text-slate-600 text-xs">Groq Cloud · Fast inference</p>
         </div>
@@ -3438,7 +3452,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▾</span>
           </div>
           <button
-            onClick={handleAnalysis}
+            onClick={() => { handleAnalysis(); closeSidebar(); }}
             disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
             className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
             style={{ background: isRunning ? 'linear-gradient(135deg,#1e3a5f,#3730a3)' : 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
@@ -3466,7 +3480,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           <nav className="flex-1 px-3 py-3">
             <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Dashboard</p>
             {coreTabs.map(tab => (
-              <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
+              <button key={tab.key} onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key }); closeSidebar(); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === tab.key ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
                 <span className="text-base leading-none">{tab.icon}</span>
                 <span>{tab.label}</span>
@@ -3480,7 +3494,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         <div className="px-3 py-3 border-t border-slate-800">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Intelligence</p>
           <button
-            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' })}
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">✍</span>
@@ -3493,7 +3507,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         <div className="px-3 py-3 border-t border-slate-800">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
           <button
-            onClick={() => dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE })}
+            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">⚛</span>
@@ -3506,7 +3520,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             )}
           </button>
           <button
-            onClick={() => dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE })}
+            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">🍎</span>
@@ -3519,7 +3533,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             )}
           </button>
           <button
-            onClick={() => dispatch({ type: 'LOAD_EXAMPLE', payload: WALMART_EXAMPLE })}
+            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: WALMART_EXAMPLE }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === WALMART_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">🛒</span>
@@ -3570,29 +3584,52 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto min-w-0">
+
+        {/* Mobile header bar */}
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800 md:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+            aria-label="Open menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
+            <span className="text-white font-semibold text-sm truncate">
+              {subject ? subject : 'STEEP Platform'}
+            </span>
+            {isComplete && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-400 font-medium flex-shrink-0">Done</span>
+            )}
+            {isRunning && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900 text-blue-400 font-medium flex-shrink-0 flex items-center gap-1"><Spinner size={9} />Running</span>
+            )}
+          </div>
+        </div>
 
         {/* Thought Leadership — accessible at any time from sidebar */}
         {activeTab === 'thoughtleadership' && (
-          <div className="h-full overflow-y-auto px-6 py-6">
+          <div className="h-full overflow-y-auto px-4 py-4 md:px-6 md:py-6">
             <ThoughtLeadershipPanel />
           </div>
         )}
 
         {/* Idle */}
         {activeTab !== 'thoughtleadership' && status === 'idle' && (
-          <div className="overflow-y-auto px-8 py-10">
+          <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
               {/* Hero */}
               <div className="text-center mb-12">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-6 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
-                <h1 className="text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
+                <h1 className="text-2xl md:text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto mb-1">
                   Powered by <span className="text-white font-semibold">Groq</span> — fast cloud inference, no GPU needed.
                 </p>
                 <p className="text-slate-500 text-sm leading-relaxed max-w-xl mx-auto">
-                  Enter any company, trend, or technology in the sidebar to run a six-agent intelligence analysis and generate a 3D force map, forecast roadmap, and full per-dimension evidence report.
+                  Enter any company, trend, or technology <span className="md:hidden">using the menu above</span><span className="hidden md:inline">in the sidebar</span> to run a six-agent intelligence analysis and generate a 3D force map, forecast roadmap, and full per-dimension evidence report.
                 </p>
               </div>
 
@@ -3714,7 +3751,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
               {/* Output summary */}
               <h2 className="text-white font-bold text-sm uppercase tracking-widest mb-4 opacity-50">What you get</h2>
-              <div className="grid grid-cols-3 gap-4 mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
                 <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
                   <div className="text-lg mb-2">📋</div>
                   <p className="text-white font-semibold text-sm mb-1">Overview</p>
@@ -3749,7 +3786,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Running */}
         {activeTab !== 'thoughtleadership' && isRunning && (
-          <div className="h-full flex items-center justify-center px-8">
+          <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
                 <div className="w-20 h-20 rounded-full border-4 border-slate-800 animate-spin" style={{ borderTopColor: '#3B82F6', borderRightColor: '#8B5CF6', animationDuration: '1.5s' }} />
@@ -3786,19 +3823,20 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Results */}
         {activeTab !== 'thoughtleadership' && isComplete && (
           <div className="min-h-full flex flex-col">
-            <div className="flex items-center gap-1 px-6 pt-5 pb-0 border-b border-slate-800 flex-shrink-0 overflow-x-auto">
+            <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === tab.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-3 md:px-4 text-xs md:text-sm font-medium border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === tab.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'}`}>
                   <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                   {tab.badge === 'loading' && <Spinner size={10} />}
                   {tab.badge === 'complete' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                   {tab.badge === 'error'   && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
                 </button>
               ))}
             </div>
-            <div className={`flex-1 overflow-y-auto ${activeTab === 'forcemap' ? 'p-4' : 'p-6'}`}>
+            <div className={`flex-1 overflow-y-auto ${activeTab === 'forcemap' ? 'p-3 md:p-4' : 'p-3 md:p-6'}`}>
               {activeTab === 'overview'         && <OverviewTab          state={state} dispatch={dispatch} />}
               {activeTab === 'forcemap'         && <ForceMapTab          state={state} />}
               {activeTab === 'roadmap'          && <RoadmapTab           state={state} dispatch={dispatch} />}
