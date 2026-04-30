@@ -119,6 +119,44 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+// ── Upload zone sub-component ─────────────────────────────────────
+function UploadZone({ label, accept, icon, file, onFile, hint }) {
+  const [drag, setDrag] = useState(false);
+  const inputRef = useState(null);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDrag(false);
+    const f = e.dataTransfer.files[0];
+    if (f) onFile(f);
+  };
+
+  return (
+    <label
+      className={`block border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors text-center ${
+        drag ? 'border-blue-500 bg-blue-950/30' : file ? 'border-emerald-700 bg-emerald-950/20' : 'border-slate-700 hover:border-slate-500 bg-slate-900/50'
+      }`}
+      onDragOver={e => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={handleDrop}
+    >
+      <input type="file" accept={accept} className="sr-only" onChange={e => e.target.files[0] && onFile(e.target.files[0])} />
+      <div className="text-2xl mb-1.5">{file ? '✅' : icon}</div>
+      {file ? (
+        <div>
+          <p className="text-emerald-400 text-xs font-semibold truncate max-w-full">{file.name}</p>
+          <p className="text-slate-600 text-xs mt-0.5">{(file.size / 1024).toFixed(0)} KB — click to replace</p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-slate-300 text-xs font-semibold mb-0.5">{label}</p>
+          <p className="text-slate-600 text-xs">{hint}</p>
+        </div>
+      )}
+    </label>
+  );
+}
+
 // ── Post editor ───────────────────────────────────────────────────
 function PostEditor({ token, post, onBack, onSaved }) {
   const isNew = !post?.id;
@@ -134,6 +172,78 @@ function PostEditor({ token, post, onBack, onSaved }) {
   const [saveMsgType, setSaveMsgType] = useState('success');
   const [preview, setPreview] = useState(false);
   const [postId, setPostId] = useState(post?.id || null);
+
+  // ── Document import state ──────────────────────────────────────
+  const [showDocs, setShowDocs] = useState(true);
+  const [wordFile, setWordFile] = useState(null);
+  const [reportFile, setReportFile] = useState(null);
+  const [extractedWord, setExtractedWord] = useState('');
+  const [extractedReport, setExtractedReport] = useState('');
+  const [extracting, setExtracting] = useState(null); // 'word' | 'report' | null
+  const [extractErr, setExtractErr] = useState('');
+  const [refining, setRefining] = useState(false);
+  const [refineMsg, setRefineMsg] = useState('');
+  const [refineMsgType, setRefineMsgType] = useState('success');
+
+  // ── Extract document text ──────────────────────────────────────
+  const extractFile = async (file, key) => {
+    setExtracting(key);
+    setExtractErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/extract-document', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Extraction failed');
+      if (key === 'word') setExtractedWord(data.text);
+      else setExtractedReport(data.text);
+    } catch (e) {
+      setExtractErr(e.message);
+    }
+    setExtracting(null);
+  };
+
+  // ── AI refinement ──────────────────────────────────────────────
+  const refineContent = async (mode) => {
+    const articleText = mode === 'refine' ? (extractedWord || form.contentMarkdown) : form.contentMarkdown;
+    if (!articleText && !extractedReport) { setRefineMsg('No content to refine'); setRefineMsgType('error'); return; }
+    setRefining(true);
+    setRefineMsg('');
+    try {
+      const res = await fetch('/api/refine-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: articleText,
+          reportText: mode === 'integrate' ? extractedReport : undefined,
+          mode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Refinement failed');
+      setForm(f => ({ ...f, contentMarkdown: data.refined }));
+      setRefineMsg(mode === 'integrate' ? `STEEP data integrated — ${data.tokens?.toLocaleString() || '—'} tokens used` : `Article optimized — ${data.tokens?.toLocaleString() || '—'} tokens used`);
+      setRefineMsgType('success');
+    } catch (e) {
+      setRefineMsg(e.message);
+      setRefineMsgType('error');
+    }
+    setRefining(false);
+  };
+
+  // Handle word file change: auto-extract
+  const handleWordFile = async (f) => {
+    setWordFile(f);
+    setExtractedWord('');
+    await extractFile(f, 'word');
+  };
+
+  // Handle report file change: auto-extract
+  const handleReportFile = async (f) => {
+    setReportFile(f);
+    setExtractedReport('');
+    await extractFile(f, 'report');
+  };
 
   const save = async (publish = false) => {
     if (!form.title.trim()) { setSaveMsg('Title is required'); setSaveMsgType('error'); return; }
@@ -293,6 +403,168 @@ function PostEditor({ token, post, onBack, onSaved }) {
                   className={`px-4 py-1 rounded text-xs font-semibold transition-colors ${form.status === 'published' ? 'bg-emerald-700 text-white' : 'text-slate-400 hover:text-white'}`}
                 >Published</button>
               </div>
+            </div>
+
+            {/* ── Document Import Panel ── */}
+            <div className="border border-slate-800 rounded-2xl overflow-hidden">
+              {/* Panel header */}
+              <button
+                onClick={() => setShowDocs(v => !v)}
+                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-900 hover:bg-slate-800/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📎</span>
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">Document Import & AI Optimization</span>
+                  {(extractedWord || extractedReport) && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-300 border border-emerald-700 font-semibold">
+                      {[extractedWord && 'Article', extractedReport && 'STEEP'].filter(Boolean).join(' + ')} ready
+                    </span>
+                  )}
+                </div>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={`text-slate-500 transition-transform ${showDocs ? 'rotate-180' : ''}`}>
+                  <path d="M2 4l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {showDocs && (
+                <div className="px-5 py-5 space-y-5 bg-slate-950">
+
+                  {/* Upload row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Word document */}
+                    <div>
+                      <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-2">Word Document</p>
+                      <UploadZone
+                        label="Upload .docx article"
+                        accept=".docx,.doc"
+                        icon="📄"
+                        file={wordFile}
+                        onFile={handleWordFile}
+                        hint="Drop or click · .docx / .doc"
+                      />
+                      {extracting === 'word' && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-blue-400">
+                          <Spinner /> Extracting text…
+                        </div>
+                      )}
+                      {extractedWord && extracting !== 'word' && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs text-emerald-400 font-semibold">
+                              ✓ {extractedWord.split(/\s+/).filter(Boolean).length.toLocaleString()} words extracted
+                            </p>
+                          </div>
+                          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 max-h-24 overflow-y-auto">
+                            <p className="text-xs text-slate-500 font-mono leading-relaxed line-clamp-4 whitespace-pre-wrap">{extractedWord.slice(0, 300)}…</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* STEEP report */}
+                    <div>
+                      <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-2">STEEP Report PDF</p>
+                      <UploadZone
+                        label="Upload exported STEEP report"
+                        accept=".pdf"
+                        icon="📊"
+                        file={reportFile}
+                        onFile={handleReportFile}
+                        hint="Drop or click · .pdf"
+                      />
+                      {extracting === 'report' && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-blue-400">
+                          <Spinner /> Reading report…
+                        </div>
+                      )}
+                      {extractedReport && extracting !== 'report' && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs text-emerald-400 font-semibold">
+                              ✓ STEEP report loaded · {reportFile?.name}
+                            </p>
+                          </div>
+                          <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 max-h-24 overflow-y-auto">
+                            <p className="text-xs text-slate-500 font-mono leading-relaxed line-clamp-4 whitespace-pre-wrap">{extractedReport.slice(0, 300)}…</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Error */}
+                  {extractErr && (
+                    <div className="p-3 rounded-xl bg-red-950 border border-red-800">
+                      <p className="text-red-300 text-xs">{extractErr}</p>
+                    </div>
+                  )}
+
+                  {/* AI action row */}
+                  <div className="border-t border-slate-800 pt-4">
+                    <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                      Use AI to transform your documents into a polished, publication-ready article.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+
+                      {/* Refine Word doc */}
+                      <button
+                        onClick={() => refineContent('refine')}
+                        disabled={refining || (!extractedWord && !form.contentMarkdown) || !!extracting}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                        style={{ background: 'linear-gradient(135deg,#1d4ed8,#4f46e5)' }}
+                        title="Optimize structure, tone, and format of the Word document content"
+                      >
+                        {refining ? <><Spinner /> Optimizing…</> : (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M6 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Optimize Article Format
+                          </>
+                        )}
+                      </button>
+
+                      {/* Integrate STEEP */}
+                      <button
+                        onClick={() => refineContent('integrate')}
+                        disabled={refining || !extractedReport || !!extracting}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                        style={{ background: 'linear-gradient(135deg,#065f46,#1e3a5f)' }}
+                        title="Weave STEEP report data and visuals into the article content"
+                      >
+                        {refining ? <><Spinner /> Integrating…</> : (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            Integrate STEEP Data
+                          </>
+                        )}
+                      </button>
+
+                      {/* Status */}
+                      {refining && (
+                        <span className="text-xs text-blue-400 flex items-center gap-1.5">
+                          <Spinner /> AI is writing…
+                        </span>
+                      )}
+                      {refineMsg && !refining && (
+                        <span className={`text-xs font-medium ${refineMsgType === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {refineMsgType === 'success' ? '✓ ' : '✗ '}{refineMsg}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Helper hints */}
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="bg-slate-900 rounded-xl px-4 py-3 border border-slate-800">
+                        <p className="text-xs font-semibold text-blue-300 mb-1">Optimize Article Format</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">Polishes structure, tone, and markdown layout of your Word doc or existing draft. Preserves all insights — no content is invented.</p>
+                      </div>
+                      <div className="bg-slate-900 rounded-xl px-4 py-3 border border-slate-800">
+                        <p className="text-xs font-semibold text-emerald-300 mb-1">Integrate STEEP Data</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">Weaves your STEEP report's findings — drivers, signals, roadmap milestones, posture — into the article. Requires a STEEP PDF upload.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Markdown editor */}
