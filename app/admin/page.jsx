@@ -1,0 +1,552 @@
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+
+const POSTURE_COLORS = {
+  published: 'bg-emerald-900 text-emerald-300 border-emerald-700',
+  draft: 'bg-slate-700 text-slate-400 border-slate-600',
+};
+
+function Spinner() {
+  return (
+    <svg className="animate-spin h-4 w-4 text-blue-400" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  );
+}
+
+// ── Markdown preview (simple, no dependency) ──────────────────────
+function MarkdownPreview({ md }) {
+  const html = md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;color:#f1f5f9;margin:1.25rem 0 0.5rem">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:1.125rem;font-weight:700;color:#f8fafc;margin:1.5rem 0 0.5rem">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:1.25rem;font-weight:800;color:#ffffff;margin:1.75rem 0 0.75rem">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#1e293b;padding:0.1em 0.35em;border-radius:4px;font-size:0.85em;color:#94a3b8">$1</code>')
+    .replace(/^- (.+)$/gm, '<li style="margin:0.25rem 0 0.25rem 1rem;list-style:disc">$1</li>')
+    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #3b82f6;padding:0.5rem 1rem;margin:0.75rem 0;color:#94a3b8;background:#0f172a;border-radius:0 8px 8px 0">$1</blockquote>')
+    .replace(/\n\n/g, '</p><p style="margin:0.75rem 0;color:#cbd5e1;font-size:0.875rem;line-height:1.7">')
+    .replace(/\n/g, '<br/>');
+  return (
+    <div
+      className="text-slate-300 text-sm leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: `<p style="margin:0.75rem 0;color:#cbd5e1;font-size:0.875rem;line-height:1.7">${html}</p>` }}
+    />
+  );
+}
+
+// ── Login screen ──────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [token, setToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const tryLogin = async () => {
+    if (!token.trim()) return;
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/thought-leadership/admin', {
+        headers: { 'x-admin-token': token.trim() },
+      });
+      if (res.ok) {
+        sessionStorage.setItem('steep_admin_token', token.trim());
+        onLogin(token.trim());
+      } else if (res.status === 401) {
+        setError('Incorrect token — must match ADMIN_PUBLISH_TOKEN environment variable.');
+      } else if (res.status === 403) {
+        setError('ADMIN_PUBLISH_TOKEN is not set. Add it to your environment variables first.');
+      } else {
+        setError(`Unexpected error (${res.status}). Check the server logs.`);
+      }
+    } catch {
+      setError('Could not reach the server. Is the app running?');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <a href="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-base font-black text-white">S</div>
+          </a>
+          <h1 className="text-white font-bold text-xl mb-1">Admin Portal</h1>
+          <p className="text-slate-500 text-sm">Thought Leadership · STEEP Platform</p>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+          <label className="block text-xs text-slate-400 font-semibold uppercase tracking-widest mb-2">
+            Admin Token
+          </label>
+          <input
+            type="password"
+            value={token}
+            onChange={e => setToken(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !loading && tryLogin()}
+            placeholder="Paste your ADMIN_PUBLISH_TOKEN…"
+            autoFocus
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none mb-3 transition-colors"
+          />
+          {error && (
+            <div className="mb-3 p-3 rounded-lg bg-red-950 border border-red-800">
+              <p className="text-red-300 text-xs leading-relaxed">{error}</p>
+            </div>
+          )}
+          <button
+            onClick={tryLogin}
+            disabled={loading || !token.trim()}
+            className="w-full py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity"
+            style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+          >
+            {loading ? <><Spinner /> Checking…</> : 'Sign In'}
+          </button>
+        </div>
+
+        <p className="text-center text-slate-600 text-xs mt-5 leading-relaxed">
+          Set <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ADMIN_PUBLISH_TOKEN</code> in your
+          environment variables, then enter that same value here.
+        </p>
+
+        <div className="text-center mt-4">
+          <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">← Back to platform</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Post editor ───────────────────────────────────────────────────
+function PostEditor({ token, post, onBack, onSaved }) {
+  const isNew = !post?.id;
+  const [form, setForm] = useState({
+    title: post?.title || '',
+    dek: post?.dek || '',
+    contentMarkdown: post?.contentMarkdown || '',
+    geoKeywords: (post?.geoKeywords || []).join(', '),
+    status: post?.status || 'draft',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [saveMsgType, setSaveMsgType] = useState('success');
+  const [preview, setPreview] = useState(false);
+  const [postId, setPostId] = useState(post?.id || null);
+
+  const save = async (publish = false) => {
+    if (!form.title.trim()) { setSaveMsg('Title is required'); setSaveMsgType('error'); return; }
+    setSaving(true);
+    setSaveMsg('');
+    const payload = {
+      ...(postId ? { id: postId } : {}),
+      title: form.title.trim(),
+      dek: form.dek.trim(),
+      contentMarkdown: form.contentMarkdown,
+      geoKeywords: form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
+      status: publish ? 'published' : 'draft',
+    };
+    try {
+      const res = await fetch('/api/thought-leadership/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPostId(data.post.id);
+        setForm(f => ({ ...f, status: data.post.status }));
+        setSaveMsg(publish ? 'Published!' : 'Saved as draft');
+        setSaveMsgType('success');
+        onSaved();
+      } else {
+        setSaveMsg('Error saving — check server logs');
+        setSaveMsgType('error');
+      }
+    } catch {
+      setSaveMsg('Network error');
+      setSaveMsgType('error');
+    }
+    setSaving(false);
+  };
+
+  const isPublished = form.status === 'published';
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={onBack}
+            className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors flex-shrink-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            All posts
+          </button>
+
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${isPublished ? POSTURE_COLORS.published : POSTURE_COLORS.draft}`}>
+            {isPublished ? 'Published' : 'Draft'}
+          </span>
+
+          <div className="flex-1" />
+
+          {/* Preview toggle */}
+          <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <button onClick={() => setPreview(false)} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${!preview ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Write</button>
+            <button onClick={() => setPreview(true)} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${preview ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Preview</button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {saveMsg && (
+              <span className={`text-xs font-medium ${saveMsgType === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+                {saveMsg}
+              </span>
+            )}
+            <button
+              onClick={() => save(false)}
+              disabled={saving}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 transition-colors"
+            >
+              {saving ? 'Saving…' : 'Save Draft'}
+            </button>
+            <button
+              onClick={() => save(true)}
+              disabled={saving}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-40 transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+            >
+              {isPublished ? 'Update' : 'Publish'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+        {preview ? (
+          /* ── Preview ── */
+          <div className="max-w-3xl">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white mb-3 leading-tight">{form.title || <span className="text-slate-700">Untitled</span>}</h1>
+              {form.dek && <p className="text-lg text-slate-400 leading-relaxed mb-4">{form.dek}</p>}
+              {form.geoKeywords && (
+                <div className="flex flex-wrap gap-1.5">
+                  {form.geoKeywords.split(',').map(k => k.trim()).filter(Boolean).map(k => (
+                    <span key={k} className="text-xs px-2.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800">{k}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              {form.contentMarkdown ? (
+                <MarkdownPreview md={form.contentMarkdown} />
+              ) : (
+                <p className="text-slate-700 text-sm italic">No content yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* ── Write ── */
+          <div className="space-y-5">
+            {/* Title */}
+            <input
+              type="text"
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Article title…"
+              className="w-full bg-transparent text-2xl md:text-3xl font-bold text-white placeholder-slate-700 focus:outline-none border-b border-slate-800 pb-4"
+            />
+
+            {/* Dek */}
+            <input
+              type="text"
+              value={form.dek}
+              onChange={e => setForm(f => ({ ...f, dek: e.target.value }))}
+              placeholder="Subtitle — a short sentence that hooks the reader…"
+              className="w-full bg-transparent text-base md:text-lg text-slate-400 placeholder-slate-700 focus:outline-none border-b border-slate-800 pb-4"
+            />
+
+            {/* Tags */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-20">GEO Tags</span>
+              <input
+                type="text"
+                value={form.geoKeywords}
+                onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
+                placeholder="e.g. tariffs, China, supply chain (comma-separated)"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Status toggle */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest flex-shrink-0 w-20">Status</span>
+              <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                <button
+                  onClick={() => setForm(f => ({ ...f, status: 'draft' }))}
+                  className={`px-4 py-1 rounded text-xs font-semibold transition-colors ${form.status !== 'published' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >Draft</button>
+                <button
+                  onClick={() => setForm(f => ({ ...f, status: 'published' }))}
+                  className={`px-4 py-1 rounded text-xs font-semibold transition-colors ${form.status === 'published' ? 'bg-emerald-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                >Published</button>
+              </div>
+            </div>
+
+            {/* Markdown editor */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Content (Markdown)</p>
+                <div className="flex gap-3 text-xs text-slate-600">
+                  {[
+                    ['# H1', '# '],['## H2','## '],['**Bold**','**bold**'],['*Italic*','*italic*'],
+                    ['`Code`','`code`'],['- List','- item'],['> Quote','> '],
+                  ].map(([label, insert]) => (
+                    <button
+                      key={label}
+                      onClick={() => setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + insert }))}
+                      className="hover:text-slate-300 transition-colors font-mono"
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
+              <textarea
+                value={form.contentMarkdown}
+                onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
+                placeholder={`Write your article in Markdown…\n\n## Introduction\n\nStart with a strong opening paragraph that sets the geopolitical context.\n\n## Key Findings\n\n- First finding\n- Second finding\n\n## Conclusion\n\nEnd with a strategic implication or call to action.`}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-sm text-slate-200 placeholder-slate-700 focus:outline-none focus:border-slate-600 font-mono leading-loose resize-none transition-colors"
+                style={{ minHeight: 520 }}
+              />
+              <div className="mt-1.5 flex justify-between text-xs text-slate-600">
+                <span>{form.contentMarkdown.split(/\s+/).filter(Boolean).length} words</span>
+                <span>{form.contentMarkdown.length.toLocaleString()} chars</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Post list ─────────────────────────────────────────────────────
+function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout }) {
+  const [actionId, setActionId] = useState(null);
+
+  const togglePublish = async (post) => {
+    setActionId(post.id);
+    const newStatus = post.status === 'published' ? 'draft' : 'published';
+    await fetch('/api/thought-leadership/admin', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ id: post.id, status: newStatus }),
+    });
+    await onRefresh();
+    setActionId(null);
+  };
+
+  const deletePost = async (post) => {
+    if (!confirm(`Delete "${post.title || 'this post'}"? This cannot be undone.`)) return;
+    setActionId(post.id);
+    await fetch('/api/thought-leadership/admin', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ id: post.id }),
+    });
+    await onRefresh();
+    setActionId(null);
+  };
+
+  const published = posts.filter(p => p.status === 'published');
+  const drafts = posts.filter(p => p.status !== 'published');
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white">S</div>
+            <span className="font-bold text-white text-sm">Thought Leadership</span>
+          </div>
+          <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">← Platform</a>
+          <div className="flex-1" />
+          <div className="text-xs text-slate-600">
+            <span className="text-emerald-400 font-semibold">{published.length}</span> published
+            <span className="mx-1.5">·</span>
+            <span className="text-slate-500 font-semibold">{drafts.length}</span> drafts
+          </div>
+          <button
+            onClick={onNew}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold text-white"
+            style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+          >
+            + New Post
+          </button>
+          <button onClick={onLogout} className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Sign out</button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Spinner />
+            <span className="text-slate-500 text-sm ml-3">Loading posts…</span>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-24">
+            <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center text-2xl mx-auto mb-4">✍</div>
+            <p className="text-white font-semibold mb-1">No posts yet</p>
+            <p className="text-slate-500 text-sm mb-6">Create your first GEO intelligence brief.</p>
+            <button onClick={onNew} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}>
+              Create first post
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {posts.map(post => {
+              const isActing = actionId === post.id;
+              const isPublished = post.status === 'published';
+              return (
+                <div
+                  key={post.id}
+                  className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-start gap-4 hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onEdit(post)}>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${isPublished ? POSTURE_COLORS.published : POSTURE_COLORS.draft}`}>
+                        {isPublished ? 'Published' : 'Draft'}
+                      </span>
+                      {(post.geoKeywords || []).slice(0, 4).map(k => (
+                        <span key={k} className="text-xs px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-900">{k}</span>
+                      ))}
+                      <span className="text-xs text-slate-600 sm:ml-auto">
+                        {post.updatedAt
+                          ? new Date(post.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : '—'}
+                      </span>
+                    </div>
+                    <h3 className="text-white font-semibold text-sm leading-snug mb-1">
+                      {post.title || <span className="text-slate-600 italic">Untitled</span>}
+                    </h3>
+                    {post.dek && (
+                      <p className="text-slate-500 text-xs leading-relaxed line-clamp-2">{post.dek}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => onEdit(post)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                    >Edit</button>
+                    <button
+                      onClick={() => togglePublish(post)}
+                      disabled={isActing}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 ${
+                        isPublished
+                          ? 'bg-amber-950 text-amber-300 hover:bg-amber-900 border border-amber-900'
+                          : 'bg-emerald-950 text-emerald-300 hover:bg-emerald-900 border border-emerald-900'
+                      }`}
+                    >
+                      {isActing ? '…' : isPublished ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button
+                      onClick={() => deletePost(post)}
+                      disabled={isActing}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-950 text-red-400 hover:bg-red-900 border border-red-900 transition-colors disabled:opacity-40"
+                    >Delete</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Root admin page ───────────────────────────────────────────────
+export default function AdminPage() {
+  const [token, setToken] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [view, setView] = useState('list'); // 'list' | 'editor'
+  const [editPost, setEditPost] = useState(null);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('steep_admin_token');
+    if (stored) setToken(stored);
+  }, []);
+
+  const fetchPosts = useCallback(async (tok) => {
+    const t = tok || token;
+    if (!t) return;
+    setPostsLoading(true);
+    try {
+      const res = await fetch('/api/thought-leadership/admin', {
+        headers: { 'x-admin-token': t },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data.posts || []);
+      }
+    } catch {}
+    setPostsLoading(false);
+  }, [token]);
+
+  useEffect(() => {
+    if (token) fetchPosts(token);
+  }, [token, fetchPosts]);
+
+  const handleLogin = (tok) => {
+    setToken(tok);
+    fetchPosts(tok);
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem('steep_admin_token');
+    setToken(null);
+    setPosts([]);
+  };
+
+  const openEditor = (post = null) => {
+    setEditPost(post);
+    setView('editor');
+  };
+
+  const backToList = () => {
+    setView('list');
+    setEditPost(null);
+  };
+
+  if (!token) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (view === 'editor') {
+    return (
+      <PostEditor
+        token={token}
+        post={editPost}
+        onBack={backToList}
+        onSaved={() => fetchPosts(token)}
+      />
+    );
+  }
+
+  return (
+    <PostList
+      token={token}
+      posts={posts}
+      loading={postsLoading}
+      onNew={() => openEditor(null)}
+      onEdit={(post) => openEditor(post)}
+      onRefresh={() => fetchPosts(token)}
+      onLogout={logout}
+    />
+  );
+}

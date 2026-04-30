@@ -1892,6 +1892,275 @@ function ThoughtLeadershipPanel() {
   );
 }
 
+// ── PDF Report Generator ──────────────────────────────────────────
+function generatePdfReport(state) {
+  const { synthesis, steepData, subject, subjectType, fundamentals: fund, investmentThesis: thesis, bigCycleData } = state;
+  if (!synthesis) return;
+
+  const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const pct = (n) => n != null ? `${n > 0 ? '+' : ''}${Number(n).toFixed(1)}%` : '—';
+
+  const POSTURE_BG  = { Bullish:'#064e3b', Bearish:'#450a0a', Neutral:'#1c1917', Cautious:'#1c1917', Expansionary:'#064e3b' };
+  const POSTURE_CLR = { Bullish:'#6ee7b7', Bearish:'#fca5a5', Neutral:'#d4d4d8', Cautious:'#fcd34d', Expansionary:'#6ee7b7' };
+  const postBg  = POSTURE_BG[synthesis.overall_posture] || '#1c1917';
+  const postClr = POSTURE_CLR[synthesis.overall_posture] || '#d4d4d8';
+
+  const dims = [
+    { key: 'social', label: 'Social' },
+    { key: 'technological', label: 'Technological' },
+    { key: 'economic', label: 'Economic' },
+    { key: 'environmental', label: 'Environmental' },
+    { key: 'political', label: 'Political' },
+  ];
+
+  const dimCard = (dim) => {
+    const d = (steepData || {})[dim.key];
+    if (!d) return `<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;"><p style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">${esc(dim.label)}</p><p style="color:#475569;font-size:12px;margin:0">No data</p></div>`;
+    const drivers = (d.drivers || []).slice(0, 4).map(dr => `<li style="color:#94a3b8;font-size:11px;margin:2px 0">• ${esc(dr.name)}${dr.impact ? ` <span style="color:#64748b">(${esc(dr.impact)} impact)</span>` : ''}</li>`).join('');
+    const opRisk = `<span style="color:#6ee7b7;font-size:10px;font-weight:600">${(d.opportunities||[]).length} opps</span> <span style="color:#94a3b8;font-size:10px">·</span> <span style="color:#fca5a5;font-size:10px;font-weight:600">${(d.risks||[]).length} risks</span>`;
+    return `
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;break-inside:avoid;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <p style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin:0">${esc(dim.label)}</p>
+          <span style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:2px 8px;font-size:10px;color:#cbd5e1;font-weight:600">${esc(d.dominant_direction || '—')}</span>
+        </div>
+        <p style="color:#cbd5e1;font-size:12px;line-height:1.5;margin:0 0 10px">${esc(d.summary || '')}</p>
+        ${drivers ? `<ul style="margin:0 0 8px;padding:0;list-style:none">${drivers}</ul>` : ''}
+        <div style="margin-top:4px">${opRisk}</div>
+      </div>`;
+  };
+
+  const roadmapSection = () => {
+    if (!synthesis.roadmap) return '';
+    const horizons = [
+      { key:'near', label:'Near Term',   sub:'0–12 months', clr:'#3B82F6' },
+      { key:'mid',  label:'Medium Term', sub:'1–3 years',   clr:'#8B5CF6' },
+      { key:'long', label:'Long Term',   sub:'3–7 years',   clr:'#F97316' },
+    ];
+    return horizons.map(h => {
+      const items = (synthesis.roadmap[h.key] || []);
+      if (!items.length) return '';
+      const rows = items.map(m => `
+        <tr style="border-bottom:1px solid #1e293b">
+          <td style="padding:8px 12px;color:#94a3b8;font-size:10px;font-weight:600;text-transform:uppercase;white-space:nowrap">${esc(m.dimension||'')}</td>
+          <td style="padding:8px 12px;color:#f1f5f9;font-size:12px;font-weight:600">${esc(m.title||'')}</td>
+          <td style="padding:8px 12px;color:#94a3b8;font-size:11px;line-height:1.4">${esc(m.description||m.trigger||'')}</td>
+        </tr>`).join('');
+      return `
+        <div style="margin-bottom:24px;break-inside:avoid;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:4px;height:32px;background:${h.clr};border-radius:2px;flex-shrink:0"></div>
+            <div>
+              <p style="color:#f1f5f9;font-size:13px;font-weight:700;margin:0">${h.label}</p>
+              <p style="color:#64748b;font-size:10px;margin:0">${h.sub} · ${items.length} milestone${items.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;border:1px solid #334155;">
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+  };
+
+  const thesisSection = () => {
+    if (!fund || !thesis) return '';
+    const stanceColor = thesis.stance === 'bullish' ? '#6ee7b7' : thesis.stance === 'bearish' ? '#fca5a5' : '#fcd34d';
+    const bulls = (thesis.bull_case || []).map(b => `<li style="color:#6ee7b7;font-size:11px;margin:3px 0">▲ ${esc(b)}</li>`).join('');
+    const bears = (thesis.bear_case || []).map(b => `<li style="color:#fca5a5;font-size:11px;margin:3px 0">▼ ${esc(b)}</li>`).join('');
+    const metrics = [
+      ['Market Cap', fund.market_cap ? `$${(fund.market_cap/1e9).toFixed(1)}B` : '—'],
+      ['P/E Ratio', fund.pe_ratio ?? '—'],
+      ['Fwd P/E', fund.forward_pe ?? '—'],
+      ['Revenue Gro.', fund.revenue_growth ? pct(fund.revenue_growth * 100) : '—'],
+      ['Gross Margin', fund.gross_margin ? pct(fund.gross_margin * 100) : '—'],
+      ['Analyst Rating', fund.analyst_rating ?? '—'],
+      ['Analyst Target', fund.analyst_target_mean ? `$${fund.analyst_target_mean}` : '—'],
+      ['Upside', fund.upside_pct != null ? pct(fund.upside_pct) : '—'],
+    ];
+    const metricHtml = metrics.map(([k,v]) => `
+      <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 12px;">
+        <p style="color:#64748b;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 3px">${esc(k)}</p>
+        <p style="color:#f1f5f9;font-size:13px;font-weight:700;margin:0">${esc(v)}</p>
+      </div>`).join('');
+    return `
+      <section style="margin-bottom:40px;break-before:page;">
+        <h2 style="font-size:18px;font-weight:800;color:#f8fafc;margin:0 0 4px">Investment Thesis</h2>
+        <p style="color:#475569;font-size:11px;margin:0 0 16px">${esc(fund.company_name || subject)} · ${esc(fund.ticker||'')} ${esc(fund.exchange||'')}</p>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="background:${stanceColor}22;color:${stanceColor};border:1px solid ${stanceColor}55;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;text-transform:uppercase">${esc(thesis.stance||'')}</span>
+            ${thesis.confidence != null ? `<span style="color:#64748b;font-size:11px">Confidence: ${Math.round((thesis.confidence||0)*100)}%</span>` : ''}
+          </div>
+          <p style="color:#cbd5e1;font-size:12px;line-height:1.6;margin:0 0 16px">${esc(thesis.thesis||'')}</p>
+          ${thesis.valuation_assessment ? `<p style="color:#94a3b8;font-size:11px;font-style:italic;border-top:1px solid #334155;padding-top:12px;margin:0">${esc(thesis.valuation_assessment)}</p>` : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          ${bulls ? `<div style="background:#052e16;border:1px solid #14532d;border-radius:10px;padding:14px;"><p style="color:#6ee7b7;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px">Bull Case</p><ul style="margin:0;padding:0;list-style:none">${bulls}</ul></div>` : ''}
+          ${bears ? `<div style="background:#450a0a;border:1px solid #7f1d1d;border-radius:10px;padding:14px;"><p style="color:#fca5a5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px">Bear Case</p><ul style="margin:0;padding:0;list-style:none">${bears}</ul></div>` : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${metricHtml}</div>
+      </section>`;
+  };
+
+  const bigCycleSection = () => {
+    if (!bigCycleData) return '';
+    const a = bigCycleData;
+    const sev = a.overallSeverityScore ?? 0;
+    const sevClr = sev >= 7 ? '#fca5a5' : sev >= 4 ? '#fcd34d' : '#6ee7b7';
+    const instruments = (a.primaryInstruments || []).slice(0, 4).map(inst => `
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px;break-inside:avoid;">
+        <p style="color:#f1f5f9;font-size:12px;font-weight:700;margin:0 0 4px">${esc(inst.name||'')}</p>
+        <p style="color:#94a3b8;font-size:11px;margin:0">${esc(inst.relevance||'')}</p>
+      </div>`).join('');
+    const capacities = a.capacities ? Object.entries(a.capacities).slice(0, 4).map(([k, v]) => `
+      <tr style="border-bottom:1px solid #1e293b">
+        <td style="padding:8px 12px;color:#94a3b8;font-size:11px;font-weight:600;text-transform:capitalize">${esc(k.replace(/_/g,' '))}</td>
+        <td style="padding:8px 12px;text-align:center">
+          <div style="background:#0f172a;border-radius:4px;overflow:hidden;height:6px;width:80px;display:inline-block;vertical-align:middle;">
+            <div style="height:100%;width:${Math.round(((v.score||0)/10)*100)}%;background:#3b82f6;border-radius:4px;"></div>
+          </div>
+          <span style="color:#cbd5e1;font-size:11px;margin-left:8px">${v.score ?? '—'}/10</span>
+        </td>
+        <td style="padding:8px 12px;color:#64748b;font-size:11px;line-height:1.4">${esc((v.rationale||'').slice(0,120))}${(v.rationale||'').length > 120 ? '…' : ''}</td>
+      </tr>`).join('') : '';
+    return `
+      <section style="margin-bottom:40px;break-before:page;">
+        <h2 style="font-size:18px;font-weight:800;color:#f8fafc;margin:0 0 16px">Big Cycle Assessment</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;">
+            <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">Cycle Phase</p>
+            <p style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0 0 8px">${esc(a.cyclePhase||'—')}</p>
+            <p style="color:#94a3b8;font-size:11px;line-height:1.5;margin:0">${esc((a.cyclePhaseRationale||'').slice(0,200))}</p>
+          </div>
+          <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;">
+            <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">Overall Severity</p>
+            <p style="color:${sevClr};font-size:28px;font-weight:800;margin:0 0 4px">${sev}<span style="font-size:14px;color:#64748b">/10</span></p>
+            ${a.strategicUtility ? `<p style="color:#94a3b8;font-size:11px;margin:0">Utility class: <strong style="color:#cbd5e1">${esc(a.strategicUtility.class||'')}</strong></p>` : ''}
+          </div>
+        </div>
+        ${instruments ? `<div style="margin-bottom:20px;"><p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px">Geoeconomic Instruments</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${instruments}</div></div>` : ''}
+        ${capacities ? `<div><p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px">US Geoeconomic Capacities</p><table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;border:1px solid #334155;"><tbody>${capacities}</tbody></table></div>` : ''}
+      </section>`;
+  };
+
+  const insightsSection = () => {
+    const ins = synthesis.cross_dimension_insights || [];
+    if (!ins.length) return '';
+    const rows = ins.map(i => `
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;break-inside:avoid;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+          ${(i.dimensions_involved||[]).map(d => `<span style="background:#0f172a;border:1px solid #334155;border-radius:4px;padding:1px 7px;font-size:9px;color:#94a3b8;text-transform:capitalize">${esc(d)}</span>`).join('')}
+          ${i.type ? `<span style="color:#64748b;font-size:9px;margin-left:auto">${esc(i.type)}</span>` : ''}
+        </div>
+        <p style="color:#e2e8f0;font-size:12px;font-weight:600;margin:0 0 4px">${esc(i.insight||'')}</p>
+        ${i.strategic_implication ? `<p style="color:#94a3b8;font-size:11px;margin:0">${esc(i.strategic_implication)}</p>` : ''}
+      </div>`).join('');
+    return `
+      <section style="margin-bottom:32px;">
+        <h3 style="font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px">Cross-Dimension Insights</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${rows}</div>
+      </section>`;
+  };
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>STEEP Report — ${esc(subject)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @media print{
+      body{background:#fff;color:#1e293b}
+      .no-print{display:none!important}
+      section,div{break-inside:avoid}
+    }
+    .page{max-width:860px;margin:0 auto;padding:40px 32px}
+    h1{font-size:22px;font-weight:800;color:#f8fafc;margin-bottom:4px}
+    h2{font-size:18px;font-weight:800;color:#f8fafc;margin-bottom:16px}
+    section{margin-bottom:40px}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Print button -->
+  <div class="no-print" style="position:fixed;top:16px;right:16px;z-index:99;display:flex;gap:8px;">
+    <button onclick="window.print()" style="background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Save / Print PDF</button>
+    <button onclick="window.close()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;">✕ Close</button>
+  </div>
+
+  <!-- Cover -->
+  <section>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">STEEP Strategic Intelligence Report</p>
+        <h1>${esc(subject)}</h1>
+        <p style="color:#64748b;font-size:12px;margin-top:4px">${esc(subjectType||'')}</p>
+      </div>
+      <div style="text-align:right">
+        <p style="color:#64748b;font-size:10px;margin-bottom:4px">Generated</p>
+        <p style="color:#94a3b8;font-size:11px;font-weight:600">${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
+      </div>
+    </div>
+
+    <!-- Posture banner -->
+    <div style="background:${postBg};border:1px solid ${postClr}33;border-radius:14px;padding:20px 24px;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <p style="color:${postClr};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin:0">Strategic Posture</p>
+        <span style="background:${postClr}22;color:${postClr};border:1px solid ${postClr}55;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700">${esc(synthesis.overall_posture||'')}</span>
+      </div>
+      <p style="color:#cbd5e1;font-size:13px;line-height:1.6;margin:0 0 14px">${esc(synthesis.posture_rationale||'')}</p>
+      <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px">Executive Summary</p>
+      <p style="color:#e2e8f0;font-size:12px;line-height:1.65;margin:0">${esc(synthesis.executive_summary||'')}</p>
+    </div>
+
+    <!-- STEEP grid -->
+    <h3 style="font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px">STEEP Dimension Assessments</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+      ${dims.map(d => dimCard(d)).join('')}
+    </div>
+
+    ${insightsSection()}
+  </section>
+
+  <!-- Roadmap -->
+  ${synthesis.roadmap ? `
+  <section style="break-before:page;">
+    <h2>Forecast Roadmap</h2>
+    ${roadmapSection()}
+  </section>` : ''}
+
+  <!-- Investment Thesis -->
+  ${thesisSection()}
+
+  <!-- Big Cycle -->
+  ${bigCycleSection()}
+
+  <!-- Footer -->
+  <div style="border-top:1px solid #1e293b;padding-top:16px;margin-top:32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <p style="color:#334155;font-size:10px">STEEP Analysis Platform · Strategic Intelligence Engine</p>
+    <p style="color:#334155;font-size:10px">Confidential — Not for distribution</p>
+  </div>
+</div>
+<script>
+  // Auto-trigger print after fonts load
+  window.addEventListener('load', () => {
+    // Small delay so styles render
+    setTimeout(() => document.title = 'STEEP Report — ${esc(subject)}', 100);
+  });
+</script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this site to export PDF.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ── OverviewTab ───────────────────────────────────────────────────
 function OverviewTab({ state, dispatch }) {
   const { steepData, synthesis, subject, subjectType, sentimentData, macroData } = state;
   const [openEvidence, setOpenEvidence] = useState({});
@@ -1910,6 +2179,16 @@ function OverviewTab({ state, dispatch }) {
           {(subjectType || '').toUpperCase()}
         </Badge>
         <DirBadge direction={synthesis.overall_posture} />
+        <div className="flex-1" />
+        <button
+          onClick={() => generatePdfReport(state)}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold text-white border border-blue-700/50 hover:border-blue-500 transition-colors"
+          style={{ background: 'linear-gradient(135deg,#1e3a5f,#2e1065)' }}
+          title="Export PDF report covering Overview, Roadmap, Thesis & Big Cycle"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5l3 3 3-3M1 10h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Export Report
+        </button>
       </div>
 
       <p className="text-slate-400 text-sm leading-relaxed max-w-4xl">{synthesis.posture_rationale}</p>
