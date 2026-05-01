@@ -1,0 +1,69 @@
+built to evaluate how well a website is positioned to be cited by AI-powered search engines (ChatGPT, Perplexity, Google AIO, Claude, Gemini, Copilot) alongside traditional SEO health. The philosophy is GEO-first: optimize for where traffic is going, not where it was.
+
+What It Does — Command Surface
+The skill exposes 17 commands across three functional areas:
+Audit & Analysis
+
+/geo audit <url> — Full scored audit across all 6 categories
+/geo quick <url> — 60-second 5-point GEO snapshot
+/geo citability <url> — AI citation readiness score
+/geo crawlers <url> — AI bot access analysis via robots.txt
+/geo llmstxt <url> — llms.txt detection, analysis, and generation
+/geo brands <url> — Brand presence scan (YouTube, Reddit, Wikipedia, LinkedIn)
+/geo platforms <url> — Per-platform optimization scoring (each AI engine separately)
+/geo schema <url> — Structured data detection, validation, generation
+/geo technical <url> — Core Web Vitals, crawlability, SSR, IndexNow
+/geo content <url> — E-E-A-T content quality assessment
+
+Reporting & Deliverables
+
+/geo report <url> — Client-ready Markdown report
+/geo report-pdf <url> — Formatted PDF with charts
+/geo compare <domain> — Month-over-month delta tracking
+/geo proposal <domain> — Auto-generated client proposal from audit data
+
+Pipeline & Data
+
+/geo prospect — CRM-lite pipeline management for GEO clients
+/geo keywords <query> — Keyword research (requires DataForSEO API)
+/geo serp <query> / /geo backlinks / /geo domain / /geo competitors — SEO data layer (requires DataForSEO API)
+
+
+Scoring System
+The skill produces a composite GEO Score (0–100) using this weighted formula:
+CategoryWeightAI Citability25%Brand Authority20%Content E-E-A-T20%Technical GEO15%Structured Data10%Platform Optimization10%
+Issues are triaged as P0 (immediate), P1 (1 week), or P2 (1 month). Score bands run from Critical (0–39) to Excellent (90–100).
+
+Integration Requirements — What a Separate Platform Needs
+To replicate or embed this skill in a standalone tool, here's what's required:
+Core Inputs
+
+Target URL or domain (required for every command)
+Optional: DataForSEO API credentials (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD) for keyword, SERP, backlink, and domain commands — all other commands work without them
+
+Live Data Fetching
+
+HTTP fetch capability to retrieve homepage HTML, robots.txt, /llms.txt, <head> tags, JSON-LD, and sitemap
+Respect robots.txt before crawling; max 50 pages, 30s timeout per page, 1s delay between requests, 5 concurrent max
+
+Scoring Logic to Replicate
+Six scored dimensions, each with their own rubrics (stored in reference files). The formula above produces the composite. A platform would need to implement each rubric as a scoring function.
+AI Crawler Registry
+14 crawlers tracked (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, Bingbot, etc.) with Tier 1/2/3 classifications — the platform needs this list to evaluate robots.txt properly.
+Schema Generation
+Seven ready-to-use JSON-LD templates are included: Organization, LocalBusiness, Article+Author, SoftwareApp (SaaS), Product (e-commerce), WebSite+SearchAction, Speakable. The platform would need to serve these conditionally based on detected business type.
+Business Type Detection
+Five types auto-detected from homepage signals (SaaS, Local, E-commerce, Publisher, Agency) — each maps to different schema recommendations.
+Output Formats
+
+Markdown report (client-ready)
+PDF report with charts
+Month-over-month delta comparison
+Client proposal auto-generated from audit data
+CRM pipeline view for prospect management
+
+Platform Algorithm Reference Data
+Each AI engine (ChatGPT, Perplexity, Google AIO, Gemini, Copilot, Claude) has distinct ranking weights and requirements baked into the skill's reference files. A platform integration would need to encode these as scoring logic per engine.
+
+What's Self-Contained vs. What Requires External Dependencies
+FunctionSelf-ContainedExternal DependencyGEO audit & scoring✅—robots.txt / llms.txt analysis✅—Schema generation✅—E-E-A-T / content assessment✅—Core Web Vitals check✅—Keyword research❌DataForSEO APISERP analysis❌DataForSEO APIBacklink analysis❌DataForSEO APIDomain traffic data❌DataForSEO API

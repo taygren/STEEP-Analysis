@@ -1,0 +1,158 @@
+Here's a complete plain-language instruction set you can drop directly into a LCNC platform as documentation, a workflow description, or an AI action prompt.
+
+---
+
+## RASCEF Prompt Generator — LCNC Integration Instructions
+
+### What this tool does
+
+This tool takes four inputs from a user and calls the Claude API to generate a structured AI prompt they can immediately use. It requires no company research, no file output, and no multi-step workflow. The entire interaction is: user fills form → API call → prompt displayed.
+
+---
+
+### Inputs to collect from the user
+
+Collect these four fields before triggering the API call. The first two are required; the last two improve output quality but are optional.
+
+**Field 1 — Role or function** (required)
+Single line of text. The user's job title, team, or functional area.
+Example values: "Sales Engineer", "HR Business Partner", "Financial Analyst"
+
+**Field 2 — Use case** (required)
+Multi-line text. What they need the AI to help them do. Encourage specificity.
+Example values: "Drafting executive briefings before client calls", "Summarizing competitive intel from analyst reports"
+
+**Field 3 — Audience**
+Single line of text. Who will see or use the AI's output.
+Example values: "C-suite stakeholders", "My direct team", "External clients"
+
+**Field 4 — Goals**
+Single line of text. What success looks like for them.
+Example values: "Save 2 hours per week", "Produce exec-ready content without editing"
+
+**Field 5 — Output format preference**
+Toggle or dropdown with two options:
+- "Structured (R/A/S/C/E/F)" — returns six labeled sections
+- "Single copy-paste prompt" — returns one paragraph ready to paste into any AI tool
+
+---
+
+### The API call
+
+When the user submits the form, make a single POST request to:
+
+```
+https://api.anthropic.com/v1/messages
+```
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+Note: API key authentication is handled by the platform's credential manager — do not hardcode it.
+
+**Request body:**
+
+```json
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 1000,
+  "system": "[paste system prompt below]",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Role: {role}\nUse case: {usecase}\nAudience: {audience}\nGoals: {goals}"
+    }
+  ]
+}
+```
+
+**System prompt to use verbatim:**
+
+```
+You are a RASCEF prompt architect. RASCEF is a structured AI prompt framework with six elements: Role (R), Actions (A), Style (S), Context (C), Example (E), Format (F).
+
+Given a user's role, use case, audience, and goals, produce a complete RASCEF configuration.
+
+Respond ONLY with valid JSON. No markdown, no backticks, no preamble.
+
+Return this exact structure:
+{
+  "R": "2-4 sentences. Who the AI persona is — expertise, seniority, depth. Written in second person: You are...",
+  "A": "4-6 specific action bullets as a single string separated by \n- (start with \n- on the first one). Use strong verbs: analyze, draft, synthesize, flag, recommend, compare.",
+  "S": "2-3 sentences. Tone, vocabulary register, and communication approach appropriate for the stated audience.",
+  "C": "3-5 sentences. Operational context — industry norms, relevant constraints, what this person navigates day to day, terminology they use.",
+  "E": "One concrete scenario: INPUT: [realistic prompt] | RESPONSE: [how the AI approaches and structures it]",
+  "F": "Specify output structure, length guidance, formality, and any standing elements (e.g. always include next steps, always flag risks).",
+  "oneLiner": "A single ready-to-paste system prompt synthesizing all six elements into one cohesive paragraph. 150-200 words."
+}
+```
+
+---
+
+### Parsing the response
+
+The API returns a JSON object. The content you need is at:
+
+```
+response.content[0].text
+```
+
+That text value is a JSON string. Parse it to get a JavaScript/JSON object with seven keys: `R`, `A`, `S`, `C`, `E`, `F`, and `oneLiner`.
+
+---
+
+### Displaying the output
+
+**If the user selected "Structured":** Display each of the six keys as labeled sections in this order: R — Role, A — Actions, S — Style, C — Context, E — Example, F — Format. Each section has a label and the corresponding text value beneath it.
+
+**If the user selected "Single copy-paste prompt":** Display only the `oneLiner` value in a text area or code block.
+
+In both cases, provide a copy-to-clipboard button that copies the displayed content as plain text.
+
+---
+
+### Error handling
+
+**Validation before API call:** If Role or Use Case fields are empty, show an inline error and do not trigger the API call.
+
+**API call failure:** If the request fails or returns a non-200 status, show a generic error message: "Something went wrong. Please try again." Do not expose raw error details to the user.
+
+**JSON parse failure:** If the response text cannot be parsed as JSON (rare but possible), treat it as an API failure and show the same generic error.
+
+---
+
+### Variable substitution map
+
+When building the user message content, substitute the collected field values into the template string:
+
+| Placeholder | Maps to |
+|---|---|
+| `{role}` | Field 1 value |
+| `{usecase}` | Field 2 value |
+| `{audience}` | Field 3 value, or "Not specified" if empty |
+| `{goals}` | Field 4 value, or "Not specified" if empty |
+
+---
+
+### Summary flow
+
+```
+User fills form (role + use case required, audience + goals optional)
+        ↓
+User selects output format (structured or single prompt)
+        ↓
+On submit: validate required fields
+        ↓
+POST to Anthropic API with system prompt + user inputs
+        ↓
+Parse response.content[0].text as JSON
+        ↓
+If format = structured: display R/A/S/C/E/F sections
+If format = single: display oneLiner only
+        ↓
+User copies output
+```
+
+That's the complete implementation. No state needs to persist between sessions — each submission is a fresh, stateless API call.
