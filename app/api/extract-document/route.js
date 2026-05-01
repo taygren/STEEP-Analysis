@@ -6,43 +6,6 @@ import { randomUUID } from 'crypto';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Basic HTML → Markdown conversion for mammoth output
-function htmlToMarkdown(html) {
-  return html
-    // Images (before any other processing)
-    .replace(/<img[^>]+src="([^"]*)"(?:[^>]+alt="([^"]*)")?[^>]*\/?>/gi,
-      (_, src, alt) => `\n\n![${alt || 'Image'}](${src})\n\n`)
-    // Headings
-    .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n\n# $1\n\n')
-    .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n\n## $1\n\n')
-    .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n\n### $1\n\n')
-    .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '\n\n#### $1\n\n')
-    // Inline formatting
-    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
-    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
-    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*')
-    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*')
-    // Line breaks
-    .replace(/<br\s*\/?>/gi, '\n')
-    // List items (handle before ul/ol wrappers)
-    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '\n- $1')
-    // Block elements → paragraphs
-    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n\n$1\n\n')
-    .replace(/<div[^>]*>([\s\S]*?)<\/div>/gi, '\n$1\n')
-    // Strip all remaining HTML tags
-    .replace(/<[^>]+>/g, '')
-    // Decode common HTML entities
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    // Collapse excessive blank lines
-    .replace(/\n{4,}/g, '\n\n\n')
-    .trim();
-}
-
 export async function POST(req) {
   try {
     const formData = await req.formData();
@@ -53,30 +16,43 @@ export async function POST(req) {
     const buffer = Buffer.from(bytes);
     const name = (file.name || '').toLowerCase();
 
-    // ── Word document (.docx) ────────────────────────────────────
+    // ── Word document (.docx / .doc) ─────────────────────────────
     if (name.endsWith('.docx') || name.endsWith('.doc')) {
       const mammoth = (await import('mammoth')).default;
+      const TurndownService = (await import('turndown')).default;
+      const { gfm } = await import('turndown-plugin-gfm');
 
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       await mkdir(uploadDir, { recursive: true });
 
       const extractedImageUrls = [];
 
-      // Use convertToHtml with a custom image handler that saves images to disk
+      // ── mammoth: HTML with images saved to /uploads/ ─────────────
       const result = await mammoth.convertToHtml({ buffer }, {
+        styleMap: [
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Heading 3'] => h3:fresh",
+          "p[style-name='Heading 4'] => h4:fresh",
+          "p[style-name='Title'] => h1:fresh",
+          "p[style-name='Subtitle'] => h2:fresh",
+          "p[style-name='Caption'] => p.caption:fresh",
+          "b => strong",
+          "i => em",
+        ],
         convertImage: mammoth.images.imgElement(async (image) => {
           try {
             const imgBuffer = await image.read();
-            const mimeType  = image.contentType || 'image/jpeg';
-            const rawExt    = mimeType.split('/')[1] || 'jpg';
-            const ext       = rawExt === 'jpeg' ? 'jpg' : rawExt.replace(/[^a-z0-9]/g, '');
-            const filename  = `${randomUUID()}.${ext}`;
+            const mimeType = image.contentType || 'image/jpeg';
+            const rawExt   = mimeType.split('/')[1] || 'jpg';
+            const ext      = rawExt === 'jpeg' ? 'jpg' : rawExt.replace(/[^a-z0-9]/g, '');
+            const filename = `${randomUUID()}.${ext}`;
             await writeFile(path.join(uploadDir, filename), imgBuffer);
             const url = `/uploads/${filename}`;
             extractedImageUrls.push(url);
-            return { src: url };
+            return { src: url, alt: 'Figure' };
           } catch {
-            return { src: '' };
+            return { src: '', alt: '' };
           }
         }),
       });
@@ -86,7 +62,43 @@ export async function POST(req) {
         return NextResponse.json({ error: 'No readable content found in document.' }, { status: 422 });
       }
 
-      const markdown = htmlToMarkdown(html);
+      // ── Turndown: HTML → clean GFM markdown ──────────────────────
+      const td = new TurndownService({
+        headingStyle:    'atx',
+        hr:              '---',
+        bulletListMarker:'-',
+        codeBlockStyle:  'fenced',
+        emDelimiter:     '*',
+        strongDelimiter: '**',
+      });
+
+      // GFM plugin adds table support, task lists, strikethrough
+      td.use(gfm);
+
+      // Ensure our /uploads/ image URLs are preserved exactly
+      td.addRule('siteImages', {
+        filter: 'img',
+        replacement: (_content, node) => {
+          const src = node.getAttribute('src') || '';
+          const alt = (node.getAttribute('alt') || 'Figure').trim();
+          if (!src) return '';
+          return `\n\n![${alt}](${src})\n\n`;
+        },
+      });
+
+      // Caption paragraphs → italicised line
+      td.addRule('caption', {
+        filter: (node) => node.nodeName === 'P' && node.classList?.contains('caption'),
+        replacement: (content) => `\n\n*${content.trim()}*\n\n`,
+      });
+
+      let markdown = td.turndown(html);
+
+      // Tidy up whitespace
+      markdown = markdown
+        .replace(/\n{4,}/g, '\n\n\n')
+        .replace(/^\n+/, '')
+        .trim();
 
       return NextResponse.json({
         text: markdown,
@@ -104,7 +116,15 @@ export async function POST(req) {
       const data = await pdfParse(buffer);
       const text = data.text.trim();
       if (!text) return NextResponse.json({ error: 'No readable text found in PDF. Make sure it is not a scanned image.' }, { status: 422 });
-      return NextResponse.json({ text, type: 'pdf', pages: data.numpages, filename: file.name, images: [], imageCount: 0, wordCount: text.split(/\s+/).filter(Boolean).length });
+      return NextResponse.json({
+        text,
+        type: 'pdf',
+        pages: data.numpages,
+        filename: file.name,
+        images: [],
+        imageCount: 0,
+        wordCount: text.split(/\s+/).filter(Boolean).length,
+      });
     }
 
     return NextResponse.json({ error: 'Unsupported file type. Please upload a .docx or .pdf file.' }, { status: 400 });

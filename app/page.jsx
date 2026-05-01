@@ -1702,7 +1702,54 @@ function TLMarkdown({ md }) {
       i++; continue;
     }
 
+    // GFM Table — lines that start with |
+    if (trimmed.startsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      const isSep = (row) => /^\|[\s|:-]+\|$/.test(row);
+      const parseRow = (row) =>
+        row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+
+      const dataRows = tableLines.filter(r => !isSep(r));
+      if (dataRows.length > 0) {
+        const headers = parseRow(dataRows[0]);
+        const bodyRows = dataRows.slice(1).map(parseRow);
+        out.push(
+          <div key={k++} className="my-6 overflow-x-auto rounded-xl border border-slate-800">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-800/70">
+                  {headers.map((h, idx) => (
+                    <th key={idx} className="text-left px-4 py-2.5 text-slate-300 font-semibold text-xs uppercase tracking-wider border-b border-slate-700"
+                      dangerouslySetInnerHTML={{ __html: tlInlineHtml(h) }} />
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyRows.map((row, ridx) => (
+                  <tr key={ridx} className={ridx % 2 === 0 ? 'bg-slate-900/40' : 'bg-slate-900/20'}>
+                    {headers.map((_, cidx) => (
+                      <td key={cidx} className="px-4 py-2 text-slate-300 text-xs border-b border-slate-800/60"
+                        dangerouslySetInnerHTML={{ __html: tlInlineHtml(row[cidx] ?? '') }} />
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      continue;
+    }
+
     // Headings
+    if (line.startsWith('#### ')) {
+      out.push(<h4 key={k++} className="text-slate-300 text-sm font-bold mt-5 mb-1.5" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(5)) }} />);
+      i++; continue;
+    }
     if (line.startsWith('### ')) {
       out.push(<h3 key={k++} className="text-slate-200 text-base font-bold mt-6 mb-2" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(4)) }} />);
       i++; continue;
@@ -1759,6 +1806,7 @@ function TLMarkdown({ md }) {
       !/^\d+\.\s/.test(lines[i]) &&
       !lines[i].startsWith('> ') &&
       !lines[i].trim().startsWith('```') &&
+      !lines[i].trim().startsWith('|') &&
       !/^!\[/.test(lines[i].trim()) &&
       !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
     ) { para.push(lines[i]); i++; }

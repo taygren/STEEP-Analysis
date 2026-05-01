@@ -23,6 +23,8 @@
     "react-dom": "^18.3.1",
     "recharts": "^3.8.1",
     "three": "^0.165.0",
+    "turndown": "^7.2.4",
+    "turndown-plugin-gfm": "^1.0.2",
     "yahoo-finance2": "^2.13.4"
   },
   "devDependencies": {
