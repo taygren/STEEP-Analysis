@@ -1,0 +1,118 @@
+/* ── Design Tokens ── */
+:root {
+  --bg: #f5f4f1;
+  --surface: #ffffff;
+  --surface2: #f0eeea;
+  --border: rgba(0, 0, 0, 0.09);
+  --border2: rgba(0, 0, 0, 0.18);
+  --t1: #1a1a18;
+  --t2: #5a5a56;
+  --t3: #9a9992;
+
+  --coral: #d85a30;
+  --coral-light: #faece7;
+  --coral-mid: #f0997b;
+  --teal: #1d9e75;
+  --teal-light: #e1f5ee;
+  --teal-mid: #5dcaa5;
+  --amber: #ba7517;
+  --amber-light: #faeeda;
+  --amber-mid: #ef9f27;
+  --purple: #534ab7;
+  --purple-light: #eeedfe;
+  --purple-mid: #7f77dd;
+
+  --fn: 'DM Sans', system-ui, sans-serif;
+  --mo: 'DM Mono', monospace;
+  --r: 8px;
+  --rl: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111210;
+    --surface: #1c1e1b;
+    --surface2: #252722;
+    --border: rgba(255, 255, 255, 0.08);
+    --border2: rgba(255, 255, 255, 0.15);
+    --t1: #e8e6e0;
+    --t2: #9a9890;
+    --t3: #5a5a54;
+
+    --coral-light: rgba(216, 90, 48, 0.15);
+    --teal-light: rgba(29, 158, 117, 0.13);
+    --amber-light: rgba(186, 117, 23, 0.14);
+    --purple-light: rgba(83, 74, 183, 0.14);
+  }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--fn);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--t1);
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* Skip link for accessibility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--coral);
+  color: white;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
