@@ -9,7 +9,7 @@ AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavi
 - **3D Visualization**: Three.js
 - **Charts**: Recharts (RadarChart, BarChart)
 - **AI Backend**: Groq cloud API + Cerebras (OpenAI-compatible SSE streaming)
-- **Key-Value Store**: Vercel KV (in-memory fallback for dev/Replit)
+- **Key-Value Store**: Vercel KV (file-backed JSON fallback for dev/Replit — `.steep-data/kv.json`)
 - **Port**: 5000
 
 ## Project Structure
@@ -35,7 +35,7 @@ app/
       [id]/route.js       — Single published post fetch (full contentMarkdown for article view)
     upload-image/route.js — Image upload (admin token required); saves to public/uploads/
 lib/
-  kv.js                 — Vercel KV wrapper with in-memory Map fallback for dev
+  kv.js                 — Vercel KV wrapper; dev fallback uses file-backed JSON (.steep-data/kv.json) shared via globalThis to avoid Next.js module-isolation issues
   bigCycle/engine.js    — Instrument attributes, capacity definitions, scoring logic, LLM prompts
   quantumComputingExample.js — Pre-run example
   appleExample.js       — Pre-run Apple example (with full fundamentals + thesis)

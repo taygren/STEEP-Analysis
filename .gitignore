@@ -2,6 +2,9 @@
 .next/
 out/
 
+# Persistent KV store (local dev data)
+.steep-data/
+
 # Node modules
 node_modules/
 

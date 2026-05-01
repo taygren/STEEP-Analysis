@@ -16,25 +16,108 @@ function Spinner() {
 }
 
 // ── Markdown preview (simple, no dependency) ──────────────────────
-function MarkdownPreview({ md }) {
-  const html = md
+function mdInline(raw) {
+  return raw
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;color:#f1f5f9;margin:1.25rem 0 0.5rem">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:1.125rem;font-weight:700;color:#f8fafc;margin:1.5rem 0 0.5rem">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 style="font-size:1.25rem;font-weight:800;color:#ffffff;margin:1.75rem 0 0.75rem">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:#1e293b;padding:0.1em 0.35em;border-radius:4px;font-size:0.85em;color:#94a3b8">$1</code>')
-    .replace(/^- (.+)$/gm, '<li style="margin:0.25rem 0 0.25rem 1rem;list-style:disc">$1</li>')
-    .replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid #3b82f6;padding:0.5rem 1rem;margin:0.75rem 0;color:#94a3b8;background:#0f172a;border-radius:0 8px 8px 0">$1</blockquote>')
-    .replace(/\n\n/g, '</p><p style="margin:0.75rem 0;color:#cbd5e1;font-size:0.875rem;line-height:1.7">')
-    .replace(/\n/g, '<br/>');
-  return (
-    <div
-      className="text-slate-300 text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: `<p style="margin:0.75rem 0;color:#cbd5e1;font-size:0.875rem;line-height:1.7">${html}</p>` }}
-    />
-  );
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#1e293b;padding:.15em .4em;border-radius:4px;font-size:.82em;color:#94a3b8;font-family:monospace">$1</code>')
+    .replace(/!\[([^\]]*)\]\(([^)\s"]+)[^)]*\)/g,
+      (_, alt, url) => `<img src="${url}" alt="${alt || 'Image'}" style="max-width:100%;border-radius:8px;display:block;margin:10px auto" />`)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:underline">$1</a>');
+}
+
+function MarkdownPreview({ md }) {
+  if (!md) return null;
+  const lines = md.split('\n');
+  const out = [];
+  let i = 0;
+
+  const isSep  = r => /^\|[\s|:-]+\|$/.test(r);
+  const parseRow = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const tr   = line.trim();
+    if (!tr) { i++; continue; }
+
+    if (tr.startsWith('```')) {
+      const code = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) { code.push(lines[i]); i++; }
+      i++;
+      out.push(<pre key={i} style={{background:'#0f172a',border:'1px solid #1e293b',borderRadius:10,padding:'12px 16px',fontSize:'0.78rem',color:'#94a3b8',fontFamily:'monospace',overflowX:'auto',margin:'14px 0',lineHeight:1.6}}><code>{code.join('\n')}</code></pre>);
+      continue;
+    }
+
+    const imgM = tr.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgM) {
+      out.push(<figure key={i} style={{margin:'20px 0',textAlign:'center'}}><img src={imgM[2]} alt={imgM[1]} style={{maxWidth:'100%',borderRadius:10,boxShadow:'0 2px 16px #0005'}} />{imgM[1] && <figcaption style={{color:'#64748b',fontSize:'0.75rem',marginTop:6,fontStyle:'italic'}}>{imgM[1]}</figcaption>}</figure>);
+      i++; continue;
+    }
+
+    if (/^(-{3,}|\*{3,})$/.test(tr)) {
+      out.push(<hr key={i} style={{border:'none',borderTop:'1px solid #1e293b',margin:'24px 0'}} />);
+      i++; continue;
+    }
+
+    if (tr.startsWith('|')) {
+      const rows = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) { rows.push(lines[i].trim()); i++; }
+      const data = rows.filter(r => !isSep(r));
+      if (data.length > 0) {
+        const heads = parseRow(data[0]);
+        const body  = data.slice(1).map(parseRow);
+        out.push(
+          <div key={i} style={{overflowX:'auto',margin:'20px 0',borderRadius:10,border:'1px solid #1e293b'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.82rem'}}>
+              <thead><tr style={{background:'#1e293b'}}>{heads.map((h,ci) => <th key={ci} style={{textAlign:'left',padding:'8px 14px',color:'#cbd5e1',fontWeight:600,fontSize:'0.75rem',textTransform:'uppercase',letterSpacing:'0.05em',borderBottom:'1px solid #334155'}} dangerouslySetInnerHTML={{__html:mdInline(h)}} />)}</tr></thead>
+              <tbody>{body.map((r,ri) => <tr key={ri} style={{borderBottom:'1px solid #1e293b',background: ri%2===1?'#0f172a':'transparent'}}>{heads.map((_,ci) => <td key={ci} style={{padding:'8px 14px',color:'#94a3b8'}} dangerouslySetInnerHTML={{__html:mdInline(r[ci]??'')}} />)}</tr>)}</tbody>
+            </table>
+          </div>
+        );
+      }
+      continue;
+    }
+
+    if (tr.startsWith('#### ')) { out.push(<h4 key={i} style={{fontSize:'0.875rem',fontWeight:700,color:'#e2e8f0',margin:'18px 0 6px'}} dangerouslySetInnerHTML={{__html:mdInline(tr.slice(5))}} />); i++; continue; }
+    if (tr.startsWith('### '))  { out.push(<h3 key={i} style={{fontSize:'1rem',    fontWeight:700,color:'#f1f5f9',margin:'22px 0 8px'}}  dangerouslySetInnerHTML={{__html:mdInline(tr.slice(4))}} />); i++; continue; }
+    if (tr.startsWith('## '))   { out.push(<h2 key={i} style={{fontSize:'1.1rem',  fontWeight:700,color:'#f8fafc',margin:'28px 0 10px',borderBottom:'1px solid #1e293b',paddingBottom:6}} dangerouslySetInnerHTML={{__html:mdInline(tr.slice(3))}} />); i++; continue; }
+    if (tr.startsWith('# '))    { out.push(<h1 key={i} style={{fontSize:'1.25rem', fontWeight:800,color:'#ffffff',margin:'32px 0 12px'}} dangerouslySetInnerHTML={{__html:mdInline(tr.slice(2))}} />); i++; continue; }
+
+    if (tr.startsWith('> ')) {
+      out.push(<blockquote key={i} style={{borderLeft:'3px solid #3b82f6',padding:'6px 14px',margin:'14px 0',color:'#94a3b8',background:'#0f172a',borderRadius:'0 8px 8px 0'}} dangerouslySetInnerHTML={{__html:mdInline(tr.slice(2))}} />);
+      i++; continue;
+    }
+
+    if (tr.startsWith('- ') || tr.startsWith('* ')) {
+      const items = [];
+      while (i < lines.length && (lines[i].trim().startsWith('- ') || lines[i].trim().startsWith('* '))) {
+        items.push(<li key={i} style={{margin:'4px 0 4px 18px',listStyle:'disc',color:'#cbd5e1'}} dangerouslySetInnerHTML={{__html:mdInline(lines[i].trim().slice(2))}} />);
+        i++;
+      }
+      out.push(<ul key={i} style={{margin:'12px 0'}}>{items}</ul>);
+      continue;
+    }
+
+    if (/^\d+\. /.test(tr)) {
+      const items = [];
+      while (i < lines.length && /^\d+\. /.test(lines[i].trim())) {
+        items.push(<li key={i} style={{margin:'4px 0 4px 18px',listStyle:'decimal',color:'#cbd5e1'}} dangerouslySetInnerHTML={{__html:mdInline(lines[i].trim().replace(/^\d+\.\s/,''))}} />);
+        i++;
+      }
+      out.push(<ol key={i} style={{margin:'12px 0'}}>{items}</ol>);
+      continue;
+    }
+
+    const para = [tr]; i++;
+    while (i < lines.length && lines[i].trim() && !lines[i].trim().startsWith('#') && !lines[i].trim().startsWith('|') && !lines[i].trim().startsWith('```') && !lines[i].trim().startsWith('- ') && !lines[i].trim().startsWith('> ') && !/^\d+\. /.test(lines[i].trim()) && !/^!\[/.test(lines[i].trim())) {
+      para.push(lines[i].trim()); i++;
+    }
+    out.push(<p key={i} style={{margin:'12px 0',color:'#cbd5e1',fontSize:'0.875rem',lineHeight:1.7}} dangerouslySetInnerHTML={{__html:mdInline(para.join(' '))}} />);
+  }
+  return <div style={{padding:'4px 0'}}>{out}</div>;
 }
 
 // ── Login screen ──────────────────────────────────────────────────
