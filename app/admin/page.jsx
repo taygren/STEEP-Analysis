@@ -878,7 +878,17 @@ export default function AdminPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setPosts(data.posts || []);
+        const loadedPosts = data.posts || [];
+        setPosts(loadedPosts);
+        // Auto-open editor if ?postId= is in the URL
+        const autoId = new URLSearchParams(window.location.search).get('postId');
+        if (autoId) {
+          const target = loadedPosts.find(p => p.id === autoId);
+          if (target) {
+            setEditPost(target);
+            setView('editor');
+          }
+        }
       }
     } catch {}
     setPostsLoading(false);
