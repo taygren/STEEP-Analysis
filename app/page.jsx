@@ -1770,6 +1770,349 @@ function TLMarkdown({ md }) {
   return <>{out}</>;
 }
 
+// ── Parse extracted markdown into structured fields ─────────────
+function parseDocContent(md, images) {
+  const lines = md.split('\n');
+  let title = '';
+  let titleIdx = -1;
+
+  // First H1 → title
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('# ')) {
+      title = lines[i].slice(2).trim();
+      titleIdx = i;
+      break;
+    }
+  }
+
+  // Remove the title line from body
+  const bodyLines = titleIdx >= 0 ? [...lines.slice(0, titleIdx), ...lines.slice(titleIdx + 1)] : lines;
+  const body = bodyLines.join('\n').replace(/^\n+/, '').trim();
+
+  // First prose paragraph as dek candidate
+  let dek = '';
+  for (const l of bodyLines) {
+    const t = l.trim();
+    if (t && !t.startsWith('#') && !t.startsWith('!') && !t.startsWith('-') && !t.startsWith('*') && !t.startsWith('>')) {
+      dek = t.slice(0, 220);
+      break;
+    }
+  }
+
+  // First extracted image as hero
+  const heroImageUrl = images[0] || '';
+
+  return { title, dek, content: body, heroImageUrl };
+}
+
+// ── Publish Modal (3-step: auth → upload → review) ──────────────
+function TLPublishModal({ onClose, onPublished }) {
+  const [step, setStep]           = useState('auth');   // 'auth' | 'upload' | 'review'
+  const [token, setToken]         = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('tl_admin_token') || '') : '');
+  const [authChecking, setAuthChecking] = useState(false);
+  const [authErr, setAuthErr]     = useState('');
+
+  const [dragOver, setDragOver]   = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractErr, setExtractErr] = useState('');
+  const [extractedImages, setExtractedImages] = useState([]);
+
+  const [form, setForm] = useState({ title: '', dek: '', geoKeywords: '', contentMarkdown: '', heroImageUrl: '' });
+  const [publishing, setPublishing] = useState(false);
+  const [publishErr, setPublishErr] = useState('');
+
+  const fileInputRef = useRef(null);
+
+  // ── Auth ────────────────────────────────────────────────────────
+  const verifyToken = async () => {
+    if (!token.trim()) { setAuthErr('Enter your admin publishing key.'); return; }
+    setAuthChecking(true); setAuthErr('');
+    try {
+      const res = await fetch('/api/thought-leadership/admin', { headers: { 'x-admin-token': token } });
+      if (res.ok || res.status === 200) {
+        if (typeof window !== 'undefined') localStorage.setItem('tl_admin_token', token);
+        setStep('upload');
+      } else {
+        setAuthErr('Invalid key — please check and try again.');
+      }
+    } catch { setAuthErr('Could not verify — check your connection.'); }
+    setAuthChecking(false);
+  };
+
+  // ── Extract ─────────────────────────────────────────────────────
+  const extractFile = async (file) => {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.docx') && !name.endsWith('.doc')) {
+      setExtractErr('Please upload a Word document (.docx or .doc).');
+      return;
+    }
+    setExtracting(true); setExtractErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/extract-document', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Extraction failed');
+      const images = data.images || [];
+      const parsed = parseDocContent(data.text || '', images);
+      setExtractedImages(images);
+      setForm({
+        title: parsed.title,
+        dek: parsed.dek,
+        geoKeywords: '',
+        contentMarkdown: parsed.content,
+        heroImageUrl: parsed.heroImageUrl,
+      });
+      setStep('review');
+    } catch (e) { setExtractErr(e.message); }
+    setExtracting(false);
+  };
+
+  // ── Publish ─────────────────────────────────────────────────────
+  const publish = async () => {
+    if (!form.title.trim()) { setPublishErr('A title is required.'); return; }
+    setPublishing(true); setPublishErr('');
+    try {
+      const payload = {
+        title: form.title.trim(),
+        dek: form.dek.trim(),
+        contentMarkdown: form.contentMarkdown,
+        heroImageUrl: form.heroImageUrl || '',
+        geoKeywords: form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
+        status: 'published',
+      };
+      const res = await fetch('/api/thought-leadership/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Publish failed');
+      onPublished();
+      onClose();
+    } catch (e) { setPublishErr(e.message); }
+    setPublishing(false);
+  };
+
+  // ── Drag-and-drop ───────────────────────────────────────────────
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) extractFile(file);
+  };
+
+  // ── Step labels ─────────────────────────────────────────────────
+  const STEPS = ['Authenticate', 'Import Document', 'Review & Publish'];
+  const stepIdx = { auth: 0, upload: 1, review: 2 }[step];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+          <div>
+            <h2 className="text-white font-bold text-base">Publish Article</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Upload a Word document to publish as a blog post</p>
+          </div>
+          <button onClick={onClose} className="text-slate-600 hover:text-white text-xl leading-none transition-colors">✕</button>
+        </div>
+
+        {/* Step indicator */}
+        <div className="flex items-center gap-0 px-6 py-4 border-b border-slate-800 flex-shrink-0">
+          {STEPS.map((label, idx) => (
+            <div key={label} className="flex items-center">
+              <div className={`flex items-center gap-2 text-xs font-semibold ${idx === stepIdx ? 'text-white' : idx < stepIdx ? 'text-emerald-400' : 'text-slate-600'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${idx === stepIdx ? 'bg-blue-600 text-white' : idx < stepIdx ? 'bg-emerald-700 text-white' : 'bg-slate-800 text-slate-600'}`}>
+                  {idx < stepIdx ? '✓' : idx + 1}
+                </div>
+                <span className="hidden sm:block">{label}</span>
+              </div>
+              {idx < STEPS.length - 1 && <div className={`w-8 h-px mx-3 ${idx < stepIdx ? 'bg-emerald-700' : 'bg-slate-800'}`} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+
+          {/* ── Step 1: Auth ── */}
+          {step === 'auth' && (
+            <div className="space-y-5 max-w-sm mx-auto">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl mx-auto">🔑</div>
+                <p className="text-white font-semibold">Enter your admin publishing key</p>
+                <p className="text-slate-500 text-xs">This is the <code className="text-slate-400 bg-slate-900 px-1 py-0.5 rounded text-xs">ADMIN_PUBLISH_TOKEN</code> set in your environment.</p>
+              </div>
+              <input
+                type="password"
+                value={token}
+                onChange={e => { setToken(e.target.value); setAuthErr(''); }}
+                onKeyDown={e => e.key === 'Enter' && verifyToken()}
+                placeholder="Paste your admin key…"
+                autoFocus
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              {authErr && <p className="text-red-400 text-xs text-center">{authErr}</p>}
+              <button
+                onClick={verifyToken}
+                disabled={authChecking}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+              >
+                {authChecking ? 'Verifying…' : 'Continue →'}
+              </button>
+            </div>
+          )}
+
+          {/* ── Step 2: Upload ── */}
+          {step === 'upload' && (
+            <div className="space-y-5">
+              <div className="text-center space-y-1">
+                <p className="text-white font-semibold">Upload your Word document</p>
+                <p className="text-slate-500 text-xs">Text and embedded graphics will be extracted automatically</p>
+              </div>
+
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => !extracting && fileInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-4 py-14 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${
+                  extracting ? 'border-blue-600 bg-blue-950/20' : dragOver ? 'border-blue-500 bg-blue-950/10' : 'border-slate-700 hover:border-slate-500 bg-slate-900/40'
+                }`}
+              >
+                {extracting ? (
+                  <>
+                    <svg className="animate-spin h-8 w-8 text-blue-400" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    <p className="text-blue-400 text-sm font-semibold">Extracting content &amp; graphics…</p>
+                    <p className="text-slate-600 text-xs">This may take a moment for large documents</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-5xl">📄</span>
+                    <div className="text-center">
+                      <p className="text-white text-sm font-semibold">{dragOver ? 'Drop to import' : 'Drop your .docx here'}</p>
+                      <p className="text-slate-500 text-xs mt-1">or click to browse · .docx / .doc</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <input ref={fileInputRef} type="file" accept=".docx,.doc" className="hidden" onChange={e => { if (e.target.files?.[0]) extractFile(e.target.files[0]); e.target.value = ''; }} />
+              {extractErr && <p className="text-red-400 text-xs text-center">{extractErr}</p>}
+            </div>
+          )}
+
+          {/* ── Step 3: Review & Publish ── */}
+          {step === 'review' && (
+            <div className="space-y-5">
+
+              {/* Cover image */}
+              {form.heroImageUrl && (
+                <div className="relative rounded-xl overflow-hidden">
+                  <img src={form.heroImageUrl} alt="Cover" className="w-full object-cover rounded-xl" style={{ maxHeight: 220 }} />
+                  <div className="absolute top-2 right-2 flex gap-2">
+                    {extractedImages.length > 1 && extractedImages.filter(u => u !== form.heroImageUrl).map((url, idx) => (
+                      <button key={idx} onClick={() => setForm(f => ({ ...f, heroImageUrl: url }))}
+                        className="w-10 h-10 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-400 transition-colors">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                    <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))}
+                      className="w-8 h-8 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
+                  </div>
+                </div>
+              )}
+              {!form.heroImageUrl && extractedImages.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Extracted images — pick a cover</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {extractedImages.map((url, idx) => (
+                      <button key={idx} onClick={() => setForm(f => ({ ...f, heroImageUrl: url }))}
+                        className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-700 hover:border-blue-400 transition-colors">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Title */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Title</label>
+                <input
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="Article title…"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Dek */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Subtitle</label>
+                <input
+                  value={form.dek}
+                  onChange={e => setForm(f => ({ ...f, dek: e.target.value }))}
+                  placeholder="A short sentence that hooks the reader…"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">GEO Tags <span className="normal-case font-normal text-slate-600">(comma-separated)</span></label>
+                <input
+                  value={form.geoKeywords}
+                  onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
+                  placeholder="e.g. tariffs, China, supply chain"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Content */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Content</label>
+                  <span className="text-slate-600 text-xs">{form.contentMarkdown.split(/\s+/).filter(Boolean).length} words · {extractedImages.length} image{extractedImages.length !== 1 ? 's' : ''}</span>
+                </div>
+                <textarea
+                  value={form.contentMarkdown}
+                  onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-600 font-mono leading-loose resize-none transition-colors"
+                  style={{ minHeight: 260 }}
+                />
+              </div>
+
+              {publishErr && <p className="text-red-400 text-xs">{publishErr}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {step === 'review' && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 flex-shrink-0 gap-3">
+            <button onClick={() => setStep('upload')} className="text-slate-500 hover:text-white text-sm transition-colors">← Re-upload</button>
+            <button
+              onClick={publish}
+              disabled={publishing || !form.title.trim()}
+              className="px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+            >
+              {publishing ? 'Publishing…' : 'Publish Article'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ThoughtLeadershipPanel() {
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -1778,6 +2121,7 @@ function ThoughtLeadershipPanel() {
   const [contentLoading, setContentLoading] = useState(false);
   const [search, setSearch]           = useState('');
   const [activeTag, setActiveTag]     = useState('');
+  const [showPublish, setShowPublish] = useState(false);
 
   useEffect(() => {
     fetch('/api/thought-leadership?limit=50')
@@ -1878,13 +2222,42 @@ function ThoughtLeadershipPanel() {
     );
   }
 
+  const refreshPosts = () => {
+    setLoading(true);
+    fetch('/api/thought-leadership?limit=50')
+      .then(r => r.json())
+      .then(d => { setPosts(d.posts || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
   // ── Blog index ─────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto fade-in">
+
+      {/* Publish modal */}
+      {showPublish && (
+        <TLPublishModal
+          onClose={() => setShowPublish(false)}
+          onPublished={() => { setShowPublish(false); refreshPosts(); }}
+        />
+      )}
+
       {/* Header */}
-      <div className="mb-7">
-        <h1 className="text-2xl font-black text-white mb-1">Thought Leadership</h1>
-        <p className="text-slate-500 text-sm">Strategic intelligence briefs — macro, geopolitical &amp; sector analysis</p>
+      <div className="flex items-start justify-between mb-7 gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-white mb-1">Thought Leadership</h1>
+          <p className="text-slate-500 text-sm">Strategic intelligence briefs — macro, geopolitical &amp; sector analysis</p>
+        </div>
+        <button
+          onClick={() => setShowPublish(true)}
+          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          Publish
+        </button>
       </div>
 
       {/* Search */}
