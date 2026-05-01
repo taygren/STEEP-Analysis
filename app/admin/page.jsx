@@ -168,6 +168,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
     title: post?.title || '',
     dek: post?.dek || '',
     contentMarkdown: post?.contentMarkdown || '',
+    heroImageUrl: post?.heroImageUrl || '',
     geoKeywords: (post?.geoKeywords || []).join(', '),
     status: post?.status || 'draft',
   });
@@ -176,6 +177,54 @@ function PostEditor({ token, post, onBack, onSaved }) {
   const [saveMsgType, setSaveMsgType] = useState('success');
   const [preview, setPreview] = useState(false);
   const [postId, setPostId] = useState(post?.id || null);
+
+  // ── Textarea ref for cursor-position image insertion ───────────
+  const contentRef = useRef(null);
+
+  // ── Inline image upload state ──────────────────────────────────
+  const [imgUploading, setImgUploading] = useState(false);
+  const [imgUploadErr, setImgUploadErr] = useState('');
+  const imgInputRef = useRef(null);
+
+  const uploadImage = async (file) => {
+    if (!file) return;
+    setImgUploading(true);
+    setImgUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const md = `\n\n![${file.name.replace(/\.[^.]+$/, '')}](${data.url})\n\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? ta.value.length;
+        const before = ta.value.slice(0, start);
+        const after  = ta.value.slice(start);
+        setForm(f => ({ ...f, contentMarkdown: before + md + after }));
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + md.length; ta.focus(); }, 50);
+      } else {
+        setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + md }));
+      }
+    } catch (e) { setImgUploadErr(e.message); }
+    setImgUploading(false);
+  };
+
+  const uploadHeroImage = async (file) => {
+    if (!file) return;
+    setImgUploading(true);
+    setImgUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setForm(f => ({ ...f, heroImageUrl: data.url }));
+    } catch (e) { setImgUploadErr(e.message); }
+    setImgUploading(false);
+  };
 
   // ── Document import state ──────────────────────────────────────
   const [showDocs, setShowDocs] = useState(true);
@@ -258,6 +307,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
       title: form.title.trim(),
       dek: form.dek.trim(),
       contentMarkdown: form.contentMarkdown,
+      heroImageUrl: form.heroImageUrl || '',
       geoKeywords: form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
       status: publish ? 'published' : 'draft',
     };
@@ -342,6 +392,11 @@ function PostEditor({ token, post, onBack, onSaved }) {
         {preview ? (
           /* ── Preview ── */
           <div className="max-w-3xl">
+            {form.heroImageUrl && (
+              <div className="mb-8 rounded-2xl overflow-hidden">
+                <img src={form.heroImageUrl} alt={form.title} className="w-full object-cover" style={{ maxHeight: 360 }} />
+              </div>
+            )}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-white mb-3 leading-tight">{form.title || <span className="text-slate-700">Untitled</span>}</h1>
               {form.dek && <p className="text-lg text-slate-400 leading-relaxed mb-4">{form.dek}</p>}
@@ -381,6 +436,43 @@ function PostEditor({ token, post, onBack, onSaved }) {
               placeholder="Subtitle — a short sentence that hooks the reader…"
               className="w-full bg-transparent text-base md:text-lg text-slate-400 placeholder-slate-700 focus:outline-none border-b border-slate-800 pb-4"
             />
+
+            {/* Cover image */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-20">Cover</span>
+              <div className="flex-1 space-y-2">
+                {form.heroImageUrl ? (
+                  <div className="relative group">
+                    <img src={form.heroImageUrl} alt="Cover" className="w-full rounded-xl object-cover" style={{ maxHeight: 200 }} />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
+                      <label className="cursor-pointer px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg font-semibold hover:bg-slate-700 transition-colors">
+                        Replace
+                        <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
+                      </label>
+                      <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="px-3 py-1.5 bg-red-900 text-red-200 text-xs rounded-lg font-semibold hover:bg-red-800 transition-colors">Remove</button>
+                    </div>
+                    {imgUploading && <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center"><Spinner /></div>}
+                  </div>
+                ) : (
+                  <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-6 cursor-pointer transition-colors ${imgUploading ? 'border-blue-700 bg-blue-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
+                    {imgUploading ? <Spinner /> : <span className="text-2xl">🖼️</span>}
+                    <span className="text-xs text-slate-500">{imgUploading ? 'Uploading…' : 'Upload cover image · JPEG, PNG, WebP, GIF'}</span>
+                    <input type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
+                  </label>
+                )}
+                {imgUploadErr && <p className="text-xs text-red-400">{imgUploadErr}</p>}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600">or paste URL:</span>
+                  <input
+                    type="url"
+                    value={form.heroImageUrl.startsWith('/uploads/') ? '' : form.heroImageUrl}
+                    onChange={e => setForm(f => ({ ...f, heroImageUrl: e.target.value }))}
+                    placeholder="https://…"
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-slate-600"
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* Tags */}
             <div className="flex items-start gap-3">
@@ -575,20 +667,38 @@ function PostEditor({ token, post, onBack, onSaved }) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Content (Markdown)</p>
-                <div className="flex gap-3 text-xs text-slate-600">
+                <div className="flex flex-wrap gap-3 text-xs text-slate-600">
                   {[
                     ['# H1', '# '],['## H2','## '],['**Bold**','**bold**'],['*Italic*','*italic*'],
                     ['`Code`','`code`'],['- List','- item'],['> Quote','> '],
                   ].map(([label, insert]) => (
                     <button
                       key={label}
-                      onClick={() => setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + insert }))}
+                      onClick={() => {
+                        const ta = contentRef.current;
+                        if (ta) {
+                          const start = ta.selectionStart ?? ta.value.length;
+                          const before = ta.value.slice(0, start);
+                          const after  = ta.value.slice(start);
+                          const newVal = before + insert + after;
+                          setForm(f => ({ ...f, contentMarkdown: newVal }));
+                          setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + insert.length; ta.focus(); }, 20);
+                        } else {
+                          setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + insert }));
+                        }
+                      }}
                       className="hover:text-slate-300 transition-colors font-mono"
                     >{label}</button>
                   ))}
+                  <label className={`cursor-pointer flex items-center gap-1 hover:text-slate-300 transition-colors ${imgUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {imgUploading ? <Spinner /> : '🖼'}
+                    <span className="font-mono">Insert Image</span>
+                    <input ref={imgInputRef} type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value = ''; }} />
+                  </label>
                 </div>
               </div>
               <textarea
+                ref={contentRef}
                 value={form.contentMarkdown}
                 onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
                 placeholder={`Write your article in Markdown…\n\n## Introduction\n\nStart with a strong opening paragraph that sets the geopolitical context.\n\n## Key Findings\n\n- First finding\n- Second finding\n\n## Conclusion\n\nEnd with a strategic implication or call to action.`}

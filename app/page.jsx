@@ -1642,252 +1642,378 @@ function BigCycleTab({ state, dispatch }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// THOUGHT LEADERSHIP PANEL — sidebar destination
+// THOUGHT LEADERSHIP — Blog / Repository Panel
 // ═══════════════════════════════════════════════════════════════════
-function ThoughtLeadershipPanel() {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [adminToken, setAdminToken] = useState(() =>
-    typeof window !== 'undefined' ? (localStorage.getItem('tl_admin_token') || '') : ''
-  );
-  const [showAdminForm, setShowAdminForm] = useState(false);
-  const [editPost, setEditPost] = useState(null);
-  const [adminPosts, setAdminPosts] = useState([]);
-  const [adminError, setAdminError] = useState('');
-  const [form, setForm] = useState({ title: '', dek: '', contentMarkdown: '', geoKeywords: '', status: 'draft' });
-  const [saving, setSaving] = useState(false);
 
-  const isAdmin = Boolean(adminToken && adminToken.length > 4);
+// Inline text: bold, italic, code, links
+function tlInlineHtml(raw) {
+  return raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#1e293b;padding:.15em .4em;border-radius:4px;font-size:.82em;color:#94a3b8;font-family:monospace">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:underline">$1</a>');
+}
+
+// Block-level markdown → React elements (handles images, headings, lists, code, quotes, hr)
+function TLMarkdown({ md }) {
+  if (!md) return null;
+  const lines = md.split('\n');
+  const out = [];
+  let i = 0, k = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) { i++; continue; }
+
+    // Fenced code block
+    if (trimmed.startsWith('```')) {
+      const codeLines = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
+      i++;
+      out.push(
+        <pre key={k++} className="bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-xs text-slate-300 font-mono overflow-x-auto my-5 leading-relaxed">
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      );
+      continue;
+    }
+
+    // Standalone image: ![alt](url)
+    const imgM = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgM) {
+      const [, alt, url] = imgM;
+      out.push(
+        <figure key={k++} className="my-7">
+          <img src={url} alt={alt} className="w-full rounded-2xl object-cover shadow-lg" style={{ maxHeight: 420 }} />
+          {alt && <figcaption className="text-center text-xs text-slate-500 mt-2 italic">{alt}</figcaption>}
+        </figure>
+      );
+      i++; continue;
+    }
+
+    // HR
+    if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
+      out.push(<hr key={k++} className="border-slate-800 my-8" />);
+      i++; continue;
+    }
+
+    // Headings
+    if (line.startsWith('### ')) {
+      out.push(<h3 key={k++} className="text-slate-200 text-base font-bold mt-6 mb-2" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(4)) }} />);
+      i++; continue;
+    }
+    if (line.startsWith('## ')) {
+      out.push(<h2 key={k++} className="text-white text-xl font-bold mt-8 mb-3 leading-snug pb-2 border-b border-slate-800" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(3)) }} />);
+      i++; continue;
+    }
+    if (line.startsWith('# ')) {
+      out.push(<h1 key={k++} className="text-white text-2xl font-black mt-8 mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(2)) }} />);
+      i++; continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      const ql = [];
+      while (i < lines.length && lines[i].startsWith('> ')) { ql.push(lines[i].slice(2)); i++; }
+      out.push(
+        <blockquote key={k++} className="border-l-4 border-blue-500 pl-5 py-0.5 my-5">
+          <p className="text-slate-300 italic text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(ql.join(' ')) }} />
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Bullet list
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      const items = [];
+      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
+        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(lines[i].slice(2)) }} />);
+        i++;
+      }
+      out.push(<ul key={k++} className="my-4 pl-5 space-y-1.5 list-disc marker:text-slate-600">{items}</ul>);
+      continue;
+    }
+
+    // Numbered list
+    if (/^\d+\.\s/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(lines[i].replace(/^\d+\.\s/, '')) }} />);
+        i++;
+      }
+      out.push(<ol key={k++} className="my-4 pl-5 space-y-1.5 list-decimal marker:text-slate-500">{items}</ol>);
+      continue;
+    }
+
+    // Paragraph — aggregate consecutive prose lines
+    const para = [];
+    while (
+      i < lines.length && lines[i].trim() &&
+      !lines[i].startsWith('#') &&
+      !lines[i].startsWith('- ') && !lines[i].startsWith('* ') &&
+      !/^\d+\.\s/.test(lines[i]) &&
+      !lines[i].startsWith('> ') &&
+      !lines[i].trim().startsWith('```') &&
+      !/^!\[/.test(lines[i].trim()) &&
+      !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
+    ) { para.push(lines[i]); i++; }
+
+    if (para.length) {
+      out.push(<p key={k++} className="text-slate-300 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tlInlineHtml(para.join(' ')) }} />);
+    }
+  }
+  return <>{out}</>;
+}
+
+function ThoughtLeadershipPanel() {
+  const [posts, setPosts]             = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [postContent, setPostContent] = useState('');
+  const [contentLoading, setContentLoading] = useState(false);
+  const [search, setSearch]           = useState('');
+  const [activeTag, setActiveTag]     = useState('');
 
   useEffect(() => {
-    fetch('/api/thought-leadership?limit=20')
+    fetch('/api/thought-leadership?limit=50')
       .then(r => r.json())
       .then(d => { setPosts(d.posts || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    fetch('/api/thought-leadership/admin', { headers: { 'x-admin-token': adminToken } })
-      .then(r => r.json())
-      .then(d => setAdminPosts(d.posts || []))
-      .catch(() => {});
-  }, [isAdmin, adminToken, saving]);
-
-  const saveToken = (t) => {
-    setAdminToken(t);
-    if (typeof window !== 'undefined') localStorage.setItem('tl_admin_token', t);
-  };
-
-  const savePost = async () => {
-    setSaving(true); setAdminError('');
+  const openPost = async (post) => {
+    setSelectedPost(post);
+    setPostContent('');
+    setContentLoading(true);
     try {
-      const payload = {
-        ...form,
-        geoKeywords: form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
-        ...(editPost ? { id: editPost.id, createdAt: editPost.createdAt } : {}),
-      };
-      const res = await fetch('/api/thought-leadership/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(`/api/thought-leadership/${post.id}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-      setEditPost(data.post);
-      setShowAdminForm(false);
-    } catch (e) { setAdminError(e.message); }
-    setSaving(false);
+      setPostContent(data.contentMarkdown || post.excerpt || '');
+    } catch {
+      setPostContent(post.excerpt || '');
+    }
+    setContentLoading(false);
   };
 
-  const togglePublish = async (post) => {
-    const newStatus = post.status === 'published' ? 'draft' : 'published';
-    await fetch('/api/thought-leadership/admin', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-      body: JSON.stringify({ id: post.id, status: newStatus }),
-    });
-    setSaving(s => !s);
-  };
+  const readingTime = (text) => Math.max(1, Math.ceil((text || '').split(/\s+/).filter(Boolean).length / 200));
 
-  const deletePost = async (id) => {
-    if (!confirm('Delete this post?')) return;
-    await fetch('/api/thought-leadership/admin', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
-      body: JSON.stringify({ id }),
-    });
-    setSaving(s => !s);
-  };
+  const allTags = [...new Set(posts.flatMap(p => p.geoKeywords || []))].slice(0, 14);
 
-  const startEdit = (post) => {
-    setEditPost(post);
-    setForm({
-      title: post.title || '',
-      dek: post.dek || '',
-      contentMarkdown: post.contentMarkdown || '',
-      geoKeywords: (post.geoKeywords || []).join(', '),
-      status: post.status || 'draft',
-    });
-    setShowAdminForm(true);
-  };
+  const filtered = posts.filter(p => {
+    if (activeTag && !(p.geoKeywords || []).includes(activeTag)) return false;
+    if (search) {
+      const hay = [p.title, p.dek, p.excerpt].join(' ').toLowerCase();
+      if (!hay.includes(search.toLowerCase())) return false;
+    }
+    return true;
+  });
 
-  const newPost = () => {
-    setEditPost(null);
-    setForm({ title: '', dek: '', contentMarkdown: '', geoKeywords: '', status: 'draft' });
-    setShowAdminForm(true);
-  };
-
-  // Single post view
+  // ── Single article view ────────────────────────────────────────
   if (selectedPost) {
     return (
-      <div className="max-w-3xl mx-auto py-6 space-y-6 fade-in">
-        <button onClick={() => setSelectedPost(null)} className="text-slate-500 hover:text-white text-sm flex items-center gap-1.5">← Back to posts</button>
-        <div>
-          <h1 className="text-2xl font-black text-white mb-2">{selectedPost.title}</h1>
-          {selectedPost.dek && <p className="text-slate-400 text-base leading-relaxed mb-3">{selectedPost.dek}</p>}
-          <div className="flex gap-2 flex-wrap mb-4">
-            {(selectedPost.geoKeywords || []).map(k => (
-              <span key={k} className="px-2 py-0.5 rounded-full bg-blue-900 text-blue-300 text-xs">{k}</span>
-            ))}
-            {selectedPost.publishedAt && <span className="text-slate-600 text-xs ml-auto">{new Date(selectedPost.publishedAt).toLocaleDateString()}</span>}
-          </div>
+      <div className="max-w-3xl mx-auto fade-in">
+        {/* Sticky back bar */}
+        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur py-3 mb-6 border-b border-slate-800/60">
+          <button
+            onClick={() => { setSelectedPost(null); setPostContent(''); }}
+            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            All articles
+          </button>
         </div>
-        <div className="prose prose-invert prose-sm max-w-none">
-          {(selectedPost.excerpt || selectedPost.contentMarkdown || '').split('\n').map((line, i) => (
-            line.startsWith('## ') ? <h2 key={i} className="text-white text-lg font-bold mt-6 mb-2">{line.slice(3)}</h2>
-            : line.startsWith('# ')  ? <h1 key={i} className="text-white text-xl font-black mt-6 mb-2">{line.slice(2)}</h1>
-            : line.startsWith('- ')  ? <li key={i} className="text-slate-300 text-sm ml-4">{line.slice(2)}</li>
-            : line.trim()             ? <p key={i} className="text-slate-300 text-sm leading-relaxed mb-3">{line}</p>
-            : <div key={i} className="h-2" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
-  // Admin form
-  if (showAdminForm) {
-    return (
-      <div className="max-w-2xl mx-auto py-6 space-y-4 fade-in">
-        <div className="flex items-center justify-between">
-          <h2 className="text-white font-bold">{editPost ? 'Edit Post' : 'New Post'}</h2>
-          <button onClick={() => setShowAdminForm(false)} className="text-slate-500 hover:text-white text-sm">← Back</button>
-        </div>
-        {adminError && <div className="bg-red-950 border border-red-800 rounded-lg p-3 text-red-400 text-xs">{adminError}</div>}
-        <div className="space-y-3">
-          <div>
-            <label className="text-slate-500 text-xs mb-1 block">Title</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-slate-500 text-xs mb-1 block">Dek / Subtitle</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              value={form.dek} onChange={e => setForm(f => ({ ...f, dek: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-slate-500 text-xs mb-1 block">Content (Markdown)</label>
-            <textarea rows={14} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-blue-500 resize-y"
-              value={form.contentMarkdown} onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-slate-500 text-xs mb-1 block">GEO Keywords (comma-separated)</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-              value={form.geoKeywords} onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
-              placeholder="tariffs, semiconductors, US-China, sanctions" />
-          </div>
-          <div className="flex items-center gap-3">
-            <select className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none"
-              value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-            </select>
-            <button onClick={savePost} disabled={saving} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm rounded-lg font-semibold">
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto py-6 space-y-6 fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white">Thought Leadership</h2>
-          <p className="text-slate-500 text-sm mt-0.5">GEO-optimized strategic intelligence briefs</p>
-        </div>
-        {isAdmin && (
-          <button onClick={newPost} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg font-semibold">+ New Post</button>
-        )}
-      </div>
-
-      {/* Admin token input (collapsed when set) */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-        <details>
-          <summary className="text-slate-500 text-xs cursor-pointer select-none">
-            {isAdmin ? '🔓 Admin mode active' : '🔒 Admin login'}
-          </summary>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="password"
-              placeholder="Admin token"
-              value={adminToken}
-              onChange={e => saveToken(e.target.value)}
-              className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500"
+        {/* Hero image */}
+        {selectedPost.heroImageUrl && (
+          <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl">
+            <img
+              src={selectedPost.heroImageUrl}
+              alt={selectedPost.title}
+              className="w-full object-cover"
+              style={{ maxHeight: 380 }}
             />
           </div>
-        </details>
-      </div>
-
-      {/* Published posts list */}
-      <div>
-        {loading && <div className="text-slate-500 text-sm text-center py-8">Loading posts…</div>}
-        {!loading && (isAdmin ? adminPosts : posts).length === 0 && (
-          <div className="text-slate-600 text-sm text-center py-10">
-            {isAdmin ? 'No posts yet. Create the first one.' : 'No published posts yet.'}
-          </div>
         )}
-        <div className="space-y-3">
-          {(isAdmin ? adminPosts : posts).map(post => (
-            <div key={post.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors group">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 cursor-pointer" onClick={() => setSelectedPost(post)}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-white font-semibold text-sm group-hover:text-blue-300 transition-colors">{post.title}</h3>
-                    {isAdmin && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${post.status === 'published' ? 'bg-emerald-900 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
-                        {post.status}
-                      </span>
-                    )}
-                  </div>
-                  {post.dek && <p className="text-slate-400 text-xs leading-relaxed mb-2">{post.dek}</p>}
-                  {post.excerpt && <p className="text-slate-600 text-xs leading-relaxed line-clamp-2">{post.excerpt}…</p>}
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    {(post.geoKeywords || []).slice(0, 4).map(k => (
-                      <span key={k} className="px-1.5 py-0.5 rounded bg-blue-900 text-blue-400 text-xs">{k}</span>
-                    ))}
-                    {post.publishedAt && <span className="text-slate-600 text-xs ml-auto">{new Date(post.publishedAt).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-                {isAdmin && (
-                  <div className="flex flex-col gap-1 flex-shrink-0">
-                    <button onClick={() => startEdit(post)} className="text-xs text-slate-500 hover:text-white px-2 py-1 rounded bg-slate-700">Edit</button>
-                    <button onClick={() => togglePublish(post)} className="text-xs text-slate-500 hover:text-white px-2 py-1 rounded bg-slate-700">
-                      {post.status === 'published' ? 'Unpublish' : 'Publish'}
-                    </button>
-                    <button onClick={() => deletePost(post.id)} className="text-xs text-red-500 hover:text-red-300 px-2 py-1 rounded bg-slate-700">Delete</button>
-                  </div>
-                )}
-              </div>
+
+        {/* Meta */}
+        <div className="mb-8">
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {(selectedPost.geoKeywords || []).map(k => (
+              <span key={k} className="text-xs px-2.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/70">{k}</span>
+            ))}
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-3">{selectedPost.title}</h1>
+          {selectedPost.dek && <p className="text-slate-400 text-base leading-relaxed mb-4">{selectedPost.dek}</p>}
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            {selectedPost.publishedAt && (
+              <span>{new Date(selectedPost.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            )}
+            <span>·</span>
+            <span>{readingTime(postContent || selectedPost.excerpt)} min read</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="border-t border-slate-800 pt-8 pb-16">
+          {contentLoading ? (
+            <div className="flex items-center gap-2 text-slate-600 text-sm py-8">
+              <svg className="animate-spin h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Loading article…
             </div>
-          ))}
+          ) : (
+            <TLMarkdown md={postContent} />
+          )}
         </div>
       </div>
+    );
+  }
+
+  // ── Blog index ─────────────────────────────────────────────────
+  return (
+    <div className="max-w-4xl mx-auto fade-in">
+      {/* Header */}
+      <div className="mb-7">
+        <h1 className="text-2xl font-black text-white mb-1">Thought Leadership</h1>
+        <p className="text-slate-500 text-sm">Strategic intelligence briefs — macro, geopolitical &amp; sector analysis</p>
+      </div>
+
+      {/* Search */}
+      <div className="space-y-3 mb-7">
+        <div className="relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M10 10l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search articles…"
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white text-xs leading-none">✕</button>
+          )}
+        </div>
+
+        {/* Tag filter pills */}
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setActiveTag('')}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${!activeTag ? 'bg-slate-700 text-white' : 'bg-slate-900 text-slate-500 hover:text-white border border-slate-800'}`}
+            >All</button>
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
+                className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${activeTag === tag ? 'bg-blue-900 text-blue-200 border border-blue-700' : 'bg-slate-900 text-slate-500 hover:text-white border border-slate-800'}`}
+              >{tag}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center py-20">
+          <div className="flex items-center gap-2 text-slate-600 text-sm">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+            Loading…
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && filtered.length === 0 && (
+        <div className="text-center py-20 space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl mx-auto">✍️</div>
+          <p className="text-slate-500 text-sm">{search || activeTag ? 'No articles match your filter.' : 'No published articles yet.'}</p>
+          {(search || activeTag) && (
+            <button onClick={() => { setSearch(''); setActiveTag(''); }} className="text-blue-400 text-xs hover:underline">Clear filters</button>
+          )}
+        </div>
+      )}
+
+      {/* Magazine card grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {filtered.map(post => (
+          <article
+            key={post.id}
+            onClick={() => openPost(post)}
+            className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/40"
+          >
+            {/* Thumbnail or accent bar */}
+            {post.heroImageUrl ? (
+              <div className="h-44 overflow-hidden bg-slate-800">
+                <img
+                  src={post.heroImageUrl}
+                  alt={post.title}
+                  className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                />
+              </div>
+            ) : (
+              <div className="h-1.5 bg-gradient-to-r from-blue-700 via-violet-700 to-purple-700" />
+            )}
+
+            <div className="p-5">
+              {/* Tags */}
+              {(post.geoKeywords || []).length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-3">
+                  {(post.geoKeywords || []).slice(0, 3).map(k => (
+                    <span key={k} className="text-xs px-2 py-0.5 rounded-full bg-blue-950 text-blue-400 border border-blue-900/60">{k}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Title */}
+              <h2 className="text-white font-bold text-base leading-snug mb-2 group-hover:text-blue-300 transition-colors line-clamp-2">{post.title}</h2>
+
+              {/* Dek */}
+              {post.dek && (
+                <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 mb-4">{post.dek}</p>
+              )}
+
+              {/* Card footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                <span className="text-slate-600 text-xs">
+                  {post.publishedAt && new Date(post.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <span className="mx-1.5 text-slate-700">·</span>
+                  {readingTime(post.excerpt)} min read
+                </span>
+                <span className="text-blue-400 text-xs font-semibold group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-1">
+                  Read
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 5h6M5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Footer link to admin */}
+      {!loading && posts.length > 0 && (
+        <div className="text-center pt-10 pb-4 text-xs text-slate-700">
+          {filtered.length} article{filtered.length !== 1 ? 's' : ''}
+          <span className="mx-2">·</span>
+          <a href="/admin" className="text-slate-600 hover:text-slate-400 transition-colors">Manage in Admin →</a>
+        </div>
+      )}
     </div>
   );
 }

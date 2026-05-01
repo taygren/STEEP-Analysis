@@ -70,6 +70,7 @@ export async function POST(req) {
       title:           body.title           || 'Untitled',
       dek:             body.dek             || '',
       contentMarkdown: body.contentMarkdown || '',
+      heroImageUrl:    body.heroImageUrl    || '',
       geoKeywords:     body.geoKeywords     || [],
       regions:         body.regions         || [],
       instruments:     body.instruments     || [],

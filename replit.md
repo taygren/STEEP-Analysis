@@ -30,8 +30,10 @@ app/
     snapshot/route.js     — AI time-bound intelligence snapshot (cached in KV)
     big-cycle/route.js    — Big Cycle Decision Engine geoeconomic assessment
     thought-leadership/
-      route.js            — Public list of published thought leadership posts
-      admin/route.js      — Admin CRUD (requires x-admin-token header)
+      route.js            — Public list of published thought leadership posts (incl. heroImageUrl)
+      admin/route.js      — Admin CRUD (requires x-admin-token header); schema incl. heroImageUrl
+      [id]/route.js       — Single published post fetch (full contentMarkdown for article view)
+    upload-image/route.js — Image upload (admin token required); saves to public/uploads/
 lib/
   kv.js                 — Vercel KV wrapper with in-memory Map fallback for dev
   bigCycle/engine.js    — Instrument attributes, capacity definitions, scoring logic, LLM prompts
