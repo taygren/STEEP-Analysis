@@ -3437,6 +3437,392 @@ function InvestmentThesisTab({ state }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// TOOLS — RASCEF PROMPT GENERATOR
+// ═══════════════════════════════════════════════════════════════════
+
+const RASCEF_ELEMENTS = [
+  { key: 'R', label: 'Role',    color: '#3B82F6', desc: 'Who the AI persona is — expertise, seniority, and depth of knowledge.' },
+  { key: 'A', label: 'Actions', color: '#8B5CF6', desc: 'Specific, verb-driven tasks the AI should perform on your behalf.' },
+  { key: 'S', label: 'Style',   color: '#06B6D4', desc: 'Tone, vocabulary register, and communication approach for your audience.' },
+  { key: 'C', label: 'Context', color: '#F59E0B', desc: 'Operational environment, industry norms, and relevant constraints.' },
+  { key: 'E', label: 'Example', color: '#10B981', desc: 'A concrete input/response scenario that calibrates the AI\'s output.' },
+  { key: 'F', label: 'Format',  color: '#F97316', desc: 'Output structure, length, formality, and standing elements to include.' },
+];
+
+function RASCEFTool() {
+  const [step, setStep] = useState('form'); // 'form' | 'result'
+  const [form, setForm] = useState({ role: '', usecase: '', audience: '', goals: '', outputFormat: 'structured' });
+  const [errors, setErrors] = useState({});
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState('');
+  const [tokens, setTokens] = useState(null);
+
+  const setField = (k, v) => {
+    setForm(f => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors(e => ({ ...e, [k]: '' }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.role.trim()) e.role = 'Role or function is required.';
+    if (!form.usecase.trim()) e.usecase = 'Use case is required.';
+    return e;
+  };
+
+  const generate = async () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setGenerating(true);
+    setGenError('');
+    try {
+      const res = await fetch('/api/rascef', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: form.role, usecase: form.usecase, audience: form.audience, goals: form.goals }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+      setResult(data.result);
+      setTokens(data.tokens);
+      setStep('result');
+    } catch (err) {
+      setGenError(err.message);
+    }
+    setGenerating(false);
+  };
+
+  const reset = () => { setStep('form'); setResult(null); setGenError(''); setTokens(null); };
+
+  const copyText = async (text, key) => {
+    try { await navigator.clipboard.writeText(text); } catch { return; }
+    setCopied(key);
+    setTimeout(() => setCopied(''), 2000);
+  };
+
+  const buildFullStructured = () => {
+    if (!result) return '';
+    return RASCEF_ELEMENTS.map(el => `[${el.key}] ${el.label.toUpperCase()}\n${result[el.key]}`).join('\n\n');
+  };
+
+  // ── Result view ────────────────────────────────────────────────
+  if (step === 'result' && result) {
+    const isStructured = form.outputFormat === 'structured';
+    return (
+      <div className="min-h-full bg-slate-950 text-white">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+          <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 flex items-center gap-3 flex-wrap">
+            <button onClick={reset} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              New prompt
+            </button>
+            <div className="flex-1" />
+            {/* Format toggle */}
+            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+              <button onClick={() => setForm(f => ({...f, outputFormat: 'structured'}))} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${form.outputFormat === 'structured' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Structured</button>
+              <button onClick={() => setForm(f => ({...f, outputFormat: 'single'}))} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${form.outputFormat === 'single' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Single prompt</button>
+            </div>
+            {tokens && <span className="text-xs text-slate-600">{tokens.toLocaleString()} tokens</span>}
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-4 pb-12">
+          {/* Context recap */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex flex-wrap gap-3 text-xs">
+            <span className="text-slate-600 font-semibold uppercase tracking-wider">Generated for</span>
+            <span className="text-white font-semibold">{form.role}</span>
+            <span className="text-slate-700">·</span>
+            <span className="text-slate-400 truncate max-w-xs">{form.usecase}</span>
+            {form.audience && <><span className="text-slate-700">·</span><span className="text-slate-500">Audience: {form.audience}</span></>}
+          </div>
+
+          {isStructured ? (
+            <>
+              {/* Copy all */}
+              <div className="flex justify-end">
+                <button onClick={() => copyText(buildFullStructured(), 'all')} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
+                  {copied === 'all' ? '✓ Copied all' : 'Copy all sections'}
+                </button>
+              </div>
+
+              {/* 6 RASCEF cards */}
+              {RASCEF_ELEMENTS.map(el => (
+                <div key={el.key} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-colors">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800" style={{ background: `${el.color}10` }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black" style={{ background: `${el.color}20`, color: el.color, border: `1.5px solid ${el.color}40` }}>{el.key}</div>
+                      <div>
+                        <span className="text-white font-bold text-sm">{el.label}</span>
+                        <span className="text-slate-600 text-xs ml-2">{el.desc.split(' — ')[0]}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => copyText(result[el.key], el.key)} className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors border border-slate-700 flex-shrink-0">
+                      {copied === el.key ? <><span>✓</span> Copied</> : <><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="3" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1 4v5a1 1 0 001 1h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Copy</>}
+                    </button>
+                  </div>
+                  {/* Card body */}
+                  <div className="px-5 py-4">
+                    {el.key === 'A' ? (
+                      <ul className="space-y-1.5">
+                        {result[el.key].split('\n- ').filter(Boolean).map((line, i) => (
+                          <li key={i} className="flex gap-2 text-sm text-slate-200 leading-relaxed">
+                            <span style={{ color: el.color }} className="flex-shrink-0 mt-0.5">▸</span>
+                            <span>{line.replace(/^- /, '')}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : el.key === 'E' ? (
+                      <div className="space-y-2">
+                        {result[el.key].split(' | ').map((part, i) => {
+                          const [label, ...rest] = part.split(': ');
+                          return (
+                            <div key={i} className={`rounded-xl px-4 py-3 text-sm ${i === 0 ? 'bg-slate-800 border border-slate-700' : 'bg-slate-800/50 border border-slate-700/50'}`}>
+                              <span className="text-xs font-bold uppercase tracking-wider mr-2" style={{ color: el.color }}>{label}</span>
+                              <span className="text-slate-300 leading-relaxed">{rest.join(': ')}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-slate-200 text-sm leading-relaxed">{result[el.key]}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            /* Single one-liner view */
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-violet-950/30">
+                <div>
+                  <p className="text-white font-bold text-sm">Ready-to-paste System Prompt</p>
+                  <p className="text-slate-500 text-xs mt-0.5">Copy and paste directly into any AI tool as the system prompt</p>
+                </div>
+                <button onClick={() => copyText(result.oneLiner, 'oneLiner')} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity border border-violet-700/50 flex-shrink-0" style={{ background: 'linear-gradient(135deg,#4c1d95,#1e3a5f)' }}>
+                  {copied === 'oneLiner' ? '✓ Copied!' : '⎘ Copy prompt'}
+                </button>
+              </div>
+              <div className="px-5 py-5">
+                <p className="text-slate-200 text-sm leading-loose font-mono">{result.oneLiner}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Also show one-liner beneath structured */}
+          {isStructured && result.oneLiner && (
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Single copy-paste prompt</p>
+                <button onClick={() => copyText(result.oneLiner, 'oneLiner')} className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors border border-slate-700">
+                  {copied === 'oneLiner' ? '✓ Copied' : '⎘ Copy'}
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-slate-400 text-sm leading-relaxed font-mono">{result.oneLiner}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-center pt-2">
+            <button onClick={reset} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white border border-slate-700 hover:border-slate-500 transition-colors bg-slate-800 hover:bg-slate-700">
+              ↩ Generate another
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Form / Landing view ────────────────────────────────────────
+  return (
+    <div className="min-h-full bg-slate-950 text-white overflow-y-auto">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 pb-16">
+
+        {/* Hero */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 text-2xl font-black" style={{ background: 'linear-gradient(135deg,#4c1d95,#1e3a5f)', border: '1px solid #4c1d9540' }}>⚡</div>
+          <h1 className="text-2xl md:text-3xl font-black text-white mb-3">RASCEF Prompt Generator</h1>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
+            Enter your role and use case. Get a fully structured AI prompt — calibrated to your audience, goals, and working context — ready to paste into any AI tool.
+          </p>
+        </div>
+
+        {/* What is RASCEF */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white font-bold text-sm">What is RASCEF?</h2>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-violet-900 text-violet-300 border border-violet-700 font-semibold">Framework</span>
+          </div>
+          <p className="text-slate-400 text-xs leading-relaxed mb-5">
+            RASCEF is a six-element prompt engineering framework that produces AI instructions far more precise than a generic system prompt. Instead of telling an AI "be helpful," RASCEF defines exactly who the AI is, what it does, how it communicates, what context it operates in, what good output looks like, and how to structure its responses.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+            {RASCEF_ELEMENTS.map(el => (
+              <div key={el.key} className="rounded-xl p-3 border" style={{ background: `${el.color}08`, borderColor: `${el.color}25` }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-5 h-5 rounded flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: `${el.color}20`, color: el.color }}>{el.key}</div>
+                  <span className="text-white text-xs font-bold">{el.label}</span>
+                </div>
+                <p className="text-slate-500 text-xs leading-relaxed">{el.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className="flex items-start gap-0 mb-8">
+          {[
+            { n: '1', label: 'Describe your role and use case', sub: 'Two required fields — everything else sharpens the output' },
+            { n: '2', label: 'Choose your output format', sub: 'Full structured breakdown or a single ready-to-paste prompt' },
+            { n: '3', label: 'Copy and use immediately', sub: 'Paste into any AI tool — ChatGPT, Claude, Gemini, or your own' },
+          ].map((s, i) => (
+            <div key={s.n} className="flex-1 flex gap-2 px-2">
+              <div className="flex flex-col items-center gap-0">
+                <div className="w-7 h-7 rounded-full bg-violet-900 border border-violet-700 flex items-center justify-center text-xs font-black text-violet-300 flex-shrink-0">{s.n}</div>
+                {i < 2 && <div className="w-px flex-1 bg-slate-800 mt-1" style={{ minHeight: 24 }} />}
+              </div>
+              <div className="pb-5">
+                <p className="text-white text-xs font-semibold leading-snug mb-0.5">{s.label}</p>
+                <p className="text-slate-600 text-xs">{s.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Form */}
+        <div className="space-y-5">
+          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your details</h2>
+
+          {/* Role */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
+              Role or function
+              <span className="text-red-500">*</span>
+              <span className="text-slate-600 font-normal ml-auto">e.g. Sales Engineer · HR Business Partner · Financial Analyst</span>
+            </label>
+            <input
+              type="text"
+              value={form.role}
+              onChange={e => setField('role', e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && document.getElementById('rascef-usecase').focus()}
+              placeholder="Your job title, team, or functional area…"
+              className={`w-full bg-slate-900 border rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-colors ${errors.role ? 'border-red-700 focus:border-red-500' : 'border-slate-700 focus:border-violet-500'}`}
+            />
+            {errors.role && <p className="text-red-400 text-xs mt-1">{errors.role}</p>}
+          </div>
+
+          {/* Use case */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
+              Use case
+              <span className="text-red-500">*</span>
+              <span className="text-slate-600 font-normal ml-auto">The more specific, the better</span>
+            </label>
+            <textarea
+              id="rascef-usecase"
+              value={form.usecase}
+              onChange={e => setField('usecase', e.target.value)}
+              placeholder={"What do you need the AI to help you do?\n\nExamples:\n• Drafting executive briefings before client calls\n• Summarizing competitive intel from analyst reports\n• Turning raw data into board-ready slide narratives"}
+              rows={5}
+              className={`w-full bg-slate-900 border rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-colors resize-none ${errors.usecase ? 'border-red-700 focus:border-red-500' : 'border-slate-700 focus:border-violet-500'}`}
+            />
+            {errors.usecase && <p className="text-red-400 text-xs mt-1">{errors.usecase}</p>}
+          </div>
+
+          {/* Audience + Goals — side by side */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
+                Audience
+                <span className="text-slate-600 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.audience}
+                onChange={e => setField('audience', e.target.value)}
+                placeholder="e.g. C-suite · External clients · My team"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
+                Goals
+                <span className="text-slate-600 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.goals}
+                onChange={e => setField('goals', e.target.value)}
+                placeholder="e.g. Save 2 hrs/week · Exec-ready output"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Output format */}
+          <div>
+            <label className="text-xs font-semibold text-slate-300 mb-2 block">Output format</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { val: 'structured', label: 'Structured (R/A/S/C/E/F)', sub: 'Six labeled sections — ideal for reviewing and customizing each element' },
+                { val: 'single',     label: 'Single copy-paste prompt', sub: 'One paragraph, ready to drop into any AI tool as-is' },
+              ].map(opt => (
+                <button
+                  key={opt.val}
+                  onClick={() => setForm(f => ({ ...f, outputFormat: opt.val }))}
+                  className={`text-left rounded-xl p-4 border transition-colors ${form.outputFormat === opt.val ? 'border-violet-600 bg-violet-950/40' : 'border-slate-700 bg-slate-900 hover:border-slate-600'}`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${form.outputFormat === opt.val ? 'border-violet-500 bg-violet-500' : 'border-slate-600'}`}>
+                      {form.outputFormat === opt.val && <div className="w-full h-full rounded-full bg-white scale-50 block" />}
+                    </div>
+                    <span className="text-white text-xs font-semibold">{opt.label}</span>
+                  </div>
+                  <p className="text-slate-500 text-xs leading-relaxed pl-6">{opt.sub}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Error */}
+          {genError && (
+            <div className="p-4 rounded-xl bg-red-950 border border-red-800">
+              <p className="text-red-300 text-sm">{genError}</p>
+            </div>
+          )}
+
+          {/* Generate button */}
+          <button
+            onClick={generate}
+            disabled={generating}
+            className="w-full py-3.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity"
+            style={{ background: 'linear-gradient(135deg,#4c1d95,#1e3a5f)' }}
+          >
+            {generating ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                Generating your RASCEF prompt…
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 4H13L9.5 7.5 11 12 7 9.5 3 12l1.5-4.5L1 5h4.5L7 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+                Generate RASCEF Prompt
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-slate-700 text-xs">Powered by Groq · Each generation is a fresh, stateless API call</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════
 
@@ -3782,6 +4168,26 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </button>
         </div>
 
+        {/* Tools — standalone interactive tools */}
+        <div className="px-3 py-3 border-t border-slate-800">
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Tools</p>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'rascef' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'rascef' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">⚡</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">RASCEF Generator</span>
+              <span className="block text-slate-600 text-xs">AI prompt architect</span>
+            </span>
+            {activeTab === 'rascef' ? (
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+            ) : (
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-400 font-semibold flex-shrink-0">New</span>
+            )}
+          </button>
+        </div>
+
         {/* Examples */}
         <div className="px-3 py-3 border-t border-slate-800">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
@@ -3895,8 +4301,15 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* RASCEF Tool — accessible at any time from sidebar */}
+        {activeTab === 'rascef' && (
+          <div className="h-full overflow-y-auto">
+            <RASCEFTool />
+          </div>
+        )}
+
         {/* Idle */}
-        {activeTab !== 'thoughtleadership' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && status === 'idle' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -4064,7 +4477,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -4100,7 +4513,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
