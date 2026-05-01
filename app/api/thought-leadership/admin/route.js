@@ -14,10 +14,16 @@ import { randomUUID } from 'crypto';
 
 const INDEX_KEY = 'thoughtleadership:index';
 
+// Returns 'ok' | 'no_token' | 'unauthorized'
 function authCheck(req) {
   const token = process.env.ADMIN_PUBLISH_TOKEN;
-  if (!token) return false; // no token set = admin disabled
-  return req.headers.get('x-admin-token') === token;
+  if (!token) return 'no_token';
+  return req.headers.get('x-admin-token') === token ? 'ok' : 'unauthorized';
+}
+
+function authResponse(check) {
+  if (check === 'no_token') return Response.json({ error: 'ADMIN_PUBLISH_TOKEN is not configured.' }, { status: 403 });
+  return Response.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
 function slugify(str) {
@@ -25,7 +31,8 @@ function slugify(str) {
 }
 
 export async function GET(req) {
-  if (!authCheck(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
 
   try {
     const ids = await kvZRange(INDEX_KEY, 0, -1, { rev: true });
@@ -47,7 +54,8 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  if (!authCheck(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
 
   try {
     const body = await req.json();
@@ -88,7 +96,8 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
-  if (!authCheck(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
 
   try {
     const { id, status } = await req.json();
@@ -121,7 +130,8 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
-  if (!authCheck(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
 
   try {
     const { id } = await req.json();

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 const POSTURE_COLORS = {
   published: 'bg-emerald-900 text-emerald-300 border-emerald-700',
@@ -78,17 +78,21 @@ function LoginScreen({ onLogin }) {
           <p className="text-slate-500 text-sm">Thought Leadership · STEEP Platform</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+        <form
+          onSubmit={e => { e.preventDefault(); if (!loading && token.trim()) tryLogin(); }}
+          className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl"
+        >
           <label className="block text-xs text-slate-400 font-semibold uppercase tracking-widest mb-2">
             Admin Token
           </label>
+          <input type="text" name="username" autoComplete="username" className="sr-only" aria-hidden="true" defaultValue="admin" readOnly tabIndex={-1} />
           <input
             type="password"
             value={token}
             onChange={e => setToken(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !loading && tryLogin()}
             placeholder="Paste your ADMIN_PUBLISH_TOKEN…"
             autoFocus
+            autoComplete="current-password"
             className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none mb-3 transition-colors"
           />
           {error && (
@@ -97,14 +101,14 @@ function LoginScreen({ onLogin }) {
             </div>
           )}
           <button
-            onClick={tryLogin}
+            type="submit"
             disabled={loading || !token.trim()}
             className="w-full py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity"
             style={{ background: 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
           >
             {loading ? <><Spinner /> Checking…</> : 'Sign In'}
           </button>
-        </div>
+        </form>
 
         <p className="text-center text-slate-600 text-xs mt-5 leading-relaxed">
           Set <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ADMIN_PUBLISH_TOKEN</code> in your
@@ -122,7 +126,7 @@ function LoginScreen({ onLogin }) {
 // ── Upload zone sub-component ─────────────────────────────────────
 function UploadZone({ label, accept, icon, file, onFile, hint }) {
   const [drag, setDrag] = useState(false);
-  const inputRef = useState(null);
+  const inputRef = useRef(null);
 
   const handleDrop = (e) => {
     e.preventDefault();
