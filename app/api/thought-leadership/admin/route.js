@@ -12,6 +12,9 @@
 import { kvGet, kvSet, kvDel, kvZAdd, kvZRem, kvZRange } from '../../../../lib/kv';
 import { randomUUID } from 'crypto';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const INDEX_KEY = 'thoughtleadership:index';
 
 // Returns 'ok' | 'no_token' | 'unauthorized'

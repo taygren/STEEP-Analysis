@@ -2270,12 +2270,20 @@ function ThoughtLeadershipPanel() {
 
   const openPost = async (post) => {
     setSelectedPost(post);
-    setPostContent('');
     setContentLoading(true);
+
+    // The list API now returns full contentMarkdown — use it immediately so
+    // the reader never sees the truncated excerpt, even before any network call.
+    if (post.contentMarkdown) {
+      setPostContent(post.contentMarkdown);
+      setContentLoading(false);
+      return;
+    }
+
+    // Fallback: fetch from the [id] route (e.g. for legacy cached list responses).
     try {
       const res = await fetch(`/api/thought-leadership/${post.id}`);
       const data = await res.json();
-      // Only use full content when the API succeeded and returned markdown
       if (res.ok && data.contentMarkdown) {
         setPostContent(data.contentMarkdown);
       } else {

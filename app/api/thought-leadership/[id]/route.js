@@ -1,5 +1,8 @@
 import { kvGet } from '../../../../lib/kv';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(_req, { params }) {
   try {
     const { id } = params;
