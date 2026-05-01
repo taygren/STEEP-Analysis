@@ -1808,7 +1808,7 @@ function parseDocContent(md, images) {
 // ── Publish Modal (3-step: auth → upload → review) ──────────────
 function TLPublishModal({ onClose, onPublished }) {
   const [step, setStep]           = useState('auth');   // 'auth' | 'upload' | 'review'
-  const [token, setToken]         = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('tl_admin_token') || '') : '');
+  const [token, setToken]         = useState('');
   const [authChecking, setAuthChecking] = useState(false);
   const [authErr, setAuthErr]     = useState('');
 
@@ -1823,6 +1823,11 @@ function TLPublishModal({ onClose, onPublished }) {
 
   const fileInputRef = useRef(null);
 
+  // Clear any previously cached token the moment the modal opens
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.removeItem('tl_admin_token');
+  }, []);
+
   // ── Auth ────────────────────────────────────────────────────────
   const verifyToken = async () => {
     if (!token.trim()) { setAuthErr('Enter your admin publishing key.'); return; }
@@ -1830,7 +1835,6 @@ function TLPublishModal({ onClose, onPublished }) {
     try {
       const res = await fetch('/api/thought-leadership/admin', { headers: { 'x-admin-token': token } });
       if (res.ok || res.status === 200) {
-        if (typeof window !== 'undefined') localStorage.setItem('tl_admin_token', token);
         setStep('upload');
       } else {
         setAuthErr('Invalid key — please check and try again.');
