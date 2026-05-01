@@ -1874,8 +1874,12 @@ function TLPublishModal({ onClose, onPublished }) {
 
   const fileInputRef      = useRef(null);
   const heroImgInputRef   = useRef(null);
-  const [heroUploading, setHeroUploading] = useState(false);
-  const [heroUploadErr, setHeroUploadErr] = useState('');
+  const inlineImgInputRef = useRef(null);
+  const contentRef        = useRef(null);
+  const [heroUploading, setHeroUploading]     = useState(false);
+  const [heroUploadErr, setHeroUploadErr]     = useState('');
+  const [inlineUploading, setInlineUploading] = useState(false);
+  const [inlineUploadErr, setInlineUploadErr] = useState('');
 
   // Clear any previously cached token the moment the modal opens
   useEffect(() => {
@@ -1945,6 +1949,37 @@ function TLPublishModal({ onClose, onPublished }) {
       setExtractedImages(prev => prev.includes(data.url) ? prev : [data.url, ...prev]);
     } catch (e) { setHeroUploadErr(e.message); }
     setHeroUploading(false);
+  };
+
+  // ── Inline image upload (insert at cursor) ──────────────────────
+  const uploadInlineImage = async (file) => {
+    if (!file) return;
+    setInlineUploading(true); setInlineUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { 'x-admin-token': token },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const label = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+      const snippet = `\n\n![${label}](${data.url})\n\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? ta.value.length;
+        const before = form.contentMarkdown.slice(0, start);
+        const after  = form.contentMarkdown.slice(start);
+        setForm(f => ({ ...f, contentMarkdown: before + snippet + after }));
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + snippet.length; ta.focus(); }, 30);
+      } else {
+        setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + snippet }));
+      }
+      setExtractedImages(prev => prev.includes(data.url) ? prev : [...prev, data.url]);
+    } catch (e) { setInlineUploadErr(e.message); }
+    setInlineUploading(false);
   };
 
   // ── Publish ─────────────────────────────────────────────────────
@@ -2184,16 +2219,44 @@ function TLPublishModal({ onClose, onPublished }) {
 
               {/* Content */}
               <div>
+                {/* hidden input for inline image picker */}
+                <input
+                  ref={inlineImgInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }}
+                />
+
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Content</label>
-                  <span className="text-slate-600 text-xs">{form.contentMarkdown.split(/\s+/).filter(Boolean).length} words · {extractedImages.length} image{extractedImages.length !== 1 ? 's' : ''}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-600 text-xs">{form.contentMarkdown.split(/\s+/).filter(Boolean).length} words · {extractedImages.length} image{extractedImages.length !== 1 ? 's' : ''}</span>
+                    <button
+                      type="button"
+                      onClick={() => inlineImgInputRef.current?.click()}
+                      disabled={inlineUploading}
+                      title="Upload an image and insert it at cursor position"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-40 transition-colors"
+                    >
+                      {inlineUploading ? (
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="4.5" cy="4.5" r="1.2" fill="currentColor"/><path d="M1 9.5l3-3 2.5 2.5 2-2L13 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      )}
+                      {inlineUploading ? 'Uploading…' : 'Insert image'}
+                    </button>
+                  </div>
                 </div>
+
                 <textarea
+                  ref={contentRef}
                   value={form.contentMarkdown}
                   onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-600 font-mono leading-loose resize-none transition-colors"
                   style={{ minHeight: 260 }}
                 />
+                {inlineUploadErr && <p className="text-red-400 text-xs mt-1">{inlineUploadErr}</p>}
               </div>
 
               {publishErr && <p className="text-red-400 text-xs">{publishErr}</p>}
