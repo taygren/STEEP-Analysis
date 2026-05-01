@@ -1872,7 +1872,10 @@ function TLPublishModal({ onClose, onPublished }) {
   const [publishing, setPublishing] = useState(false);
   const [publishErr, setPublishErr] = useState('');
 
-  const fileInputRef = useRef(null);
+  const fileInputRef      = useRef(null);
+  const heroImgInputRef   = useRef(null);
+  const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUploadErr, setHeroUploadErr] = useState('');
 
   // Clear any previously cached token the moment the modal opens
   useEffect(() => {
@@ -1922,6 +1925,26 @@ function TLPublishModal({ onClose, onPublished }) {
       setStep('review');
     } catch (e) { setExtractErr(e.message); }
     setExtracting(false);
+  };
+
+  // ── Hero image upload ────────────────────────────────────────────
+  const uploadHeroImage = async (file) => {
+    if (!file) return;
+    setHeroUploading(true); setHeroUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { 'x-admin-token': token },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setForm(f => ({ ...f, heroImageUrl: data.url }));
+      setExtractedImages(prev => prev.includes(data.url) ? prev : [data.url, ...prev]);
+    } catch (e) { setHeroUploadErr(e.message); }
+    setHeroUploading(false);
   };
 
   // ── Publish ─────────────────────────────────────────────────────
@@ -2067,33 +2090,62 @@ function TLPublishModal({ onClose, onPublished }) {
           {step === 'review' && (
             <div className="space-y-5">
 
-              {/* Cover image */}
-              {form.heroImageUrl && (
+              {/* Cover image — hidden file input */}
+              <input
+                ref={heroImgInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }}
+              />
+
+              {/* Cover image preview */}
+              {form.heroImageUrl ? (
                 <div className="relative rounded-xl overflow-hidden">
                   <img src={form.heroImageUrl} alt="Cover" className="w-full object-cover rounded-xl" style={{ maxHeight: 220 }} />
                   <div className="absolute top-2 right-2 flex gap-2">
-                    {extractedImages.length > 1 && extractedImages.filter(u => u !== form.heroImageUrl).map((url, idx) => (
+                    {extractedImages.filter(u => u !== form.heroImageUrl).map((url, idx) => (
                       <button key={idx} onClick={() => setForm(f => ({ ...f, heroImageUrl: url }))}
                         className="w-10 h-10 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-400 transition-colors">
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
+                    <button
+                      onClick={() => heroImgInputRef.current?.click()}
+                      title="Replace cover image"
+                      className="w-8 h-8 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">↑</button>
                     <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))}
                       className="w-8 h-8 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
                   </div>
                 </div>
-              )}
-              {!form.heroImageUrl && extractedImages.length > 0 && (
+              ) : (
                 <div className="space-y-2">
-                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Extracted images — pick a cover</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {extractedImages.map((url, idx) => (
-                      <button key={idx} onClick={() => setForm(f => ({ ...f, heroImageUrl: url }))}
-                        className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-700 hover:border-blue-400 transition-colors">
-                        <img src={url} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
+                  {extractedImages.length > 0 && (
+                    <>
+                      <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Extracted images — pick a cover</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {extractedImages.map((url, idx) => (
+                          <button key={idx} onClick={() => setForm(f => ({ ...f, heroImageUrl: url }))}
+                            className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-700 hover:border-blue-400 transition-colors">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={() => heroImgInputRef.current?.click()}
+                    disabled={heroUploading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50 w-full justify-center"
+                  >
+                    {heroUploading ? (
+                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    )}
+                    {heroUploading ? 'Uploading…' : 'Upload cover image'}
+                  </button>
+                  {heroUploadErr && <p className="text-red-400 text-xs">{heroUploadErr}</p>}
                 </div>
               )}
 
