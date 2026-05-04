@@ -1663,7 +1663,9 @@ function tlInlineHtml(raw) {
 // Block-level markdown → React elements (handles images, headings, lists, code, quotes, hr)
 function TLMarkdown({ md }) {
   if (!md) return null;
-  const lines = md.split('\n');
+  // Normalise Windows / old-Mac line endings so the parser works on any source
+  const normalised = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalised.split('\n');
   const out = [];
   let i = 0, k = 0;
 
@@ -1686,13 +1688,19 @@ function TLMarkdown({ md }) {
       continue;
     }
 
-    // Standalone image: ![alt](url)
+    // Standalone image: ![alt](url)  — use trimmed so indented images are caught
     const imgM = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (imgM) {
       const [, alt, url] = imgM;
       out.push(
         <figure key={k++} className="my-7">
-          <img src={url} alt={alt} className="w-full rounded-2xl object-cover shadow-lg" style={{ maxHeight: 420 }} />
+          <img
+            src={url}
+            alt={alt || ''}
+            className="w-full rounded-2xl object-cover shadow-lg"
+            style={{ maxHeight: 420 }}
+            onError={e => { e.currentTarget.style.display = 'none'; }}
+          />
           {alt && <figcaption className="text-center text-xs text-slate-500 mt-2 italic">{alt}</figcaption>}
         </figure>
       );
@@ -1700,7 +1708,7 @@ function TLMarkdown({ md }) {
     }
 
     // HR
-    if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       out.push(<hr key={k++} className="border-slate-800 my-8" />);
       i++; continue;
     }
@@ -1748,28 +1756,31 @@ function TLMarkdown({ md }) {
       continue;
     }
 
-    // Headings
-    if (line.startsWith('#### ')) {
-      out.push(<h4 key={k++} className="text-slate-300 text-sm font-bold mt-5 mb-1.5" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(5)) }} />);
+    // Headings — use trimmed so any leading whitespace doesn't break detection
+    if (trimmed.startsWith('#### ')) {
+      out.push(<h4 key={k++} className="text-slate-300 text-sm font-bold mt-5 mb-1.5" dangerouslySetInnerHTML={{ __html: tlInlineHtml(trimmed.slice(5)) }} />);
       i++; continue;
     }
-    if (line.startsWith('### ')) {
-      out.push(<h3 key={k++} className="text-slate-200 text-base font-bold mt-6 mb-2" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(4)) }} />);
+    if (trimmed.startsWith('### ')) {
+      out.push(<h3 key={k++} className="text-slate-200 text-base font-bold mt-6 mb-2" dangerouslySetInnerHTML={{ __html: tlInlineHtml(trimmed.slice(4)) }} />);
       i++; continue;
     }
-    if (line.startsWith('## ')) {
-      out.push(<h2 key={k++} className="text-white text-xl font-bold mt-8 mb-3 leading-snug pb-2 border-b border-slate-800" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(3)) }} />);
+    if (trimmed.startsWith('## ')) {
+      out.push(<h2 key={k++} className="text-white text-xl font-bold mt-8 mb-3 leading-snug pb-2 border-b border-slate-800" dangerouslySetInnerHTML={{ __html: tlInlineHtml(trimmed.slice(3)) }} />);
       i++; continue;
     }
-    if (line.startsWith('# ')) {
-      out.push(<h1 key={k++} className="text-white text-2xl font-black mt-8 mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: tlInlineHtml(line.slice(2)) }} />);
+    if (trimmed.startsWith('# ')) {
+      out.push(<h1 key={k++} className="text-white text-2xl font-black mt-8 mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: tlInlineHtml(trimmed.slice(2)) }} />);
       i++; continue;
     }
 
-    // Blockquote
-    if (line.startsWith('> ')) {
+    // Blockquote — use trimmed for detection, strip the leading "> "
+    if (trimmed.startsWith('> ')) {
       const ql = [];
-      while (i < lines.length && lines[i].startsWith('> ')) { ql.push(lines[i].slice(2)); i++; }
+      while (i < lines.length && lines[i].trim().startsWith('> ')) {
+        ql.push(lines[i].trim().slice(2));
+        i++;
+      }
       out.push(
         <blockquote key={k++} className="border-l-4 border-blue-500 pl-5 py-0.5 my-5">
           <p className="text-slate-300 italic text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(ql.join(' ')) }} />
@@ -1778,44 +1789,48 @@ function TLMarkdown({ md }) {
       continue;
     }
 
-    // Bullet list
-    if (line.startsWith('- ') || line.startsWith('* ')) {
+    // Bullet list — use trimmed so indented bullets are caught
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       const items = [];
-      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
-        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(lines[i].slice(2)) }} />);
+      while (i < lines.length && (lines[i].trim().startsWith('- ') || lines[i].trim().startsWith('* '))) {
+        const t = lines[i].trim();
+        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(t.slice(2)) }} />);
         i++;
       }
       out.push(<ul key={k++} className="my-4 pl-5 space-y-1.5 list-disc marker:text-slate-600">{items}</ul>);
       continue;
     }
 
-    // Numbered list
-    if (/^\d+\.\s/.test(line)) {
+    // Numbered list — use trimmed
+    if (/^\d+\.\s/.test(trimmed)) {
       const items = [];
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(lines[i].replace(/^\d+\.\s/, '')) }} />);
+      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+        items.push(<li key={i} className="text-slate-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: tlInlineHtml(lines[i].trim().replace(/^\d+\.\s/, '')) }} />);
         i++;
       }
       out.push(<ol key={k++} className="my-4 pl-5 space-y-1.5 list-decimal marker:text-slate-500">{items}</ol>);
       continue;
     }
 
-    // Paragraph — aggregate consecutive prose lines
+    // Paragraph — aggregate consecutive prose lines (stop at any block-level token)
     const para = [];
-    while (
-      i < lines.length && lines[i].trim() &&
-      !lines[i].startsWith('#') &&
-      !lines[i].startsWith('- ') && !lines[i].startsWith('* ') &&
-      !/^\d+\.\s/.test(lines[i]) &&
-      !lines[i].startsWith('> ') &&
-      !lines[i].trim().startsWith('```') &&
-      !lines[i].trim().startsWith('|') &&
-      !/^!\[/.test(lines[i].trim()) &&
-      !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
-    ) { para.push(lines[i]); i++; }
+    while (i < lines.length) {
+      const t = lines[i].trim();
+      if (!t) break;                                    // blank line → new paragraph
+      if (t.startsWith('#')) break;                     // heading
+      if (t.startsWith('- ') || t.startsWith('* ')) break; // bullet
+      if (/^\d+\.\s/.test(t)) break;                   // numbered list
+      if (t.startsWith('> ')) break;                    // blockquote
+      if (t.startsWith('```')) break;                   // code fence
+      if (t.startsWith('|')) break;                     // table
+      if (/^!\[/.test(t)) break;                        // standalone image
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) break;    // hr
+      para.push(lines[i]);
+      i++;
+    }
 
     if (para.length) {
-      out.push(<p key={k++} className="text-slate-300 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tlInlineHtml(para.join(' ')) }} />);
+      out.push(<p key={k++} className="text-slate-300 text-sm leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: tlInlineHtml(para.join('\n')) }} />);
     }
   }
   return <>{out}</>;

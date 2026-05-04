@@ -2,8 +2,7 @@
 .next/
 out/
 
-# Persistent KV store (local dev data)
-.steep-data/
+# .steep-data/ intentionally tracked in git so KV data survives container rebuilds
 
 # Node modules
 node_modules/
