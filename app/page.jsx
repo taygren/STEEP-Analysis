@@ -3186,6 +3186,7 @@ function ThoughtLeadershipPanel() {
   const [search, setSearch]           = useState('');
   const [activeTag, setActiveTag]     = useState('');
   const [showPublish, setShowPublish] = useState(false);
+  const [tlShareToast, setTlShareToast] = useState('');
 
   // Admin state — token lives only in memory (never persisted to localStorage)
   const [adminToken, setAdminToken]         = useState('');
@@ -3270,25 +3271,59 @@ function ThoughtLeadershipPanel() {
     return (
       <div className="max-w-3xl mx-auto fade-in">
         {/* Sticky back bar */}
-        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur py-3 mb-6 border-b border-slate-800/60 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur py-3 mb-6 border-b border-slate-800/60 flex items-center justify-between gap-3">
           <button
-            onClick={() => { setSelectedPost(null); setPostContent(''); }}
-            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+            onClick={() => { setSelectedPost(null); setPostContent(''); setTlShareToast(''); }}
+            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors flex-shrink-0"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             All articles
           </button>
-          {adminToken && (
-            <button
-              onClick={() => openAdminEditor(selectedPost)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
+
+          {/* Share strip */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <a
+              href={`/thought-leadership/${selectedPost.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open as standalone page"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
             >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2-6 6H1.5v-2l6-6z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Edit post
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4.5 2H2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.5M6.5 1H10m0 0v3.5M10 1 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="hidden sm:inline">Page</span>
+            </a>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/thought-leadership/${selectedPost.id}`;
+                navigator.clipboard.writeText(url).then(() => { setTlShareToast('copied'); setTimeout(() => setTlShareToast(''), 2200); });
+              }}
+              title="Copy link"
+              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${tlShareToast === 'copied' ? 'bg-emerald-900 border-emerald-700 text-emerald-300' : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600'}`}
+            >
+              {tlShareToast === 'copied' ? '✓ Copied' : 'Copy link'}
             </button>
-          )}
+            <button
+              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedPost.title)}&url=${encodeURIComponent(window.location.origin + '/thought-leadership/' + selectedPost.id)}`, '_blank', 'noopener')}
+              title="Share on X"
+              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+            >𝕏</button>
+            <button
+              onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/thought-leadership/' + selectedPost.id)}`, '_blank', 'noopener')}
+              title="Share on LinkedIn"
+              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+            >in</button>
+            {adminToken && (
+              <button
+                onClick={() => openAdminEditor(selectedPost)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
+              >
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2-6 6H1.5v-2l6-6z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Edit
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Hero image */}
@@ -3847,6 +3882,7 @@ function InnovatorIlluminationPanel() {
   const [activeTag, setActiveTag]       = useState('');
   const [showPublish, setShowPublish]   = useState(false);
   const [editingPost, setEditingPost]   = useState(null);
+  const [iiShareToast, setIiShareToast] = useState('');
 
   const [adminToken, setAdminToken]         = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -3910,10 +3946,45 @@ function InnovatorIlluminationPanel() {
   if (selectedPost) {
     return (
       <div className="max-w-3xl mx-auto">
-        <button onClick={() => setSelectedPost(null)} className="flex items-center gap-2 text-slate-500 hover:text-white text-sm transition-colors mb-6">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Back to Innovators
-        </button>
+        {/* Back + share strip */}
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <button onClick={() => { setSelectedPost(null); setIiShareToast(''); }} className="flex items-center gap-2 text-slate-500 hover:text-white text-sm transition-colors flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Back to Innovators
+          </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <a
+              href={`/innovator-illumination/${selectedPost.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open as standalone page"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4.5 2H2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.5M6.5 1H10m0 0v3.5M10 1 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="hidden sm:inline">Page</span>
+            </a>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/innovator-illumination/${selectedPost.id}`;
+                navigator.clipboard.writeText(url).then(() => { setIiShareToast('copied'); setTimeout(() => setIiShareToast(''), 2200); });
+              }}
+              title="Copy link"
+              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${iiShareToast === 'copied' ? 'bg-emerald-900 border-emerald-700 text-emerald-300' : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600'}`}
+            >
+              {iiShareToast === 'copied' ? '✓ Copied' : 'Copy link'}
+            </button>
+            <button
+              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedPost.title)}&url=${encodeURIComponent(window.location.origin + '/innovator-illumination/' + selectedPost.id)}`, '_blank', 'noopener')}
+              title="Share on X"
+              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+            >𝕏</button>
+            <button
+              onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/innovator-illumination/' + selectedPost.id)}`, '_blank', 'noopener')}
+              title="Share on LinkedIn"
+              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
+            >in</button>
+          </div>
+        </div>
 
         {/* Article header */}
         {selectedPost.heroImageUrl && (

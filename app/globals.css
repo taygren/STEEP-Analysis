@@ -56,3 +56,95 @@ canvas:active { cursor: grabbing; }
 button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
 input:focus  { outline: none; }
 select:focus { outline: none; }
+
+/* ── Standalone page markdown inline styles ── */
+.sa-code {
+  background: #1e293b;
+  padding: .15em .4em;
+  border-radius: 4px;
+  font-size: .82em;
+  color: #94a3b8;
+  font-family: monospace;
+}
+.sa-link {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+/* ── Print / PDF export ─────────────────────────────────────── */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    overflow: visible !important;
+  }
+
+  /* Hide nav, share bars, and any element marked print-hide */
+  .print-hide,
+  nav {
+    display: none !important;
+  }
+
+  /* Article headings */
+  .print-article .sa-h1,
+  .print-article .sa-h2,
+  .print-article .sa-h3,
+  .print-article .sa-h4,
+  .print-article .sa-title {
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+  }
+
+  /* Article body copy */
+  .print-article .sa-p,
+  .print-article .sa-li,
+  .print-article .sa-dek,
+  .print-article .sa-meta {
+    color: #374151 !important;
+  }
+
+  /* Code blocks */
+  .print-article .sa-pre {
+    background: #f8fafc !important;
+    color: #334155 !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Inline code */
+  .sa-code {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+  }
+
+  /* Links */
+  .sa-link { color: #1d4ed8 !important; }
+
+  /* Blockquote */
+  .print-article blockquote { border-left-color: #3b82f6 !important; }
+
+  /* Tables */
+  .print-article table    { border: 1px solid #e5e7eb !important; }
+  .print-article .sa-th  { background: #f8fafc !important; color: #374151 !important; border-color: #e5e7eb !important; }
+  .print-article .sa-td  { color: #374151 !important; border-color: #e5e7eb !important; }
+
+  /* HR */
+  .print-article .sa-hr  { border-color: #e5e7eb !important; }
+
+  /* Images */
+  img { max-width: 100% !important; page-break-inside: avoid; }
+
+  /* Page breaks */
+  h1, h2, h3, h4 { page-break-after: avoid; }
+  ul, ol, pre, blockquote, figure { page-break-inside: avoid; }
+
+  /* Standalone page title/dek for print */
+  .sa-title { color: #111827 !important; }
+  .sa-dek   { color: #4b5563 !important; }
+  .sa-meta  { color: #9ca3af !important; }
+
+  /* Container background */
+  .min-h-screen, main, div { background: transparent !important; }
+
+  /* Remove shadows and border-radius for print */
+  .shadow-2xl, .shadow-lg { box-shadow: none !important; }
+}
