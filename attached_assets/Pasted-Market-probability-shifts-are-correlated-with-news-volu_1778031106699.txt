@@ -1,0 +1,15 @@
+Market probability shifts are correlated with news volume: if a prediction market moves significantly before matching news arrives, this is flagged as a potential early-warning signal.
+4-tier fetch strategy — prediction markets use a cascading fetch chain to maximize data availability:
+Bootstrap hydration — zero-network, page-load-embedded data from the Redis-cached predictions key. If fresh (<20 min), the panel renders instantly without any API call
+Sebuf RPC — POST /api/prediction/v1/list-prediction-markets queries Redis for the seed-script-maintained cache. Single request, sub-100ms cold start
+Browser-direct Polymarket — the browser fetches Polymarket’s Gamma API directly, bypassing JA3 fingerprinting (browser TLS passes Cloudflare)
+Sidecar native TLS — on Tauri desktop, Rust’s reqwest TLS fingerprint differs from Node.js, providing another bypass vector
+Country-specific markets — fetchCountryMarkets(country) maps 40+ countries to Polymarket tag variants (e.g., “Russia” matches [“russia”, “russian”, “moscow”, “kremlin”, “putin”]), enabling the Country Brief to display prediction contracts relevant to any nation.
+Smart filtering — markets are ranked by 24h trading volume, filtered to exclude sports and entertainment (100+ exclusion keywords: NBA, NFL, Oscar, Grammy, etc.), and require meaningful price divergence from 50% or volume above $50K to suppress noise. Each variant gets different tag sets — geopolitical queries politics/world/ukraine/middle-east tags, tech queries ai/crypto/business tags.
+Cloudflare JA3 bypass — Polymarket’s API is protected by Cloudflare TLS fingerprinting (JA3) that blocks all server-side requests. The system uses a 3-tier fallback:
+Tier	Method	When It Works
+1	Browser-direct fetch	Always (browser TLS passes Cloudflare)
+2	Tauri native TLS (reqwest)	Desktop app (Rust TLS fingerprint differs from Node.js)
+3	Vercel edge proxy	Rarely (edge runtime sometimes passes)
+Once browser-direct succeeds, the system caches this state and skips fallback tiers on subsequent requests. Country-specific markets are fetched by mapping countries to Polymarket tags with name-variant matching (e.g., “Russia” matches titles containing “Russian”, “Moscow”, “Kremlin”, “Putin”).
+Markets are filtered to exclude sports and entertainment (100+ exclusion keywords), require meaningful price divergence from 50% or volume above $50K, and are ranked by trading volume. Each variant gets different tag sets — geopolitical focus queries politics/world/ukraine/middle-east tags, while tech focus queries ai/crypto/business tags.
