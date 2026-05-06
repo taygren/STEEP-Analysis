@@ -137,7 +137,10 @@ Include ALL ${markets.length} markets in your response.`;
     if (Array.isArray(parsed.scores)) {
       for (const s of parsed.scores) {
         if (s.id != null) {
-          scoreMap.set(String(s.id), {
+          // Normalise id: model sometimes echoes "[ID:xxx]" or "ID:xxx" format
+          const rawId  = String(s.id).trim();
+          const normId = rawId.replace(/^\[?ID:/i, '').replace(/\]$/, '').trim();
+          scoreMap.set(normId, {
             relevanceScore: typeof s.relevanceScore === 'number' ? s.relevanceScore : 0,
             steepAngle:     typeof s.steepAngle === 'string' ? s.steepAngle.trim() : '',
           });
@@ -175,11 +178,11 @@ export async function POST(req) {
 
     // ── 2. Deduplicate — _q results first (higher precision) ─────────────────
     const dedupe = new Map();
-    for (const r of allResults) {
+    outer: for (const r of allResults) {
       if (r.status === 'fulfilled') {
         for (const m of r.value) {
           if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
-          if (dedupe.size >= MAX_RAW_MARKETS) break;
+          if (dedupe.size >= MAX_RAW_MARKETS) break outer;
         }
       }
     }
@@ -209,7 +212,8 @@ export async function POST(req) {
 
     // ── 4. Merge scores into market objects & filter ──────────────────────────
     const scored = rawMarkets.map(m => {
-      const s = scoreMap.get(String(m.id));
+      // scoreMap is keyed by normalised id; try both raw and string forms
+      const s = scoreMap.get(String(m.id)) ?? scoreMap.get(m.id);
       return {
         ...m,
         relevanceScore: s?.relevanceScore ?? null,
@@ -217,13 +221,31 @@ export async function POST(req) {
       };
     });
 
-    // If we got no scores (Groq unavailable), return all markets unfiltered
-    // so the tab still shows something; client-side filtering already exists.
     const scoringWorked = scoreMap.size > 0;
-    const filtered = scoringWorked
-      ? scored.filter(m => (m.relevanceScore ?? 0) >= RELEVANCE_THRESHOLD)
-      : scored;
 
+    let filtered;
+    if (scoringWorked) {
+      // AI scoring succeeded — apply strict relevance threshold
+      filtered = scored.filter(m => (m.relevanceScore ?? 0) >= RELEVANCE_THRESHOLD);
+    } else {
+      // Groq unavailable — apply keyword-based pre-filter using searchTerms as a signal
+      // so the fallback still excludes obviously unrelated markets rather than returning
+      // everything raw. The existing passesMarketFilter on the client handles volume/divergence.
+      if (Array.isArray(searchTerms) && searchTerms.length > 0) {
+        const keyRe = new RegExp(
+          searchTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+          'i'
+        );
+        const keyFiltered = scored.filter(m => keyRe.test(m.question || ''));
+        // Only apply keyword filter when it retains a reasonable number of results;
+        // if it's too aggressive, fall back to unfiltered so the tab isn't empty.
+        filtered = keyFiltered.length >= 3 ? keyFiltered : scored;
+      } else {
+        filtered = scored;
+      }
+    }
+
+    // Note: final sort (relevanceScore desc → volume desc) happens client-side in runPredictionFetch
     return NextResponse.json({
       markets: filtered,
       scoringWorked,
