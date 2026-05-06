@@ -800,8 +800,387 @@ function PostEditor({ token, post, onBack, onSaved }) {
   );
 }
 
+// ── Innovator Illumination post editor ────────────────────────────
+function IIPostEditor({ token, post, onBack, onSaved }) {
+  const isNew = !post?.id;
+  const [form, setForm] = useState({
+    title:           post?.title           || '',
+    logoUrl:         post?.logoUrl         || '',
+    techSegment:     post?.techSegment     || '',
+    solutionOverview: post?.solutionOverview || '',
+    contentMarkdown: post?.contentMarkdown || '',
+    heroImageUrl:    post?.heroImageUrl    || '',
+    geoKeywords:     (post?.geoKeywords || []).join(', '),
+    status:          post?.status          || 'draft',
+  });
+  const [saving, setSaving]     = useState(false);
+  const [saveMsg, setSaveMsg]   = useState('');
+  const [saveMsgType, setSaveMsgType] = useState('success');
+  const [preview, setPreview]   = useState(false);
+  const [postId, setPostId]     = useState(post?.id || null);
+
+  const contentRef = useRef(null);
+  const [imgUploading, setImgUploading] = useState(false);
+  const [imgUploadErr, setImgUploadErr] = useState('');
+  const logoInputRef = useRef(null);
+  const heroInputRef = useRef(null);
+
+  const uploadFile = async (file, field) => {
+    setImgUploading(true); setImgUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setForm(f => ({ ...f, [field]: data.url }));
+    } catch (e) { setImgUploadErr(e.message); }
+    setImgUploading(false);
+  };
+
+  const uploadInlineImage = async (file) => {
+    setImgUploading(true); setImgUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const md = `\n\n![${file.name.replace(/\.[^.]+$/, '')}](${data.url})\n\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? ta.value.length;
+        setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown.slice(0, start) + md + f.contentMarkdown.slice(start) }));
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + md.length; ta.focus(); }, 50);
+      } else {
+        setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + md }));
+      }
+    } catch (e) { setImgUploadErr(e.message); }
+    setImgUploading(false);
+  };
+
+  const save = async (publish = false) => {
+    if (!form.title.trim()) { setSaveMsg('Company name is required'); setSaveMsgType('error'); return; }
+    setSaving(true); setSaveMsg('');
+    const payload = {
+      ...(postId ? { id: postId } : {}),
+      title:           form.title.trim(),
+      logoUrl:         form.logoUrl.trim(),
+      techSegment:     form.techSegment.trim(),
+      solutionOverview: form.solutionOverview.trim(),
+      contentMarkdown: form.contentMarkdown,
+      heroImageUrl:    form.heroImageUrl || '',
+      geoKeywords:     form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
+      status: publish ? 'published' : 'draft',
+    };
+    try {
+      const res = await fetch('/api/innovator-illumination/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPostId(data.post.id);
+        setForm(f => ({ ...f, status: data.post.status }));
+        setSaveMsg(publish ? 'Published!' : 'Saved as draft');
+        setSaveMsgType('success');
+        onSaved();
+      } else {
+        setSaveMsg('Error saving — check server logs');
+        setSaveMsgType('error');
+      }
+    } catch { setSaveMsg('Network error'); setSaveMsgType('error'); }
+    setSaving(false);
+  };
+
+  const isPublished = form.status === 'published';
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center gap-3 flex-wrap">
+          <button onClick={onBack} className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            All innovators
+          </button>
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${isPublished ? POSTURE_COLORS.published : POSTURE_COLORS.draft}`}>
+            {isPublished ? 'Published' : 'Draft'}
+          </span>
+          <div className="flex-1" />
+          <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <button onClick={() => setPreview(false)} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${!preview ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Edit</button>
+            <button onClick={() => setPreview(true)} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${preview ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>Card Preview</button>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {saveMsg && <span className={`text-xs font-medium ${saveMsgType === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>{saveMsg}</span>}
+            <button onClick={() => save(false)} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 transition-colors">{saving ? 'Saving…' : 'Save Draft'}</button>
+            <button onClick={() => save(true)} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-40 transition-opacity" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>
+              {isPublished ? 'Update' : 'Publish'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+        {preview ? (
+          /* Card preview */
+          <div className="max-w-sm">
+            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-4">Card preview</p>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+              {form.heroImageUrl && (
+                <div className="h-28 overflow-hidden bg-slate-800">
+                  <img src={form.heroImageUrl} alt={form.title} className="w-full h-full object-cover" onError={e => { e.currentTarget.parentElement.style.display='none'; }} />
+                </div>
+              )}
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg border border-slate-700 bg-slate-800 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {form.logoUrl ? <img src={form.logoUrl} alt={form.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                      : <span className="text-white text-sm font-black">{(form.title||'?')[0].toUpperCase()}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-bold text-sm leading-tight truncate">{form.title || 'Company Name'}</h3>
+                    {form.techSegment && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium mt-0.5 inline-block" style={{ background: '#0891b215', color: '#22d3ee' }}>{form.techSegment}</span>}
+                  </div>
+                </div>
+                {form.solutionOverview && <p className="text-slate-400 text-xs leading-relaxed mb-3 line-clamp-2">{form.solutionOverview}</p>}
+                {form.geoKeywords && (
+                  <div className="flex flex-wrap gap-1">
+                    {form.geoKeywords.split(',').map(t => t.trim()).filter(Boolean).slice(0, 3).map((t, i) => (
+                      <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Edit form */
+          <div className="space-y-5 max-w-3xl">
+            {/* Logo */}
+            <div>
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-2">Company Logo</p>
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                  {form.logoUrl ? <img src={form.logoUrl} alt="" className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                    : <span className="text-slate-600 text-xl font-black">{form.title ? form.title[0].toUpperCase() : '?'}</span>}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
+                    placeholder="https://example.com/logo.png"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-slate-600" />
+                  <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs cursor-pointer ${imgUploading ? 'opacity-40 pointer-events-none' : ''}`}>
+                    {imgUploading ? <Spinner /> : '⬆'} Upload logo
+                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'logoUrl'); e.target.value = ''; }} />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Company name */}
+            <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Company name…"
+              className="w-full bg-transparent text-2xl md:text-3xl font-bold text-white placeholder-slate-700 focus:outline-none border-b border-slate-800 pb-4" />
+
+            {/* Tech segment */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-24">Segment</span>
+              <input type="text" value={form.techSegment} onChange={e => setForm(f => ({ ...f, techSegment: e.target.value }))}
+                placeholder="e.g. AI Infrastructure, Quantum, Climate Tech…"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            </div>
+
+            {/* Solution overview */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-24">Tagline</span>
+              <input type="text" value={form.solutionOverview} onChange={e => setForm(f => ({ ...f, solutionOverview: e.target.value }))}
+                placeholder="One-line description of what this company does…"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            </div>
+
+            {/* Cover image */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-24">Cover</span>
+              <div className="flex-1 space-y-2">
+                {form.heroImageUrl ? (
+                  <div className="relative group">
+                    <img src={form.heroImageUrl} alt="Cover" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
+                      <label className="cursor-pointer px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg font-semibold hover:bg-slate-700">
+                        Replace<input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
+                      </label>
+                      <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="px-3 py-1.5 bg-red-900 text-red-200 text-xs rounded-lg font-semibold hover:bg-red-800">Remove</button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-5 cursor-pointer transition-colors ${imgUploading ? 'border-blue-700' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
+                    {imgUploading ? <Spinner /> : <span className="text-2xl">🖼️</span>}
+                    <span className="text-xs text-slate-500">{imgUploading ? 'Uploading…' : 'Upload cover image'}</span>
+                    <input ref={heroInputRef} type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
+                  </label>
+                )}
+                {imgUploadErr && <p className="text-xs text-red-400">{imgUploadErr}</p>}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600">or paste URL:</span>
+                  <input type="url" value={form.heroImageUrl.startsWith('/uploads/') ? '' : form.heroImageUrl}
+                    onChange={e => setForm(f => ({ ...f, heroImageUrl: e.target.value }))}
+                    placeholder="https://…"
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-slate-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* GEO Tags */}
+            <div className="flex items-start gap-3">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mt-2 flex-shrink-0 w-24">GEO Tags</span>
+              <input type="text" value={form.geoKeywords} onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
+                placeholder="e.g. AI, defence tech, semiconductor (comma-separated)"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            </div>
+
+            {/* Markdown editor */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest">Full Profile (Markdown)</p>
+                <label className={`cursor-pointer flex items-center gap-1 text-xs text-slate-600 hover:text-slate-300 transition-colors ${imgUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {imgUploading ? <Spinner /> : '🖼'}
+                  <span className="font-mono">Insert Image</span>
+                  <input type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
+                </label>
+              </div>
+              <textarea ref={contentRef} value={form.contentMarkdown} onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
+                placeholder={`Write the company profile in Markdown…\n\n## Overview\n\nWhat the company does and why it matters.\n\n## Key Capabilities\n\n- Capability 1\n- Capability 2\n\n## Strategic Relevance\n\nWhy this innovator matters geopolitically.`}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-5 py-4 text-sm text-slate-200 placeholder-slate-700 focus:outline-none focus:border-slate-600 font-mono leading-loose resize-none transition-colors"
+                style={{ minHeight: 400 }} />
+              <div className="mt-1.5 flex justify-between text-xs text-slate-600">
+                <span>{form.contentMarkdown.split(/\s+/).filter(Boolean).length} words</span>
+                <span>{form.contentMarkdown.length.toLocaleString()} chars</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Innovator Illumination post list ──────────────────────────────
+function IIPostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout, onSwitchSection }) {
+  const [actionId, setActionId] = useState(null);
+
+  const togglePublish = async (post) => {
+    setActionId(post.id);
+    const newStatus = post.status === 'published' ? 'draft' : 'published';
+    await fetch('/api/innovator-illumination/admin', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ id: post.id, status: newStatus }),
+    });
+    await onRefresh();
+    setActionId(null);
+  };
+
+  const deletePost = async (post) => {
+    if (!confirm(`Delete "${post.title || 'this innovator'}"? This cannot be undone.`)) return;
+    setActionId(post.id);
+    await fetch('/api/innovator-illumination/admin', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+      body: JSON.stringify({ id: post.id }),
+    });
+    await onRefresh();
+    setActionId(null);
+  };
+
+  const published = posts.filter(p => p.status === 'published');
+  const drafts    = posts.filter(p => p.status !== 'published');
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>💡</div>
+            <span className="font-bold text-white text-sm">Innovator Illumination</span>
+          </div>
+          <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">← Platform</a>
+
+          {/* Section tabs */}
+          <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <button onClick={onSwitchSection} className="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white transition-colors">Thought Leadership</button>
+            <button className="px-3 py-1 rounded text-xs font-medium bg-slate-700 text-white">Innovators</button>
+          </div>
+
+          <div className="flex-1" />
+          <div className="text-xs text-slate-600">
+            <span className="text-emerald-400 font-semibold">{published.length}</span> published
+            <span className="mx-1.5">·</span>
+            <span className="text-slate-500 font-semibold">{drafts.length}</span> drafts
+          </div>
+          <button onClick={onNew} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>+ Add Innovator</button>
+          <button onClick={onLogout} className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Sign out</button>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20"><Spinner /><span className="text-slate-500 text-sm ml-3">Loading…</span></div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-24">
+            <div className="text-5xl mb-4">💡</div>
+            <p className="text-white font-semibold mb-1">No innovator profiles yet</p>
+            <p className="text-slate-500 text-sm mb-6">Add the first solution provider spotlight.</p>
+            <button onClick={onNew} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>Add first innovator</button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {posts.map(post => {
+              const isActing    = actionId === post.id;
+              const isPublished = post.status === 'published';
+              return (
+                <div key={post.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-start gap-4 hover:border-slate-700 transition-colors">
+                  {/* Logo */}
+                  <div className="w-10 h-10 rounded-lg border border-slate-700 bg-slate-800 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {post.logoUrl ? <img src={post.logoUrl} alt={post.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                      : <span className="text-white text-sm font-black">{(post.title||'?')[0].toUpperCase()}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onEdit(post)}>
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${isPublished ? POSTURE_COLORS.published : POSTURE_COLORS.draft}`}>
+                        {isPublished ? 'Published' : 'Draft'}
+                      </span>
+                      {post.techSegment && <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: '#0891b215', color: '#22d3ee' }}>{post.techSegment}</span>}
+                      {(post.geoKeywords || []).slice(0, 3).map(k => (
+                        <span key={k} className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-900">{k}</span>
+                      ))}
+                      <span className="text-xs text-slate-600 sm:ml-auto">
+                        {post.updatedAt ? new Date(post.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      </span>
+                    </div>
+                    <h3 className="text-white font-semibold text-sm leading-snug mb-0.5">{post.title || <span className="text-slate-600 italic">Untitled</span>}</h3>
+                    {post.solutionOverview && <p className="text-slate-500 text-xs leading-relaxed line-clamp-2">{post.solutionOverview}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => onEdit(post)} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Edit</button>
+                    <button onClick={() => togglePublish(post)} disabled={isActing}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 ${isPublished ? 'bg-amber-950 text-amber-300 hover:bg-amber-900 border border-amber-900' : 'bg-emerald-950 text-emerald-300 hover:bg-emerald-900 border border-emerald-900'}`}>
+                      {isActing ? '…' : isPublished ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button onClick={() => deletePost(post)} disabled={isActing} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-950 text-red-400 hover:bg-red-900 border border-red-900 transition-colors disabled:opacity-40">Delete</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Post list ─────────────────────────────────────────────────────
-function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout }) {
+function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout, onSwitchSection }) {
   const [actionId, setActionId] = useState(null);
 
   const togglePublish = async (post) => {
@@ -841,6 +1220,13 @@ function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout })
             <span className="font-bold text-white text-sm">Thought Leadership</span>
           </div>
           <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">← Platform</a>
+
+          {/* Section tabs */}
+          <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <button className="px-3 py-1 rounded text-xs font-medium bg-slate-700 text-white">Thought Leadership</button>
+            <button onClick={onSwitchSection} className="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white transition-colors">Innovators</button>
+          </div>
+
           <div className="flex-1" />
           <div className="text-xs text-slate-600">
             <span className="text-emerald-400 font-semibold">{published.length}</span> published
@@ -940,11 +1326,14 @@ function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout })
 
 // ── Root admin page ───────────────────────────────────────────────
 export default function AdminPage() {
-  const [token, setToken] = useState(null);
-  const [posts, setPosts] = useState([]);
+  const [token, setToken]             = useState(null);
+  const [section, setSection]         = useState('tl'); // 'tl' | 'ii'
+  const [posts, setPosts]             = useState([]);
+  const [iiPosts, setIIPosts]         = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [view, setView] = useState('list'); // 'list' | 'editor'
-  const [editPost, setEditPost] = useState(null);
+  const [iiLoading, setIILoading]     = useState(false);
+  const [view, setView]               = useState('list'); // 'list' | 'editor'
+  const [editPost, setEditPost]       = useState(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('steep_admin_token');
@@ -956,56 +1345,84 @@ export default function AdminPage() {
     if (!t) return;
     setPostsLoading(true);
     try {
-      const res = await fetch('/api/thought-leadership/admin', {
-        headers: { 'x-admin-token': t },
-      });
+      const res = await fetch('/api/thought-leadership/admin', { headers: { 'x-admin-token': t } });
       if (res.ok) {
         const data = await res.json();
         const loadedPosts = data.posts || [];
         setPosts(loadedPosts);
-        // Auto-open editor if ?postId= is in the URL
         const autoId = new URLSearchParams(window.location.search).get('postId');
         if (autoId) {
           const target = loadedPosts.find(p => p.id === autoId);
-          if (target) {
-            setEditPost(target);
-            setView('editor');
-          }
+          if (target) { setEditPost(target); setView('editor'); }
         }
       }
     } catch {}
     setPostsLoading(false);
   }, [token]);
 
+  const fetchIIPosts = useCallback(async (tok) => {
+    const t = tok || token;
+    if (!t) return;
+    setIILoading(true);
+    try {
+      const res = await fetch('/api/innovator-illumination/admin', { headers: { 'x-admin-token': t } });
+      if (res.ok) {
+        const data = await res.json();
+        setIIPosts(data.posts || []);
+      }
+    } catch {}
+    setIILoading(false);
+  }, [token]);
+
   useEffect(() => {
-    if (token) fetchPosts(token);
-  }, [token, fetchPosts]);
+    if (token) { fetchPosts(token); fetchIIPosts(token); }
+  }, [token, fetchPosts, fetchIIPosts]);
 
   const handleLogin = (tok) => {
     setToken(tok);
     fetchPosts(tok);
+    fetchIIPosts(tok);
   };
 
   const logout = () => {
     sessionStorage.removeItem('steep_admin_token');
     setToken(null);
     setPosts([]);
+    setIIPosts([]);
   };
 
-  const openEditor = (post = null) => {
-    setEditPost(post);
-    setView('editor');
-  };
+  const openEditor = (post = null) => { setEditPost(post); setView('editor'); };
+  const backToList = () => { setView('list'); setEditPost(null); };
 
-  const backToList = () => {
-    setView('list');
-    setEditPost(null);
-  };
+  if (!token) return <LoginScreen onLogin={handleLogin} />;
 
-  if (!token) {
-    return <LoginScreen onLogin={handleLogin} />;
+  // II section
+  if (section === 'ii') {
+    if (view === 'editor') {
+      return (
+        <IIPostEditor
+          token={token}
+          post={editPost}
+          onBack={backToList}
+          onSaved={() => fetchIIPosts(token)}
+        />
+      );
+    }
+    return (
+      <IIPostList
+        token={token}
+        posts={iiPosts}
+        loading={iiLoading}
+        onNew={() => openEditor(null)}
+        onEdit={(post) => openEditor(post)}
+        onRefresh={() => fetchIIPosts(token)}
+        onLogout={logout}
+        onSwitchSection={() => { setSection('tl'); setView('list'); setEditPost(null); }}
+      />
+    );
   }
 
+  // TL section (default)
   if (view === 'editor') {
     return (
       <PostEditor
@@ -1026,6 +1443,7 @@ export default function AdminPage() {
       onEdit={(post) => openEditor(post)}
       onRefresh={() => fetchPosts(token)}
       onLogout={logout}
+      onSwitchSection={() => { setSection('ii'); setView('list'); setEditPost(null); }}
     />
   );
 }

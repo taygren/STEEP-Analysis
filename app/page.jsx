@@ -2299,15 +2299,21 @@ function TLPublishModal({ onClose, onPublished }) {
 }
 
 // ── Innovator Illumination publish modal ──────────────────────────
-function IIPublishModal({ onClose, onPublished }) {
-  const [step, setStep]               = useState('auth');
-  const [token, setToken]             = useState('');
+function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost = null }) {
+  const isEdit = !!initialPost;
+  const [step, setStep]               = useState(initialToken ? 'form' : 'auth');
+  const [token, setToken]             = useState(initialToken);
   const [authChecking, setAuthChecking] = useState(false);
   const [authErr, setAuthErr]         = useState('');
 
   const [form, setForm] = useState({
-    title: '', logoUrl: '', techSegment: '', solutionOverview: '',
-    contentMarkdown: '', heroImageUrl: '', geoKeywords: '',
+    title:           initialPost?.title           || '',
+    logoUrl:         initialPost?.logoUrl         || '',
+    techSegment:     initialPost?.techSegment     || '',
+    solutionOverview: initialPost?.solutionOverview || '',
+    contentMarkdown: initialPost?.contentMarkdown  || '',
+    heroImageUrl:    initialPost?.heroImageUrl     || '',
+    geoKeywords:     (initialPost?.geoKeywords || []).join(', '),
   });
   const [publishing, setPublishing]   = useState(false);
   const [publishErr, setPublishErr]   = useState('');
@@ -2375,12 +2381,13 @@ function IIPublishModal({ onClose, onPublished }) {
     setInlineUploading(false);
   };
 
-  // ── Publish ───────────────────────────────────────────────────────
+  // ── Publish / Update ─────────────────────────────────────────────
   const publish = async () => {
     if (!form.title.trim()) { setPublishErr('A company name is required.'); return; }
     setPublishing(true); setPublishErr('');
     try {
       const payload = {
+        ...(isEdit && initialPost?.id ? { id: initialPost.id } : {}),
         title:           form.title.trim(),
         dek:             form.solutionOverview.trim(),
         logoUrl:         form.logoUrl.trim(),
@@ -2404,8 +2411,8 @@ function IIPublishModal({ onClose, onPublished }) {
     setPublishing(false);
   };
 
-  const STEPS = ['Authenticate', 'Enter Details'];
-  const stepIdx = step === 'auth' ? 0 : 1;
+  const STEPS = ['Authenticate', 'Enter Details', 'Preview & Publish'];
+  const stepIdx = step === 'auth' ? 0 : step === 'form' ? 1 : 2;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}>
@@ -2414,8 +2421,8 @@ function IIPublishModal({ onClose, onPublished }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
           <div>
-            <h2 className="text-white font-bold text-base">Add Innovator</h2>
-            <p className="text-slate-500 text-xs mt-0.5">Showcase an innovative solution provider</p>
+            <h2 className="text-white font-bold text-base">{isEdit ? 'Edit Innovator' : 'Add Innovator'}</h2>
+            <p className="text-slate-500 text-xs mt-0.5">{isEdit ? 'Update this solution provider profile' : 'Showcase an innovative solution provider'}</p>
           </div>
           <button onClick={onClose} className="text-slate-600 hover:text-white text-xl leading-none transition-colors">✕</button>
         </div>
@@ -2611,6 +2618,52 @@ function IIPublishModal({ onClose, onPublished }) {
               {publishErr && <p className="text-red-400 text-xs">{publishErr}</p>}
             </div>
           )}
+
+          {/* Preview step */}
+          {step === 'preview' && (
+            <div className="space-y-5">
+              <div className="text-center space-y-1">
+                <p className="text-white font-semibold">Card preview</p>
+                <p className="text-slate-500 text-xs">This is how the innovator will appear in the directory grid</p>
+              </div>
+
+              {/* Live card preview */}
+              <div className="flex justify-center">
+                <div className="w-72 bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+                  {form.heroImageUrl && (
+                    <div className="h-24 overflow-hidden bg-slate-800">
+                      <img src={form.heroImageUrl} alt={form.title} className="w-full h-full object-cover" onError={e => { e.currentTarget.parentElement.style.display='none'; }} />
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-lg border border-slate-700 bg-slate-800 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {form.logoUrl
+                          ? <img src={form.logoUrl} alt={form.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                          : <span className="text-white text-sm font-black">{(form.title||'?')[0].toUpperCase()}</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight truncate">{form.title || 'Company Name'}</h3>
+                        {form.techSegment && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full font-medium mt-0.5 inline-block" style={{ background: '#0891b215', color: '#22d3ee' }}>{form.techSegment}</span>
+                        )}
+                      </div>
+                    </div>
+                    {form.solutionOverview && <p className="text-slate-400 text-xs leading-relaxed mb-3 line-clamp-2">{form.solutionOverview}</p>}
+                    {form.geoKeywords && (
+                      <div className="flex flex-wrap gap-1">
+                        {form.geoKeywords.split(',').map(t => t.trim()).filter(Boolean).slice(0, 3).map((t, i) => (
+                          <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {publishErr && <p className="text-red-400 text-xs text-center">{publishErr}</p>}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -2618,8 +2671,20 @@ function IIPublishModal({ onClose, onPublished }) {
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 flex-shrink-0 gap-3">
             <button onClick={() => setStep('auth')} className="text-slate-500 hover:text-white text-sm transition-colors">← Back</button>
             <button
+              onClick={() => { if (!form.title.trim()) { setPublishErr('A company name is required.'); return; } setPublishErr(''); setStep('preview'); }}
+              className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}
+            >
+              Preview →
+            </button>
+          </div>
+        )}
+        {step === 'preview' && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 flex-shrink-0 gap-3">
+            <button onClick={() => setStep('form')} className="text-slate-500 hover:text-white text-sm transition-colors">← Edit Details</button>
+            <button
               onClick={publish}
-              disabled={publishing || !form.title.trim()}
+              disabled={publishing}
               className="px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-opacity"
               style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}
             >
@@ -3301,6 +3366,7 @@ function InnovatorIlluminationPanel() {
   const [search, setSearch]             = useState('');
   const [activeTag, setActiveTag]       = useState('');
   const [showPublish, setShowPublish]   = useState(false);
+  const [editingPost, setEditingPost]   = useState(null);
 
   const [adminToken, setAdminToken]         = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -3407,6 +3473,7 @@ function InnovatorIlluminationPanel() {
 
         {adminToken && (
           <div className="mt-8 pt-6 border-t border-slate-800 flex gap-3">
+            <button onClick={() => setEditingPost(selectedPost)} className="text-xs px-3 py-1.5 rounded-lg bg-blue-950 hover:bg-blue-900 text-blue-400 transition-colors">Edit</button>
             <button onClick={() => doUnpublish(selectedPost.id)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">Unpublish</button>
             <button onClick={() => { doDelete(selectedPost.id); setSelectedPost(null); }} className="text-xs px-3 py-1.5 rounded-lg bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
           </div>
@@ -3547,6 +3614,7 @@ function InnovatorIlluminationPanel() {
               {/* Admin actions */}
               {adminToken && (
                 <div className="px-4 pb-3 flex gap-2" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setEditingPost(post)} className="text-xs px-2 py-1 rounded bg-blue-950 hover:bg-blue-900 text-blue-400 transition-colors">Edit</button>
                   <button onClick={() => doUnpublish(post.id)} className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">Unpublish</button>
                   <button onClick={() => doDelete(post.id)} className="text-xs px-2 py-1 rounded bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
                 </div>
@@ -3556,11 +3624,21 @@ function InnovatorIlluminationPanel() {
         </div>
       )}
 
-      {/* Publish modal */}
+      {/* Add Innovator modal */}
       {showPublish && (
         <IIPublishModal
           onClose={() => setShowPublish(false)}
           onPublished={(tok) => { setAdminToken(tok); loadPosts(); }}
+        />
+      )}
+
+      {/* Edit Innovator modal */}
+      {editingPost && (
+        <IIPublishModal
+          initialToken={adminToken}
+          initialPost={editingPost}
+          onClose={() => setEditingPost(null)}
+          onPublished={() => { setEditingPost(null); loadPosts(); }}
         />
       )}
     </div>
