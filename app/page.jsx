@@ -1691,7 +1691,7 @@ function groupPredictionMarkets(markets) {
     const vol  = getMarketVol(m);
     const div  = Math.abs(prob - 0.5);
     if (div > 0.25 && vol > 50000)       highConviction.push(m);
-    else if (div < 0.15 && vol > 50000)  arbitrage.push(m);
+    else if (div < 0.10 && vol > 50000)  arbitrage.push(m); // prob 40–60%
     else                                  emerging.push(m);
   }
   return { highConviction, arbitrage, emerging };
@@ -1717,7 +1717,7 @@ function PmMarketCard({ m }) {
       <div className="flex items-start justify-between gap-3 mb-3">
         <p className="text-white text-sm font-medium leading-snug flex-1">{m.question}</p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {warn && <span title="Early-warning: high volume + contested probability — potential leading signal" className="text-yellow-400 text-sm">⚡</span>}
+          {warn && <span title="Early-warning: probability moved >5pp in the last 24h — rapidly shifting market signal" className="text-yellow-400 text-sm">⚡</span>}
           <a href={pmMarketUrl(m)} target="_blank" rel="noopener noreferrer"
             className="text-slate-500 hover:text-slate-300 transition-colors text-base leading-none" title="View on Polymarket">↗</a>
         </div>
@@ -1868,7 +1868,10 @@ function PredictionMarketsTab({ state, dispatch }) {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {fetchedLabel && <span className="text-slate-600 text-xs">Updated {fetchedLabel}</span>}
+          {predictionStatus === 'complete' && predictionMarkets?.length > 0 && (
+            <span className="text-slate-600 text-xs">{predictionMarkets.length} markets</span>
+          )}
+          {fetchedLabel && <span className="text-slate-600 text-xs">· Updated {fetchedLabel}</span>}
           {predictionStatus !== 'loading' && (
             <button onClick={fetchMarkets}
               className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors border border-slate-700 flex items-center gap-1.5">
@@ -1917,7 +1920,7 @@ function PredictionMarketsTab({ state, dispatch }) {
       {predictionStatus === 'complete' && predictionMarkets?.length > 0 && (
         <>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-            <span><span className="text-yellow-400">⚡</span> Early-warning signal — vol &gt; $100K &amp; contested probability</span>
+            <span><span className="text-yellow-400">⚡</span> Price moved &gt;5pp in 24h — rapidly shifting signal</span>
             <span><span className="text-emerald-400">■</span> Green = Yes &gt;70%</span>
             <span><span className="text-red-400">■</span> Red = No &gt;70%</span>
             <span><span className="text-yellow-500">■</span> Amber = contested</span>
