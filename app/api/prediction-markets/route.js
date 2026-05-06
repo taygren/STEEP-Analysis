@@ -26,12 +26,12 @@ const TAG_MODEL = 'llama-3.1-8b-instant';
 
 // ── Static fallback tag map ────────────────────────────────────────────────
 const STATIC = {
-  tech:    { tags: ['ai', 'technology', 'crypto', 'science', 'business'],    keywordAliases: [] },
-  geo:     { tags: ['politics', 'world', 'ukraine', 'middle-east', 'china'], keywordAliases: [] },
-  company: { tags: ['business', 'markets', 'economy', 'finance', 'ai'],      keywordAliases: [] },
-  climate: { tags: ['climate', 'energy', 'environment', 'politics', 'economy'], keywordAliases: [] },
-  finance: { tags: ['economy', 'fed', 'inflation', 'markets', 'finance'],    keywordAliases: [] },
-  default: { tags: ['politics', 'world', 'economy', 'ai', 'technology'],     keywordAliases: [] },
+  tech:    { tags: ['ai', 'technology', 'crypto', 'science', 'business', 'stocks', 'usa'],             keywordAliases: [] },
+  geo:     { tags: ['politics', 'world', 'ukraine', 'middle-east', 'china', 'europe', 'elections'],    keywordAliases: [] },
+  company: { tags: ['business', 'markets', 'economy', 'finance', 'ai', 'stocks', 'usa'],               keywordAliases: [] },
+  climate: { tags: ['climate', 'energy', 'environment', 'politics', 'economy', 'usa', 'science'],      keywordAliases: [] },
+  finance: { tags: ['economy', 'fed', 'inflation', 'markets', 'finance', 'stocks', 'usa'],             keywordAliases: [] },
+  default: { tags: ['politics', 'world', 'economy', 'ai', 'technology', 'business', 'usa'],            keywordAliases: [] },
 };
 
 const TECH_RE    = /\bai\b|tech|software|cyber|quantum|crypto|blockchain|chip|semiconductor|saas|cloud|robotics|autonomous/i;

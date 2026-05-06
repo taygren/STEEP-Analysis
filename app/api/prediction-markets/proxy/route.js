@@ -15,7 +15,7 @@
  *   3. Deduplicate → up to 300 raw candidates
  *   4. Keyword pre-filter: keep only markets whose question text contains
  *      at least one keywordAlias (subject name, ticker, key entities)
- *      Fallback relaxation: subject-name-only → no filter (cap at 80)
+ *      Fallback relaxation: full aliases (≥8) → subject-name-only (≥3) → unfiltered (cap 60)
  *   5. AI scoring via Groq llama-3.3-70b-versatile: each candidate gets
  *      relevanceScore (0-1) + steepAngle (one sentence)
  *   6. Threshold filter: ≥ 0.65 (strict); fallback to ≥ 0.45 if empty
