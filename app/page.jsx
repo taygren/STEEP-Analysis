@@ -1697,7 +1697,12 @@ function groupPredictionMarkets(markets) {
   return { highConviction, arbitrage, emerging };
 }
 function isPredictionEarlyWarning(m) {
-  return getMarketVol(m) > 100000 && Math.abs(getMarketProb(m) - 0.5) < 0.20;
+  // Use actual 24h price delta reported by the Gamma API when available.
+  // Polymarket returns oneDayPriceChange as a decimal (e.g. 0.08 = +8pp in 24h).
+  const raw = m.oneDayPriceChange ?? m.change24h ?? m.priceChange24h ?? null;
+  if (raw === null || raw === undefined) return false;
+  const delta = parseFloat(raw);
+  return !isNaN(delta) && Math.abs(delta) > 0.05; // >5pp move in 24h
 }
 
 function PmMarketCard({ m }) {
@@ -1764,64 +1769,79 @@ function PmMarketGroup({ title, icon, description, accent, markets, defaultOpen 
   );
 }
 
+// ── Module-level fetch helper (called from App post-synthesis and from the tab's Retry button) ──
+async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
+  dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'loading' });
+
+  // Step 1: AI-suggested tags from server (Groq fast model or static fallback)
+  let tags = ['politics', 'world', 'economy', 'ai', 'technology'];
+  try {
+    const tagRes = await fetch('/api/prediction-markets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, subjectType, synthesis }),
+    });
+    if (tagRes.ok) {
+      const tagData = await tagRes.json();
+      if (Array.isArray(tagData.tags) && tagData.tags.length >= 2) tags = tagData.tags;
+    }
+  } catch { /* fall through to default tags */ }
+
+  dispatch({ type: 'SET_PREDICTION_TAGS', payload: tags });
+
+  // Step 2: browser-direct Polymarket Gamma API fetch (bypasses Cloudflare JA3)
+  const doGammaFetch = async () => {
+    const GAMMA    = 'https://gamma-api.polymarket.com/markets';
+    const usedTags = tags.slice(0, 6);
+    const dedupe   = new Map();
+
+    const results = await Promise.allSettled(
+      usedTags.map(tag =>
+        fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=50&active=true&closed=false`)
+          .then(r => r.ok ? r.json() : [])
+          .catch(() => [])
+      )
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+        for (const m of r.value) {
+          if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
+        }
+      }
+    }
+    if (dedupe.size === 0) throw new Error('no markets returned from Gamma API');
+    return dedupe;
+  };
+
+  let dedupe;
+  try {
+    dedupe = await doGammaFetch();
+  } catch {
+    // Retry once after 3 seconds on first failure
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    try {
+      dedupe = await doGammaFetch();
+    } catch {
+      dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
+      return;
+    }
+  }
+
+  const filtered = [...dedupe.values()].filter(passesMarketFilter);
+  filtered.sort((a, b) => getMarketVol(b) - getMarketVol(a));
+  dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString() });
+}
+
 function PredictionMarketsTab({ state, dispatch }) {
   const { subject, subjectType, synthesis, predictionMarkets, predictionStatus, predictionTags, predictionFetchedAt } = state;
 
-  const fetchMarkets = useCallback(async () => {
-    dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'loading' });
-    try {
-      // Step 1: get AI-suggested tags from server (Groq, lightweight fast model)
-      let tags = ['politics', 'world', 'economy', 'ai', 'technology'];
-      try {
-        const tagRes = await fetch('/api/prediction-markets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subject, subjectType, synthesis }),
-        });
-        if (tagRes.ok) {
-          const tagData = await tagRes.json();
-          if (Array.isArray(tagData.tags) && tagData.tags.length >= 2) tags = tagData.tags;
-        }
-      } catch { /* fall through to defaults */ }
+  const fetchMarkets = useCallback(
+    () => runPredictionFetch(subject, subjectType, synthesis, dispatch),
+    [subject, subjectType, synthesis, dispatch]
+  );
 
-      dispatch({ type: 'SET_PREDICTION_TAGS', payload: tags });
-
-      // Step 2: browser-direct fetch to Polymarket Gamma API (bypasses Cloudflare JA3)
-      const GAMMA    = 'https://gamma-api.polymarket.com/markets';
-      const usedTags = tags.slice(0, 6);
-      const dedupe   = new Map();
-
-      const results = await Promise.allSettled(
-        usedTags.map(tag =>
-          fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=50&active=true&closed=false`)
-            .then(r => r.ok ? r.json() : [])
-            .catch(() => [])
-        )
-      );
-
-      for (const r of results) {
-        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-          for (const m of r.value) {
-            if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
-          }
-        }
-      }
-
-      if (dedupe.size === 0) {
-        dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
-        return;
-      }
-
-      const filtered = [...dedupe.values()].filter(passesMarketFilter);
-      filtered.sort((a, b) => getMarketVol(b) - getMarketVol(a));
-      dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString() });
-
-    } catch {
-      dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
-    }
-  }, [subject, subjectType, synthesis, dispatch]);
-
-  // Auto-fetch when the tab first mounts with no data
+  // Safety net: auto-fetch if the tab is opened while status is still idle
+  // (the primary trigger is the App-level post-synthesis effect below)
   useEffect(() => {
     if (predictionStatus === 'idle') fetchMarkets();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5735,6 +5755,13 @@ function App() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
+
+  // ── Auto-trigger Prediction Markets fetch immediately after synthesis ──
+  useEffect(() => {
+    if (status === 'complete' && predictionStatus === 'idle') {
+      runPredictionFetch(state.subject, state.subjectType, state.synthesis, dispatch);
+    }
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── On mount: check Ollama health and list models ──
   useEffect(() => {
