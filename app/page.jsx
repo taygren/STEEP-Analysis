@@ -377,6 +377,10 @@ const initialState = {
   snapshotStatus: 'idle',   // idle | loading | complete | error
   bigCycleData: null,       // Big Cycle Decision Engine assessment
   bigCycleStatus: 'idle',   // idle | loading | complete | error
+  predictionMarkets: null,  // Polymarket contracts relevant to subject
+  predictionStatus: 'idle', // idle | loading | complete | error
+  predictionTags: [],       // Tags used for the Polymarket fetch
+  predictionFetchedAt: null,// ISO timestamp of last successful fetch
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -397,7 +401,7 @@ function reducer(state, action) {
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null, snapshotData: null, snapshotStatus: 'idle', bigCycleData: null, bigCycleStatus: 'idle' };
+    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null, snapshotData: null, snapshotStatus: 'idle', bigCycleData: null, bigCycleStatus: 'idle', predictionMarkets: null, predictionStatus: 'idle', predictionTags: [], predictionFetchedAt: null };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
     case 'SET_TICKER':        return { ...state, ticker: action.payload };
     case 'SET_FUNDAMENTALS':  return { ...state, fundamentals: action.data };
@@ -409,6 +413,9 @@ function reducer(state, action) {
     case 'SET_SNAPSHOT_STATUS': return { ...state, snapshotStatus: action.payload };
     case 'SET_BIG_CYCLE_DATA':  return { ...state, bigCycleData: action.data, bigCycleStatus: 'complete' };
     case 'SET_BIG_CYCLE_STATUS':return { ...state, bigCycleStatus: action.payload };
+    case 'SET_PREDICTION_MARKETS': return { ...state, predictionMarkets: action.data, predictionStatus: 'complete', predictionFetchedAt: action.fetchedAt ?? new Date().toISOString() };
+    case 'SET_PREDICTION_STATUS':  return { ...state, predictionStatus: action.payload };
+    case 'SET_PREDICTION_TAGS':    return { ...state, predictionTags: action.payload };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
     case 'SET_SYNTHESIS':     return { ...state, synthesis: action.data, status: 'complete' };
@@ -443,6 +450,10 @@ function reducer(state, action) {
         snapshotStatus: ex.snapshotData ? 'complete' : 'idle',
         bigCycleData: ex.bigCycleData ?? null,
         bigCycleStatus: ex.bigCycleData ? 'complete' : 'idle',
+        predictionMarkets: null,
+        predictionStatus: 'idle',
+        predictionTags: [],
+        predictionFetchedAt: null,
       };
     }
     default: return state;
@@ -1636,6 +1647,291 @@ function BigCycleTab({ state, dispatch }) {
             Assessment via {a.model?.split('/').pop()} · {a.generatedAt ? new Date(a.generatedAt).toLocaleString() : ''}
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PREDICTION MARKETS TAB
+// ═══════════════════════════════════════════════════════════════════
+
+const SPORTS_EXCLUDE_RE = /\b(nba|nfl|nhl|mlb|nascar|mls|ufc|mma|boxing|wrestling|soccer.*score|cricket|rugby|tennis|golf|poker|chess|esports?|fortnite|minecraft|fifa|call of duty|oscar|grammy|emmy|golden globe|tony award|celebrity|kardashian|taylor swift|beyonc|kanye|drake|bieber|harry styles|super bowl|world cup|stanley cup|world series|march madness|fantasy (sport|football|basket|base)|playoff|championship (game|series)|survivor|bachelor|big brother|american idol|reality show|box office|billboard chart|music chart|spotify chart|tiktok follower)\b/i;
+
+function getMarketProb(m) {
+  try {
+    const prices = typeof m.outcomePrices === 'string' ? JSON.parse(m.outcomePrices) : (m.outcomePrices || []);
+    if (Array.isArray(prices) && prices.length > 0) return Math.max(0, Math.min(1, parseFloat(prices[0]) || 0.5));
+  } catch {}
+  return Math.max(0, Math.min(1, parseFloat(m.probability ?? m.lastTradePrice ?? 0.5) || 0.5));
+}
+function getMarketVol(m) { return parseFloat(m.volume24hr ?? m.volume24h ?? 0) || 0; }
+function getMarketLiq(m) { return parseFloat(m.liquidity ?? 0) || 0; }
+function fmtMarketUsd(v) {
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${Math.round(v)}`;
+}
+function pmMarketUrl(m) {
+  if (m.url) return m.url;
+  if (m.slug) return `https://polymarket.com/event/${m.slug}`;
+  return 'https://polymarket.com';
+}
+function passesMarketFilter(m) {
+  if (!m.active || m.closed || m.archived) return false;
+  if (SPORTS_EXCLUDE_RE.test(m.question || '')) return false;
+  const vol = getMarketVol(m);
+  const divergence = Math.abs(getMarketProb(m) - 0.5);
+  return vol >= 10000 || divergence >= 0.15;
+}
+function groupPredictionMarkets(markets) {
+  const highConviction = [], arbitrage = [], emerging = [];
+  for (const m of markets) {
+    const prob = getMarketProb(m);
+    const vol  = getMarketVol(m);
+    const div  = Math.abs(prob - 0.5);
+    if (div > 0.25 && vol > 50000)       highConviction.push(m);
+    else if (div < 0.15 && vol > 50000)  arbitrage.push(m);
+    else                                  emerging.push(m);
+  }
+  return { highConviction, arbitrage, emerging };
+}
+function isPredictionEarlyWarning(m) {
+  return getMarketVol(m) > 100000 && Math.abs(getMarketProb(m) - 0.5) < 0.20;
+}
+
+function PmMarketCard({ m }) {
+  const prob = getMarketProb(m);
+  const vol  = getMarketVol(m);
+  const liq  = getMarketLiq(m);
+  const pct  = Math.round(prob * 100);
+  const warn = isPredictionEarlyWarning(m);
+  const barColor = prob > 0.70 ? '#10b981' : prob < 0.30 ? '#ef4444' : '#f59e0b';
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 hover:border-slate-500 transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <p className="text-white text-sm font-medium leading-snug flex-1">{m.question}</p>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {warn && <span title="Early-warning: high volume + contested probability — potential leading signal" className="text-yellow-400 text-sm">⚡</span>}
+          <a href={pmMarketUrl(m)} target="_blank" rel="noopener noreferrer"
+            className="text-slate-500 hover:text-slate-300 transition-colors text-base leading-none" title="View on Polymarket">↗</a>
+        </div>
+      </div>
+      <div className="mb-3">
+        <div className="flex justify-between text-xs mb-1.5">
+          <span className="font-bold tabular-nums" style={{ color: barColor }}>Yes {pct}¢</span>
+          <span className="text-slate-500 tabular-nums">No {100 - pct}¢</span>
+        </div>
+        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+        </div>
+      </div>
+      <div className="flex items-center gap-4 text-xs text-slate-500">
+        <span><span className="text-slate-400">Vol 24h</span> {fmtMarketUsd(vol)}</span>
+        <span><span className="text-slate-400">Liq</span> {fmtMarketUsd(liq)}</span>
+        {m.endDate && (
+          <span className="ml-auto text-slate-600">
+            {new Date(m.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PmMarketGroup({ title, icon, description, accent, markets, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (markets.length === 0) return null;
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-slate-800 transition-colors text-left">
+        <span className="text-base">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <span className="text-white font-semibold text-sm">{title}</span>
+          <span className="text-slate-500 text-xs ml-2">{description}</span>
+        </div>
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+          style={{ color: accent, backgroundColor: accent + '20' }}>{markets.length}</span>
+        <span className="text-slate-500 text-xs flex-shrink-0">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {markets.map(m => <PmMarketCard key={m.id || m.conditionId} m={m} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PredictionMarketsTab({ state, dispatch }) {
+  const { subject, subjectType, synthesis, predictionMarkets, predictionStatus, predictionTags, predictionFetchedAt } = state;
+
+  const fetchMarkets = useCallback(async () => {
+    dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'loading' });
+    try {
+      // Step 1: get AI-suggested tags from server (Groq, lightweight fast model)
+      let tags = ['politics', 'world', 'economy', 'ai', 'technology'];
+      try {
+        const tagRes = await fetch('/api/prediction-markets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject, subjectType, synthesis }),
+        });
+        if (tagRes.ok) {
+          const tagData = await tagRes.json();
+          if (Array.isArray(tagData.tags) && tagData.tags.length >= 2) tags = tagData.tags;
+        }
+      } catch { /* fall through to defaults */ }
+
+      dispatch({ type: 'SET_PREDICTION_TAGS', payload: tags });
+
+      // Step 2: browser-direct fetch to Polymarket Gamma API (bypasses Cloudflare JA3)
+      const GAMMA    = 'https://gamma-api.polymarket.com/markets';
+      const usedTags = tags.slice(0, 6);
+      const dedupe   = new Map();
+
+      const results = await Promise.allSettled(
+        usedTags.map(tag =>
+          fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=50&active=true&closed=false`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+        )
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+          for (const m of r.value) {
+            if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
+          }
+        }
+      }
+
+      if (dedupe.size === 0) {
+        dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
+        return;
+      }
+
+      const filtered = [...dedupe.values()].filter(passesMarketFilter);
+      filtered.sort((a, b) => getMarketVol(b) - getMarketVol(a));
+      dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString() });
+
+    } catch {
+      dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
+    }
+  }, [subject, subjectType, synthesis, dispatch]);
+
+  // Auto-fetch when the tab first mounts with no data
+  useEffect(() => {
+    if (predictionStatus === 'idle') fetchMarkets();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { highConviction, arbitrage, emerging } = predictionMarkets
+    ? groupPredictionMarkets(predictionMarkets)
+    : { highConviction: [], arbitrage: [], emerging: [] };
+
+  const fetchedLabel = predictionFetchedAt
+    ? new Date(predictionFetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className="space-y-5 fade-in">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold text-white">Prediction Markets</h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Live Polymarket contracts related to <span className="text-slate-300 font-medium">{subject}</span>
+            {predictionTags?.length > 0 && (
+              <> · <span className="text-slate-600 text-xs">tags: {predictionTags.slice(0, 6).join(', ')}</span></>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {fetchedLabel && <span className="text-slate-600 text-xs">Updated {fetchedLabel}</span>}
+          {predictionStatus !== 'loading' && (
+            <button onClick={fetchMarkets}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors border border-slate-700 flex items-center gap-1.5">
+              <span>↻</span> Refresh
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Loading */}
+      {predictionStatus === 'loading' && (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <Spinner size={28} />
+          <p className="text-slate-500 text-sm">Fetching live markets from Polymarket…</p>
+          <p className="text-slate-700 text-xs">Browser-direct connection · bypasses JA3 fingerprinting</p>
+        </div>
+      )}
+
+      {/* Error */}
+      {predictionStatus === 'error' && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-10 text-center">
+          <div className="text-4xl mb-4">◎</div>
+          <h3 className="text-white font-semibold mb-2">Could not reach Polymarket</h3>
+          <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
+            Polymarket's Gamma API uses browser-direct connection (bypasses Cloudflare JA3). If you're on a restrictive network or VPN, the API may be unreachable.
+          </p>
+          <button onClick={fetchMarkets}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* No results */}
+      {predictionStatus === 'complete' && predictionMarkets?.length === 0 && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-10 text-center">
+          <div className="text-4xl mb-4">◎</div>
+          <h3 className="text-white font-semibold mb-2">No relevant markets found</h3>
+          <p className="text-slate-400 text-sm max-w-md mx-auto">
+            No active Polymarket contracts match this subject with sufficient volume or price conviction. Try refreshing or check back when more contracts are active.
+          </p>
+        </div>
+      )}
+
+      {/* Results */}
+      {predictionStatus === 'complete' && predictionMarkets?.length > 0 && (
+        <>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+            <span><span className="text-yellow-400">⚡</span> Early-warning signal — vol &gt; $100K &amp; contested probability</span>
+            <span><span className="text-emerald-400">■</span> Green = Yes &gt;70%</span>
+            <span><span className="text-red-400">■</span> Red = No &gt;70%</span>
+            <span><span className="text-yellow-500">■</span> Amber = contested</span>
+          </div>
+
+          <PmMarketGroup
+            title="High Conviction"
+            icon="◉"
+            description="Strong price signal · vol > $50K"
+            accent="#10b981"
+            markets={highConviction}
+            defaultOpen={true}
+          />
+          <PmMarketGroup
+            title="Arbitrage Watch"
+            icon="⇄"
+            description="Near 50/50 but heavily traded — market is contested"
+            accent="#f59e0b"
+            markets={arbitrage}
+            defaultOpen={true}
+          />
+          <PmMarketGroup
+            title="Emerging Signals"
+            icon="◈"
+            description="Lower volume · strong directional pricing"
+            accent="#8b5cf6"
+            markets={emerging}
+            defaultOpen={false}
+          />
+
+          <p className="text-slate-700 text-xs text-center pt-2">
+            {predictionMarkets.length} markets after filtering · Sports &amp; entertainment excluded · Min $10K vol or |p−50%| ≥ 15%
+          </p>
+        </>
       )}
     </div>
   );
@@ -5431,7 +5727,8 @@ function RASCEFTool() {
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels,
-          ticker, fundamentals, investmentThesis, thesisStatus } = state;
+          ticker, fundamentals, investmentThesis, thesisStatus,
+          predictionMarkets, predictionStatus } = state;
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
@@ -5660,6 +5957,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   const topOnlyTabs = isComplete ? [
     { key: 'dataviz',  label: 'Data Viz',  icon: '▦' },
     { key: 'bigcycle', label: 'Big Cycle', icon: '⬡' },
+    { key: 'markets',  label: 'Prediction Markets', icon: '◎', badge: predictionStatus === 'loading' ? 'loading' : predictionStatus === 'complete' && predictionMarkets?.length > 0 ? 'complete' : undefined },
   ] : [];
   const tabs = [...coreTabs, ...topOnlyTabs];
 
@@ -6168,6 +6466,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               {activeTab === 'thesis'           && <InvestmentThesisTab  state={state} />}
               {activeTab === 'dataviz'          && <DataVizTab           state={state} />}
               {activeTab === 'bigcycle'         && <BigCycleTab          state={state} dispatch={dispatch} />}
+              {activeTab === 'markets'          && <PredictionMarketsTab  state={state} dispatch={dispatch} />}
               {activeTab === 'thoughtleadership'    && <ThoughtLeadershipPanel />}
               {activeTab === 'innovatorillumination' && <InnovatorIlluminationPanel />}
             </div>

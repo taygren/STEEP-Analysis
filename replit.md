@@ -1,6 +1,6 @@
 # STEEP Analysis Platform
 
-AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavily research. Six coordinated agents analyse any subject and return structured intelligence across five tabs, plus geoeconomic Big Cycle assessment, a Thought Leadership publishing system, and an Innovator Illumination company spotlight directory.
+AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavily research. Six coordinated agents analyse any subject and return structured intelligence across five tabs, plus geoeconomic Big Cycle assessment, a Prediction Markets tab (live Polymarket contracts), a Thought Leadership publishing system, and an Innovator Illumination company spotlight directory.
 
 ## Architecture
 
@@ -29,6 +29,7 @@ app/
     macro/route.js        — Yahoo Finance + BLS macro indicators
     snapshot/route.js     — AI time-bound intelligence snapshot (cached in KV)
     big-cycle/route.js    — Big Cycle Decision Engine geoeconomic assessment
+    prediction-markets/route.js — POST: uses Groq (llama-3.1-8b-instant) to generate Polymarket tag strings for subject; browser-direct Gamma API fetch done client-side
     thought-leadership/
       route.js            — Public list of published thought leadership posts (incl. heroImageUrl)
       admin/route.js      — Admin CRUD (requires x-admin-token header); schema incl. heroImageUrl
