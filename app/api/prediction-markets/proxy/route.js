@@ -96,15 +96,21 @@ async function fetchByTag(tag, limit = 60) {
 function keywordPreFilter(markets, keywordAliases, subject) {
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Level 1 — full alias set
-  if (keywordAliases.length > 0) {
-    const fullRe = new RegExp(keywordAliases.map(escapeRe).join('|'), 'i');
+  // Always union the subject name into the alias set so a server-only miss in the
+  // upstream prompt never silently drops the most obvious keyword.
+  const subjectName = (subject || '').trim();
+  const allAliases  = subjectName.length >= 2
+    ? [...new Set([subjectName, ...keywordAliases])]
+    : keywordAliases;
+
+  // Level 1 — full alias set (subject name always included)
+  if (allAliases.length > 0) {
+    const fullRe = new RegExp(allAliases.map(escapeRe).join('|'), 'i');
     const fullMatch = markets.filter(m => fullRe.test(m.question || ''));
     if (fullMatch.length >= 8) return { markets: fullMatch, level: 'full' };
   }
 
   // Level 2 — subject name only
-  const subjectName = (subject || '').trim();
   if (subjectName.length >= 2) {
     const nameRe = new RegExp(escapeRe(subjectName), 'i');
     const nameMatch = markets.filter(m => nameRe.test(m.question || ''));
@@ -120,7 +126,7 @@ function keywordPreFilter(markets, keywordAliases, subject) {
 
 /**
  * Extract a compact STEEP context string from the synthesis object.
- * Uses individual dimension summaries when available, falls back to executive_summary.
+ * Priority: synthesis.dimensions.{dim} → synthesis.{dim} → executive_summary.
  */
 function buildSteepContext(synthesis) {
   if (!synthesis) return '';
@@ -129,7 +135,12 @@ function buildSteepContext(synthesis) {
   const bullets = [];
 
   for (const dim of dims) {
-    const d = synthesis[dim] || synthesis[dim.charAt(0).toUpperCase() + dim.slice(1)];
+    // 1. Check nested dimensions object (e.g. synthesis.dimensions.social)
+    const nested = synthesis.dimensions?.[dim]
+                || synthesis.dimensions?.[dim.charAt(0).toUpperCase() + dim.slice(1)];
+    // 2. Flat top-level keys (e.g. synthesis.social or synthesis.Social)
+    const flat   = synthesis[dim] || synthesis[dim.charAt(0).toUpperCase() + dim.slice(1)];
+    const d      = nested || flat;
     if (d?.summary) {
       bullets.push(`• ${dim.charAt(0).toUpperCase() + dim.slice(1)}: ${String(d.summary).slice(0, 150)}`);
     }
