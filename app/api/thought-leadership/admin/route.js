@@ -16,6 +16,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const INDEX_KEY = 'thoughtleadership:index';
+const ALL_KEY   = 'thoughtleadership:all';
 
 // Returns 'ok' | 'no_token' | 'unauthorized'
 function authCheck(req) {
@@ -38,16 +39,18 @@ export async function GET(req) {
   if (check !== 'ok') return authResponse(check);
 
   try {
-    const ids = await kvZRange(INDEX_KEY, 0, -1, { rev: true });
-    const allIds = new Set(ids);
-
-    // Also scan for drafts not yet in the sorted index
+    // Read from both registries (union) so pre-existing published-only posts
+    // remain visible during migration before ALL_KEY is populated.
+    const [publishedIds, allIds] = await Promise.all([
+      kvZRange(INDEX_KEY, 0, -1, { rev: true }),
+      kvZRange(ALL_KEY,   0, -1, { rev: true }),
+    ]);
+    const ids = new Set([...publishedIds, ...allIds]);
     const posts = [];
-    for (const id of allIds) {
+    for (const id of ids) {
       const post = await kvGet(`thoughtleadership:post:${id}`);
       if (post) posts.push(post);
     }
-
     posts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     return Response.json({ found: true, posts });
 
@@ -86,7 +89,11 @@ export async function POST(req) {
 
     await kvSet(`thoughtleadership:post:${id}`, post);
 
-    // Update sorted index for published posts
+    // Always register in all-posts index so drafts remain discoverable
+    const allScore = new Date(post.updatedAt).getTime();
+    await kvZAdd(ALL_KEY, allScore, id);
+
+    // Update sorted published index
     if (post.status === 'published') {
       const score = new Date(post.publishedAt || now).getTime();
       await kvZAdd(INDEX_KEY, score, id);
@@ -143,6 +150,7 @@ export async function DELETE(req) {
 
     await kvDel(`thoughtleadership:post:${id}`);
     await kvZRem(INDEX_KEY, id);
+    await kvZRem(ALL_KEY, id);
 
     return Response.json({ found: true, deleted: id });
 

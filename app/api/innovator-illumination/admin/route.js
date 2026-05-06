@@ -16,6 +16,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const INDEX_KEY = 'innovatorillumination:index';
+const ALL_KEY   = 'innovatorillumination:all';
 
 function authCheck(req) {
   const token = process.env.ADMIN_PUBLISH_TOKEN;
@@ -37,10 +38,15 @@ export async function GET(req) {
   if (check !== 'ok') return authResponse(check);
 
   try {
-    const ids = await kvZRange(INDEX_KEY, 0, -1, { rev: true });
-    const allIds = new Set(ids);
+    // Read from both registries (union) so existing published-only entries
+    // are included during migration before ALL_KEY is populated.
+    const [publishedIds, allIds] = await Promise.all([
+      kvZRange(INDEX_KEY, 0, -1, { rev: true }),
+      kvZRange(ALL_KEY,   0, -1, { rev: true }),
+    ]);
+    const ids = new Set([...publishedIds, ...allIds]);
     const posts = [];
-    for (const id of allIds) {
+    for (const id of ids) {
       const post = await kvGet(`innovatorillumination:post:${id}`);
       if (post) posts.push(post);
     }
@@ -79,6 +85,10 @@ export async function POST(req) {
     };
 
     await kvSet(`innovatorillumination:post:${id}`, post);
+
+    // Always register in all-posts index so drafts remain discoverable
+    const allScore = new Date(post.updatedAt).getTime();
+    await kvZAdd(ALL_KEY, allScore, id);
 
     if (post.status === 'published') {
       const score = new Date(post.publishedAt || now).getTime();
@@ -134,6 +144,7 @@ export async function DELETE(req) {
 
     await kvDel(`innovatorillumination:post:${id}`);
     await kvZRem(INDEX_KEY, id);
+    await kvZRem(ALL_KEY, id);
 
     return Response.json({ found: true, deleted: id });
   } catch (err) {
