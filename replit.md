@@ -1,6 +1,6 @@
 # STEEP Analysis Platform
 
-AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavily research. Six coordinated agents analyse any subject and return structured intelligence across five tabs, plus geoeconomic Big Cycle assessment and a Thought Leadership publishing system.
+AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavily research. Six coordinated agents analyse any subject and return structured intelligence across five tabs, plus geoeconomic Big Cycle assessment, a Thought Leadership publishing system, and an Innovator Illumination company spotlight directory.
 
 ## Architecture
 
@@ -33,6 +33,10 @@ app/
       route.js            — Public list of published thought leadership posts (incl. heroImageUrl)
       admin/route.js      — Admin CRUD (requires x-admin-token header); schema incl. heroImageUrl
       [id]/route.js       — Single published post fetch (full contentMarkdown for article view)
+    innovator-illumination/
+      route.js            — Public list of published innovator profiles
+      admin/route.js      — Admin CRUD; schema adds logoUrl, techSegment, solutionOverview
+      [id]/route.js       — Single innovator fetch
     upload-image/route.js — Image upload (admin token required); saves to public/uploads/
 lib/
   kv.js                 — Vercel KV wrapper; dev fallback uses file-backed JSON (.steep-data/kv.json) shared via globalThis to avoid Next.js module-isolation issues
@@ -56,8 +60,13 @@ vercel.json             — Vercel function timeouts
 - **Data Viz** *(unlocked after analysis)*: STEEP radar chart, opportunities vs risks bar chart, driver impact distribution, confidence bars, market KPI cards
 - **Big Cycle** *(unlocked after analysis)*: Geoeconomic instrument scoring, strategic utility classification, US capacity assessments, company positioning
 
-### Sidebar-Only Destinations
-- **Thought Leadership**: Always accessible; lists published GEO intelligence briefs; admin mode (localStorage token) unlocks full CRUD editor
+### Sidebar-Only Destinations (Intelligence section)
+- **Thought Leadership**: Always accessible; lists published GEO intelligence briefs; admin mode (in-memory token) unlocks full CRUD editor
+- **Innovator Illumination**: Always accessible; logo-card grid of technology solution providers; admin mode unlocks Add Innovator modal (2-step: auth → form with logoUrl, techSegment, solutionOverview, content, geo tags, hero image); KV namespace `innovatorillumination:*`
+
+### Sidebar Tools section
+- **STEEP Analysis**: Shortcut back to the home/idle landing screen
+- **RASCEF Generator**: AI prompt architect
 
 ## How It Runs
 

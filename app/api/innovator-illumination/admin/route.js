@@ -1,0 +1,142 @@
+/**
+ * Admin CRUD for Innovator Illumination posts.
+ *
+ * All methods require header: x-admin-token matching ADMIN_PUBLISH_TOKEN env var.
+ *
+ * POST   /api/innovator-illumination/admin  — create or update a post
+ * PUT    /api/innovator-illumination/admin  — publish / unpublish
+ * DELETE /api/innovator-illumination/admin  — delete a post
+ * GET    /api/innovator-illumination/admin  — list all posts
+ */
+
+import { kvGet, kvSet, kvDel, kvZAdd, kvZRem, kvZRange } from '../../../../lib/kv';
+import { randomUUID } from 'crypto';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+const INDEX_KEY = 'innovatorillumination:index';
+
+function authCheck(req) {
+  const token = process.env.ADMIN_PUBLISH_TOKEN;
+  if (!token) return 'no_token';
+  return req.headers.get('x-admin-token') === token ? 'ok' : 'unauthorized';
+}
+
+function authResponse(check) {
+  if (check === 'no_token') return Response.json({ error: 'ADMIN_PUBLISH_TOKEN is not configured.' }, { status: 403 });
+  return Response.json({ error: 'Unauthorized' }, { status: 401 });
+}
+
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+export async function GET(req) {
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
+
+  try {
+    const ids = await kvZRange(INDEX_KEY, 0, -1, { rev: true });
+    const allIds = new Set(ids);
+    const posts = [];
+    for (const id of allIds) {
+      const post = await kvGet(`innovatorillumination:post:${id}`);
+      if (post) posts.push(post);
+    }
+    posts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    return Response.json({ found: true, posts });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
+
+  try {
+    const body = await req.json();
+    const now  = new Date().toISOString();
+    const id   = body.id || randomUUID();
+    const slug = body.slug || slugify(body.title || id);
+
+    const post = {
+      id,
+      slug,
+      title:           body.title           || 'Untitled',
+      dek:             body.dek             || '',
+      logoUrl:         body.logoUrl         || '',
+      techSegment:     body.techSegment     || '',
+      solutionOverview: body.solutionOverview || '',
+      contentMarkdown: body.contentMarkdown || '',
+      heroImageUrl:    body.heroImageUrl    || '',
+      geoKeywords:     body.geoKeywords     || [],
+      status:          body.status          || 'draft',
+      publishedAt:     body.status === 'published' ? (body.publishedAt || now) : null,
+      updatedAt:       now,
+      createdAt:       body.createdAt || now,
+    };
+
+    await kvSet(`innovatorillumination:post:${id}`, post);
+
+    if (post.status === 'published') {
+      const score = new Date(post.publishedAt || now).getTime();
+      await kvZAdd(INDEX_KEY, score, id);
+    }
+
+    return Response.json({ found: true, post });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
+
+  try {
+    const { id, status } = await req.json();
+    if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+
+    const existing = await kvGet(`innovatorillumination:post:${id}`);
+    if (!existing) return Response.json({ error: 'Post not found' }, { status: 404 });
+
+    const now  = new Date().toISOString();
+    const post = {
+      ...existing,
+      status,
+      updatedAt:   now,
+      publishedAt: status === 'published' ? (existing.publishedAt || now) : existing.publishedAt,
+    };
+
+    await kvSet(`innovatorillumination:post:${id}`, post);
+
+    if (status === 'published') {
+      await kvZAdd(INDEX_KEY, new Date(post.publishedAt).getTime(), id);
+    } else {
+      await kvZRem(INDEX_KEY, id);
+    }
+
+    return Response.json({ found: true, post });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
+
+  try {
+    const { id } = await req.json();
+    if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+
+    await kvDel(`innovatorillumination:post:${id}`);
+    await kvZRem(INDEX_KEY, id);
+
+    return Response.json({ found: true, deleted: id });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}

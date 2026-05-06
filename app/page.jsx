@@ -2298,6 +2298,340 @@ function TLPublishModal({ onClose, onPublished }) {
   );
 }
 
+// ── Innovator Illumination publish modal ──────────────────────────
+function IIPublishModal({ onClose, onPublished }) {
+  const [step, setStep]               = useState('auth');
+  const [token, setToken]             = useState('');
+  const [authChecking, setAuthChecking] = useState(false);
+  const [authErr, setAuthErr]         = useState('');
+
+  const [form, setForm] = useState({
+    title: '', logoUrl: '', techSegment: '', solutionOverview: '',
+    contentMarkdown: '', heroImageUrl: '', geoKeywords: '',
+  });
+  const [publishing, setPublishing]   = useState(false);
+  const [publishErr, setPublishErr]   = useState('');
+
+  const logoInputRef    = useRef(null);
+  const heroImgInputRef = useRef(null);
+  const inlineImgInputRef = useRef(null);
+  const contentRef      = useRef(null);
+  const [logoUploading, setLogoUploading]     = useState(false);
+  const [logoUploadErr, setLogoUploadErr]     = useState('');
+  const [heroUploading, setHeroUploading]     = useState(false);
+  const [heroUploadErr, setHeroUploadErr]     = useState('');
+  const [inlineUploading, setInlineUploading] = useState(false);
+  const [inlineUploadErr, setInlineUploadErr] = useState('');
+
+  // ── Auth ─────────────────────────────────────────────────────────
+  const verifyToken = async () => {
+    if (!token.trim()) { setAuthErr('Enter your admin publishing key.'); return; }
+    setAuthChecking(true); setAuthErr('');
+    try {
+      const res = await fetch('/api/innovator-illumination/admin', { headers: { 'x-admin-token': token } });
+      if (res.ok) { setStep('form'); }
+      else { setAuthErr('Invalid key — please check and try again.'); }
+    } catch { setAuthErr('Could not verify — check your connection.'); }
+    setAuthChecking(false);
+  };
+
+  // ── Image uploads ────────────────────────────────────────────────
+  const uploadImage = async (file, field, setUploading, setErr) => {
+    if (!file) return;
+    setUploading(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setForm(f => ({ ...f, [field]: data.url }));
+    } catch (e) { setErr(e.message); }
+    setUploading(false);
+  };
+
+  const uploadInlineImage = async (file) => {
+    if (!file) return;
+    setInlineUploading(true); setInlineUploadErr('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload-image', { method: 'POST', headers: { 'x-admin-token': token }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const label = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+      const snippet = `\n\n![${label}](${data.url})\n\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? ta.value.length;
+        const before = form.contentMarkdown.slice(0, start);
+        const after  = form.contentMarkdown.slice(start);
+        setForm(f => ({ ...f, contentMarkdown: before + snippet + after }));
+        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + snippet.length; ta.focus(); }, 30);
+      } else {
+        setForm(f => ({ ...f, contentMarkdown: f.contentMarkdown + snippet }));
+      }
+    } catch (e) { setInlineUploadErr(e.message); }
+    setInlineUploading(false);
+  };
+
+  // ── Publish ───────────────────────────────────────────────────────
+  const publish = async () => {
+    if (!form.title.trim()) { setPublishErr('A company name is required.'); return; }
+    setPublishing(true); setPublishErr('');
+    try {
+      const payload = {
+        title:           form.title.trim(),
+        dek:             form.solutionOverview.trim(),
+        logoUrl:         form.logoUrl.trim(),
+        techSegment:     form.techSegment.trim(),
+        solutionOverview: form.solutionOverview.trim(),
+        contentMarkdown: form.contentMarkdown,
+        heroImageUrl:    form.heroImageUrl.trim(),
+        geoKeywords:     form.geoKeywords.split(',').map(s => s.trim()).filter(Boolean),
+        status:          'published',
+      };
+      const res = await fetch('/api/innovator-illumination/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Publish failed');
+      onPublished(token);
+      onClose();
+    } catch (e) { setPublishErr(e.message); }
+    setPublishing(false);
+  };
+
+  const STEPS = ['Authenticate', 'Enter Details'];
+  const stepIdx = step === 'auth' ? 0 : 1;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
+          <div>
+            <h2 className="text-white font-bold text-base">Add Innovator</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Showcase an innovative solution provider</p>
+          </div>
+          <button onClick={onClose} className="text-slate-600 hover:text-white text-xl leading-none transition-colors">✕</button>
+        </div>
+
+        {/* Step indicator */}
+        <div className="flex items-center gap-0 px-6 py-4 border-b border-slate-800 flex-shrink-0">
+          {STEPS.map((label, idx) => (
+            <div key={label} className="flex items-center">
+              <div className={`flex items-center gap-2 text-xs font-semibold ${idx === stepIdx ? 'text-white' : idx < stepIdx ? 'text-emerald-400' : 'text-slate-600'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${idx === stepIdx ? 'bg-blue-600 text-white' : idx < stepIdx ? 'bg-emerald-700 text-white' : 'bg-slate-800 text-slate-600'}`}>
+                  {idx < stepIdx ? '✓' : idx + 1}
+                </div>
+                <span className="hidden sm:block">{label}</span>
+              </div>
+              {idx < STEPS.length - 1 && <div className={`w-8 h-px mx-3 ${idx < stepIdx ? 'bg-emerald-700' : 'bg-slate-800'}`} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+
+          {/* Auth step */}
+          {step === 'auth' && (
+            <div className="space-y-5 max-w-sm mx-auto">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl mx-auto">💡</div>
+                <p className="text-white font-semibold">Enter your admin publishing key</p>
+                <p className="text-slate-500 text-xs">This is the <code className="text-slate-400 bg-slate-900 px-1 py-0.5 rounded text-xs">ADMIN_PUBLISH_TOKEN</code> set in your environment.</p>
+              </div>
+              <input
+                type="password"
+                value={token}
+                onChange={e => { setToken(e.target.value); setAuthErr(''); }}
+                onKeyDown={e => e.key === 'Enter' && verifyToken()}
+                placeholder="Paste your admin key…"
+                autoFocus
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              {authErr && <p className="text-red-400 text-xs text-center">{authErr}</p>}
+              <button
+                onClick={verifyToken}
+                disabled={authChecking}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}
+              >
+                {authChecking ? 'Verifying…' : 'Continue →'}
+              </button>
+            </div>
+          )}
+
+          {/* Form step */}
+          {step === 'form' && (
+            <div className="space-y-5">
+
+              {/* Hidden file inputs */}
+              <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden"
+                onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'logoUrl', setLogoUploading, setLogoUploadErr); e.target.value = ''; }} />
+              <input ref={heroImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
+                onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+              <input ref={inlineImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden"
+                onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
+
+              {/* Logo + preview */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Company Logo</label>
+                <div className="flex items-center gap-3">
+                  {/* Logo preview */}
+                  <div className="w-14 h-14 rounded-xl border border-slate-700 flex-shrink-0 overflow-hidden bg-slate-900 flex items-center justify-center">
+                    {form.logoUrl ? (
+                      <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                    ) : (
+                      <span className="text-slate-600 text-xl font-black">{form.title ? form.title[0].toUpperCase() : '?'}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      value={form.logoUrl}
+                      onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
+                      placeholder="https://example.com/logo.png or upload below"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                    />
+                    <button
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={logoUploading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors disabled:opacity-40"
+                    >
+                      {logoUploading ? <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                        : <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      {logoUploading ? 'Uploading…' : 'Upload logo file'}
+                    </button>
+                    {logoUploadErr && <p className="text-red-400 text-xs">{logoUploadErr}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Company name */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Company Name <span className="text-red-500">*</span></label>
+                <input
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Acme Technologies"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Technology segment */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Technology Segment</label>
+                <input
+                  value={form.techSegment}
+                  onChange={e => setForm(f => ({ ...f, techSegment: e.target.value }))}
+                  placeholder="e.g. AI Infrastructure, Quantum Computing, Climate Tech…"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Solution overview */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Solution Overview <span className="normal-case font-normal text-slate-600">(tagline)</span></label>
+                <input
+                  value={form.solutionOverview}
+                  onChange={e => setForm(f => ({ ...f, solutionOverview: e.target.value }))}
+                  placeholder="One-line description of what this company does…"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Hero image */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Hero / Cover Image <span className="normal-case font-normal text-slate-600">(optional)</span></label>
+                {form.heroImageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden">
+                    <img src={form.heroImageUrl} alt="Cover" className="w-full object-cover rounded-xl" style={{ maxHeight: 160 }} />
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <button onClick={() => heroImgInputRef.current?.click()} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">↑</button>
+                      <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => heroImgInputRef.current?.click()}
+                    disabled={heroUploading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors disabled:opacity-40 w-full justify-center"
+                  >
+                    {heroUploading ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                      : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    {heroUploading ? 'Uploading…' : 'Upload cover image'}
+                  </button>
+                )}
+                {heroUploadErr && <p className="text-red-400 text-xs mt-1">{heroUploadErr}</p>}
+              </div>
+
+              {/* GEO keywords */}
+              <div>
+                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">GEO Tags <span className="normal-case font-normal text-slate-600">(comma-separated)</span></label>
+                <input
+                  value={form.geoKeywords}
+                  onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
+                  placeholder="e.g. AI, semiconductor, defence tech"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
+                />
+              </div>
+
+              {/* Content */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Full Profile / Content <span className="normal-case font-normal text-slate-600">(markdown)</span></label>
+                  <button
+                    type="button"
+                    onClick={() => inlineImgInputRef.current?.click()}
+                    disabled={inlineUploading}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold disabled:opacity-40 transition-colors"
+                  >
+                    {inlineUploading
+                      ? <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                      : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="4.5" cy="4.5" r="1.2" fill="currentColor"/><path d="M1 9.5l3-3 2.5 2.5 2-2L13 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    {inlineUploading ? 'Uploading…' : 'Insert image'}
+                  </button>
+                </div>
+                <textarea
+                  ref={contentRef}
+                  value={form.contentMarkdown}
+                  onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}
+                  placeholder="Detailed company profile, capabilities, key differentiators… (supports Markdown)"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-600 font-mono leading-loose resize-none transition-colors"
+                  style={{ minHeight: 200 }}
+                />
+                {inlineUploadErr && <p className="text-red-400 text-xs mt-1">{inlineUploadErr}</p>}
+              </div>
+
+              {publishErr && <p className="text-red-400 text-xs">{publishErr}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {step === 'form' && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 flex-shrink-0 gap-3">
+            <button onClick={() => setStep('auth')} className="text-slate-500 hover:text-white text-sm transition-colors">← Back</button>
+            <button
+              onClick={publish}
+              disabled={publishing || !form.title.trim()}
+              className="px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-opacity"
+              style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}
+            >
+              {publishing ? 'Publishing…' : 'Publish Innovator'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ThoughtLeadershipPanel() {
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -2957,6 +3291,280 @@ function generatePdfReport(state) {
   if (!win) { alert('Pop-up blocked — please allow pop-ups for this site to export PDF.'); return; }
   win.document.write(html);
   win.document.close();
+}
+
+// ── InnovatorIlluminationPanel ────────────────────────────────────
+function InnovatorIlluminationPanel() {
+  const [posts, setPosts]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [search, setSearch]             = useState('');
+  const [activeTag, setActiveTag]       = useState('');
+  const [showPublish, setShowPublish]   = useState(false);
+
+  const [adminToken, setAdminToken]         = useState('');
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminInput, setAdminInput]         = useState('');
+  const [adminErr, setAdminErr]             = useState('');
+  const [adminChecking, setAdminChecking]   = useState(false);
+
+  const doAdminLogin = async () => {
+    if (!adminInput.trim()) return;
+    setAdminChecking(true); setAdminErr('');
+    try {
+      const res = await fetch('/api/innovator-illumination/admin', { headers: { 'x-admin-token': adminInput.trim() } });
+      if (res.ok) {
+        setAdminToken(adminInput.trim());
+        setShowAdminLogin(false);
+        setAdminInput('');
+      } else {
+        setAdminErr('Invalid key');
+      }
+    } catch { setAdminErr('Could not verify — check your connection.'); }
+    setAdminChecking(false);
+  };
+
+  const doDelete = async (id) => {
+    if (!window.confirm('Delete this innovator profile?')) return;
+    await fetch('/api/innovator-illumination/admin', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ id }),
+    });
+    loadPosts();
+  };
+
+  const doUnpublish = async (id) => {
+    await fetch('/api/innovator-illumination/admin', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ id, status: 'draft' }),
+    });
+    loadPosts();
+  };
+
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ limit: '50' });
+      if (activeTag) qs.set('tag', activeTag);
+      if (search.trim()) qs.set('q', search.trim());
+      const res = await fetch(`/api/innovator-illumination?${qs}`);
+      const data = await res.json();
+      setPosts(data.posts || []);
+    } catch { setPosts([]); }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadPosts(); }, [activeTag, search]);
+
+  // Gather all geo keywords from posts
+  const allTags = [...new Set(posts.flatMap(p => p.geoKeywords || []))].sort();
+
+  if (selectedPost) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <button onClick={() => setSelectedPost(null)} className="flex items-center gap-2 text-slate-500 hover:text-white text-sm transition-colors mb-6">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Back to Innovators
+        </button>
+
+        {/* Article header */}
+        {selectedPost.heroImageUrl && (
+          <div className="rounded-2xl overflow-hidden mb-6" style={{ maxHeight: 280 }}>
+            <img src={selectedPost.heroImageUrl} alt={selectedPost.title} className="w-full object-cover" style={{ maxHeight: 280 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+          </div>
+        )}
+
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900 flex-shrink-0 overflow-hidden flex items-center justify-center">
+            {selectedPost.logoUrl ? (
+              <img src={selectedPost.logoUrl} alt={selectedPost.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+            ) : (
+              <span className="text-white text-xl font-black">{(selectedPost.title||'?')[0].toUpperCase()}</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            {selectedPost.techSegment && (
+              <span className="inline-block text-xs px-2 py-0.5 rounded-full font-semibold mb-2" style={{ background: '#0891b220', color: '#22d3ee', border: '1px solid #0891b240' }}>{selectedPost.techSegment}</span>
+            )}
+            <h1 className="text-2xl font-black text-white leading-tight">{selectedPost.title}</h1>
+            {selectedPost.solutionOverview && <p className="text-slate-400 text-sm mt-1 leading-relaxed">{selectedPost.solutionOverview}</p>}
+          </div>
+        </div>
+
+        {selectedPost.geoKeywords?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {selectedPost.geoKeywords.map(t => (
+              <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">{t}</span>
+            ))}
+          </div>
+        )}
+
+        <div className="prose-like">
+          <TLMarkdown md={selectedPost.contentMarkdown || ''} />
+        </div>
+
+        {adminToken && (
+          <div className="mt-8 pt-6 border-t border-slate-800 flex gap-3">
+            <button onClick={() => doUnpublish(selectedPost.id)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">Unpublish</button>
+            <button onClick={() => { doDelete(selectedPost.id); setSelectedPost(null); }} className="text-xs px-3 py-1.5 rounded-lg bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>💡</div>
+          <div>
+            <h1 className="text-2xl font-black text-white mb-0.5">Innovator Illumination</h1>
+            <p className="text-slate-500 text-xs">Spotlighting breakthrough technology solution providers</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {adminToken ? (
+            <>
+              <button onClick={() => setShowPublish(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-opacity" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                Add Innovator
+              </button>
+              <button onClick={() => setAdminToken('')} className="text-xs px-2 py-1.5 rounded-lg bg-slate-800 text-slate-500 hover:text-white transition-colors">Logout</button>
+            </>
+          ) : (
+            <button onClick={() => setShowAdminLogin(v => !v)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">Admin</button>
+          )}
+        </div>
+      </div>
+
+      {/* Admin login inline */}
+      {showAdminLogin && !adminToken && (
+        <div className="mb-5 p-4 rounded-xl border border-slate-800 bg-slate-900/60 flex gap-3 items-center">
+          <input
+            type="password"
+            value={adminInput}
+            onChange={e => { setAdminInput(e.target.value); setAdminErr(''); }}
+            onKeyDown={e => e.key === 'Enter' && doAdminLogin()}
+            placeholder="Admin key…"
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-500"
+          />
+          <button onClick={doAdminLogin} disabled={adminChecking} className="px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: 'linear-gradient(135deg,#0891b2,#6d28d9)' }}>
+            {adminChecking ? '…' : 'Login'}
+          </button>
+          {adminErr && <p className="text-red-400 text-xs">{adminErr}</p>}
+        </div>
+      )}
+
+      {/* Search + tag filter */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M10 10l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search innovators…"
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-700 transition-colors"
+          />
+        </div>
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <button onClick={() => setActiveTag('')} className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${!activeTag ? 'border-cyan-700 bg-cyan-900/30 text-cyan-400' : 'border-slate-700 bg-slate-900 text-slate-500 hover:text-slate-300'}`}>All</button>
+            {allTags.map(t => (
+              <button key={t} onClick={() => setActiveTag(activeTag === t ? '' : t)} className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${activeTag === t ? 'border-cyan-700 bg-cyan-900/30 text-cyan-400' : 'border-slate-700 bg-slate-900 text-slate-500 hover:text-slate-300'}`}>{t}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-24 text-slate-600">
+          <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="text-center py-24">
+          <div className="text-5xl mb-4">💡</div>
+          <p className="text-slate-500 text-sm">{search || activeTag ? 'No innovators match your search.' : 'No innovator profiles published yet.'}</p>
+          {adminToken && !search && !activeTag && (
+            <button onClick={() => setShowPublish(true)} className="mt-4 text-sm text-cyan-500 hover:text-cyan-300 underline transition-colors">Add the first innovator →</button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {posts.map(post => (
+            <div key={post.id}
+              className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-600 transition-all cursor-pointer flex flex-col"
+              onClick={() => setSelectedPost(post)}
+            >
+              {/* Hero image strip */}
+              {post.heroImageUrl && (
+                <div className="h-28 overflow-hidden flex-shrink-0 bg-slate-800">
+                  <img src={post.heroImageUrl} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={e => { e.currentTarget.parentElement.style.display='none'; }} />
+                </div>
+              )}
+
+              <div className="p-4 flex-1 flex flex-col">
+                {/* Logo + name row */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg border border-slate-700 bg-slate-800 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {post.logoUrl ? (
+                      <img src={post.logoUrl} alt={post.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
+                    ) : (
+                      <span className="text-white text-sm font-black">{(post.title||'?')[0].toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-bold text-sm leading-tight truncate">{post.title}</h3>
+                    {post.techSegment && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-medium mt-0.5 inline-block" style={{ background: '#0891b215', color: '#22d3ee' }}>{post.techSegment}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Solution overview tagline */}
+                {post.solutionOverview && (
+                  <p className="text-slate-400 text-xs leading-relaxed mb-3 line-clamp-2 flex-1">{post.solutionOverview}</p>
+                )}
+
+                {/* GEO tags */}
+                {post.geoKeywords?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-auto">
+                    {post.geoKeywords.slice(0, 3).map(t => (
+                      <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">{t}</span>
+                    ))}
+                    {post.geoKeywords.length > 3 && <span className="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-600">+{post.geoKeywords.length - 3}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Admin actions */}
+              {adminToken && (
+                <div className="px-4 pb-3 flex gap-2" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => doUnpublish(post.id)} className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">Unpublish</button>
+                  <button onClick={() => doDelete(post.id)} className="text-xs px-2 py-1 rounded bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Publish modal */}
+      {showPublish && (
+        <IIPublishModal
+          onClose={() => setShowPublish(false)}
+          onPublished={(tok) => { setAdminToken(tok); loadPosts(); }}
+        />
+      )}
+    </div>
+  );
 }
 
 // ── OverviewTab ───────────────────────────────────────────────────
@@ -4954,7 +5562,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </nav>
         )}
 
-        {/* Thought Leadership — always-visible sidebar destination */}
+        {/* Intelligence — Thought Leadership + Innovator Illumination */}
         <div className="px-3 py-3 border-t border-slate-800">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Intelligence</p>
           <button
@@ -4962,14 +5570,38 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">✍</span>
-            <span>Thought Leadership</span>
-            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Thought Leadership</span>
+              <span className="block text-slate-600 text-xs">GEO intelligence briefs</span>
+            </span>
+            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
+          </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">💡</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Innovator Illumination</span>
+              <span className="block text-slate-600 text-xs">Solution provider spotlights</span>
+            </span>
+            {activeTab === 'innovatorillumination' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
           </button>
         </div>
 
         {/* Tools — standalone interactive tools */}
         <div className="px-3 py-3 border-t border-slate-800">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Tools</p>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all text-slate-400 hover:text-white hover:bg-slate-800`}
+          >
+            <span className="text-base leading-none">📊</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">STEEP Analysis</span>
+              <span className="block text-slate-600 text-xs">Run a new analysis</span>
+            </span>
+          </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'rascef' }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'rascef' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
@@ -5100,6 +5732,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* Innovator Illumination — accessible at any time from sidebar */}
+        {activeTab === 'innovatorillumination' && (
+          <div className="h-full overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+            <InnovatorIlluminationPanel />
+          </div>
+        )}
+
         {/* RASCEF Tool — accessible at any time from sidebar */}
         {activeTab === 'rascef' && (
           <div className="h-full overflow-y-auto">
@@ -5108,7 +5747,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && status === 'idle' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -5276,7 +5915,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -5312,7 +5951,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'rascef' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
@@ -5334,7 +5973,8 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               {activeTab === 'thesis'           && <InvestmentThesisTab  state={state} />}
               {activeTab === 'dataviz'          && <DataVizTab           state={state} />}
               {activeTab === 'bigcycle'         && <BigCycleTab          state={state} dispatch={dispatch} />}
-              {activeTab === 'thoughtleadership'&& <ThoughtLeadershipPanel />}
+              {activeTab === 'thoughtleadership'    && <ThoughtLeadershipPanel />}
+              {activeTab === 'innovatorillumination' && <InnovatorIlluminationPanel />}
             </div>
           </div>
         )}
