@@ -377,10 +377,11 @@ const initialState = {
   snapshotStatus: 'idle',   // idle | loading | complete | error
   bigCycleData: null,       // Big Cycle Decision Engine assessment
   bigCycleStatus: 'idle',   // idle | loading | complete | error
-  predictionMarkets: null,  // Polymarket contracts relevant to subject
-  predictionStatus: 'idle', // idle | loading | complete | error
-  predictionTags: [],       // Tags used for the Polymarket fetch
-  predictionFetchedAt: null,// ISO timestamp of last successful fetch
+  predictionMarkets: null,       // Polymarket contracts relevant to subject
+  predictionStatus: 'idle',      // idle | loading | complete | error
+  predictionTags: [],            // Keyword aliases used for the Polymarket fetch
+  predictionFetchedAt: null,     // ISO timestamp of last successful fetch
+  predictionLowConfidence: false,// true when no high-confidence matches found
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -454,6 +455,7 @@ function reducer(state, action) {
         predictionStatus: 'idle',
         predictionTags: [],
         predictionFetchedAt: null,
+        predictionLowConfidence: false,
       };
     }
     default: return state;

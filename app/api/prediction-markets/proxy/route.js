@@ -127,12 +127,13 @@ function keywordPreFilter(markets, keywordAliases, subject) {
 /**
  * Extract a compact STEEP context string from the synthesis object.
  * Priority: synthesis.dimensions.{dim} → synthesis.{dim} → executive_summary.
+ * Emits up to 3 concise sub-bullets per dimension (summary + key_opportunities + key_risks).
  */
 function buildSteepContext(synthesis) {
   if (!synthesis) return '';
 
   const dims = ['social', 'technological', 'economic', 'environmental', 'political'];
-  const bullets = [];
+  const sections = [];
 
   for (const dim of dims) {
     // 1. Check nested dimensions object (e.g. synthesis.dimensions.social)
@@ -141,12 +142,19 @@ function buildSteepContext(synthesis) {
     // 2. Flat top-level keys (e.g. synthesis.social or synthesis.Social)
     const flat   = synthesis[dim] || synthesis[dim.charAt(0).toUpperCase() + dim.slice(1)];
     const d      = nested || flat;
-    if (d?.summary) {
-      bullets.push(`• ${dim.charAt(0).toUpperCase() + dim.slice(1)}: ${String(d.summary).slice(0, 150)}`);
-    }
+    if (!d) continue;
+
+    const label  = dim.charAt(0).toUpperCase() + dim.slice(1);
+    const lines  = [];
+
+    if (d.summary)           lines.push(String(d.summary).slice(0, 150));
+    if (d.key_opportunities) lines.push(`Opp: ${String(Array.isArray(d.key_opportunities) ? d.key_opportunities[0] : d.key_opportunities).slice(0, 120)}`);
+    if (d.key_risks)         lines.push(`Risk: ${String(Array.isArray(d.key_risks) ? d.key_risks[0] : d.key_risks).slice(0, 120)}`);
+
+    if (lines.length > 0) sections.push(`${label}:\n  ${lines.join('\n  ')}`);
   }
 
-  if (bullets.length >= 2) return bullets.join('\n');
+  if (sections.length >= 2) return sections.join('\n');
 
   // Fallback to executive summary
   return (synthesis.executive_summary || synthesis.summary || '').slice(0, 600);
