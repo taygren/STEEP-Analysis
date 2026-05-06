@@ -825,6 +825,17 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
   const logoInputRef = useRef(null);
   const heroInputRef = useRef(null);
 
+  const [showDocs, setShowDocs]         = useState(false);
+  const [wordFile, setWordFile]         = useState(null);
+  const [reportFile, setReportFile]     = useState(null);
+  const [extractedWord, setExtractedWord]     = useState('');
+  const [extractedReport, setExtractedReport] = useState('');
+  const [extracting, setExtracting]     = useState(null); // 'word' | 'report' | null
+  const [extractErr, setExtractErr]     = useState('');
+  const [refining, setRefining]         = useState(false);
+  const [refineMsg, setRefineMsg]       = useState('');
+  const [refineMsgType, setRefineMsgType] = useState('success');
+
   const uploadFile = async (file, field) => {
     setImgUploading(true); setImgUploadErr('');
     try {
@@ -862,6 +873,7 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
   const save = async (publish = false) => {
     if (!form.title.trim()) { setSaveMsg('Company name is required'); setSaveMsgType('error'); return; }
     setSaving(true); setSaveMsg('');
+
     const payload = {
       ...(postId ? { id: postId } : {}),
       title:           form.title.trim(),
@@ -1037,6 +1049,93 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
               <input type="text" value={form.geoKeywords} onChange={e => setForm(f => ({ ...f, geoKeywords: e.target.value }))}
                 placeholder="e.g. AI, defence tech, semiconductor (comma-separated)"
                 className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            </div>
+
+            {/* ── Document Import & AI Optimization ── */}
+            <div className="border border-slate-800 rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowDocs(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-900 hover:bg-slate-800/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm">📎</span>
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">Document Import &amp; AI Optimization</span>
+                  {(extractedWord || extractedReport) && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-300 border border-emerald-700 font-semibold">
+                      {[extractedWord && 'Doc', extractedReport && 'STEEP'].filter(Boolean).join(' + ')} ready
+                    </span>
+                  )}
+                </div>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={`text-slate-500 transition-transform flex-shrink-0 ml-2 ${showDocs ? 'rotate-180' : ''}`}>
+                  <path d="M2 4l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {showDocs && (
+                <div className="px-4 py-4 space-y-4 bg-slate-950 border-t border-slate-800">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <UploadZone
+                        label="Company Doc / Profile"
+                        accept=".docx,.doc"
+                        icon="📄"
+                        file={wordFile}
+                        hint=".docx / .doc"
+                        onFile={f => extractFile(f, 'word')}
+                      />
+                      {extracting === 'word' && (
+                        <div className="absolute inset-0 rounded-xl bg-slate-900/80 flex items-center justify-center gap-1.5">
+                          <Spinner /><span className="text-xs text-blue-400">Reading…</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <UploadZone
+                        label="STEEP Report PDF"
+                        accept=".pdf"
+                        icon="📊"
+                        file={reportFile}
+                        hint=".pdf"
+                        onFile={f => extractFile(f, 'report')}
+                      />
+                      {extracting === 'report' && (
+                        <div className="absolute inset-0 rounded-xl bg-slate-900/80 flex items-center justify-center gap-1.5">
+                          <Spinner /><span className="text-xs text-blue-400">Reading…</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {extractErr && <p className="text-red-400 text-xs">{extractErr}</p>}
+                  <div className="border-t border-slate-800 pt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => refineContent('refine')}
+                      disabled={refining || (!extractedWord && !form.contentMarkdown) || !!extracting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
+                      style={{ background: 'linear-gradient(135deg,#1d4ed8,#4f46e5)' }}
+                    >
+                      {refining ? <Spinner /> : null}
+                      {refining ? 'Optimising…' : 'Optimise Format'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => refineContent('integrate')}
+                      disabled={refining || !extractedReport || !!extracting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
+                      style={{ background: 'linear-gradient(135deg,#065f46,#1e3a5f)' }}
+                    >
+                      {refining ? <Spinner /> : null}
+                      {refining ? 'Integrating…' : 'Integrate STEEP Data'}
+                    </button>
+                    {refineMsg && !refining && (
+                      <span className={`text-xs font-medium ${refineMsgType === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {refineMsgType === 'success' ? '✓ ' : '✗ '}{refineMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Markdown editor */}

@@ -2318,8 +2318,6 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
   const [publishing, setPublishing]   = useState(false);
   const [publishErr, setPublishErr]   = useState('');
 
-  const logoInputRef    = useRef(null);
-  const heroImgInputRef = useRef(null);
   const inlineImgInputRef = useRef(null);
   const contentRef      = useRef(null);
   const [logoUploading, setLogoUploading]     = useState(false);
@@ -2328,6 +2326,15 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
   const [heroUploadErr, setHeroUploadErr]     = useState('');
   const [inlineUploading, setInlineUploading] = useState(false);
   const [inlineUploadErr, setInlineUploadErr] = useState('');
+
+  const [showDocImport, setShowDocImport]     = useState(false);
+  const [docUploading, setDocUploading]       = useState(null); // 'word' | 'report' | null
+  const [extractedWord, setExtractedWord]     = useState('');
+  const [extractedReport, setExtractedReport] = useState('');
+  const [docExtractErr, setDocExtractErr]     = useState('');
+  const [refining, setRefining]               = useState(false);
+  const [refineMsg, setRefineMsg]             = useState('');
+  const [refineMsgType, setRefineMsgType]     = useState('success');
 
   // ── Auth ─────────────────────────────────────────────────────────
   const verifyToken = async () => {
@@ -2379,6 +2386,41 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
       }
     } catch (e) { setInlineUploadErr(e.message); }
     setInlineUploading(false);
+  };
+
+  // ── Document extraction ──────────────────────────────────────────
+  const extractDocFile = async (file, key) => {
+    setDocUploading(key); setDocExtractErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/extract-document', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Extraction failed');
+      if (key === 'word') setExtractedWord(data.text || '');
+      else setExtractedReport(data.text || '');
+    } catch (e) { setDocExtractErr(e.message); }
+    setDocUploading(null);
+  };
+
+  // ── AI content refinement ─────────────────────────────────────────
+  const refineIIContent = async (mode) => {
+    const articleText = mode === 'refine' ? (extractedWord || form.contentMarkdown) : form.contentMarkdown;
+    if (!articleText && !extractedReport) { setRefineMsg('No content to optimise'); setRefineMsgType('error'); return; }
+    setRefining(true); setRefineMsg('');
+    try {
+      const res = await fetch('/api/refine-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: articleText, reportText: mode === 'integrate' ? extractedReport : undefined, mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Refinement failed');
+      setForm(f => ({ ...f, contentMarkdown: data.refined }));
+      setRefineMsg(mode === 'integrate' ? `STEEP data integrated — ${data.tokens?.toLocaleString() || '—'} tokens` : `Content optimised — ${data.tokens?.toLocaleString() || '—'} tokens`);
+      setRefineMsgType('success');
+    } catch (e) { setRefineMsg(e.message); setRefineMsgType('error'); }
+    setRefining(false);
   };
 
   // ── Publish / Update ─────────────────────────────────────────────
@@ -2478,11 +2520,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
           {step === 'form' && (
             <div className="space-y-5">
 
-              {/* Hidden file inputs */}
-              <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden"
-                onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'logoUrl', setLogoUploading, setLogoUploadErr); e.target.value = ''; }} />
-              <input ref={heroImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
-                onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+              {/* Hidden inline-image input (cursor-position aware) */}
               <input ref={inlineImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden"
                 onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
 
@@ -2505,15 +2543,12 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                       placeholder="https://example.com/logo.png or upload below"
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
                     />
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={logoUploading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors disabled:opacity-40"
-                    >
+                    <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors cursor-pointer ${logoUploading ? 'opacity-40 pointer-events-none' : ''}`}>
                       {logoUploading ? <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                         : <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       {logoUploading ? 'Uploading…' : 'Upload logo file'}
-                    </button>
+                      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'logoUrl', setLogoUploading, setLogoUploadErr); e.target.value = ''; }} />
+                    </label>
                     {logoUploadErr && <p className="text-red-400 text-xs">{logoUploadErr}</p>}
                   </div>
                 </div>
@@ -2554,25 +2589,26 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
 
               {/* Hero image */}
               <div>
-                <label className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5 block">Hero / Cover Image <span className="normal-case font-normal text-slate-600">(optional)</span></label>
+                <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1.5">Hero / Cover Image <span className="normal-case font-normal text-slate-600">(optional)</span></p>
                 {form.heroImageUrl ? (
-                  <div className="relative rounded-xl overflow-hidden">
+                  <div className="relative rounded-xl overflow-hidden group">
                     <img src={form.heroImageUrl} alt="Cover" className="w-full object-cover rounded-xl" style={{ maxHeight: 160 }} />
                     <div className="absolute top-2 right-2 flex gap-2">
-                      <button onClick={() => heroImgInputRef.current?.click()} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">↑</button>
-                      <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
+                      <label className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80 cursor-pointer" title="Replace cover image">
+                        ↑
+                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+                      </label>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
                     </div>
+                    {heroUploading && <div className="absolute inset-0 bg-black/60 rounded-xl flex items-center justify-center"><svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>}
                   </div>
                 ) : (
-                  <button
-                    onClick={() => heroImgInputRef.current?.click()}
-                    disabled={heroUploading}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors disabled:opacity-40 w-full justify-center"
-                  >
+                  <label className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs font-medium transition-colors w-full cursor-pointer ${heroUploading ? 'opacity-40 pointer-events-none' : ''}`}>
                     {heroUploading ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                       : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     {heroUploading ? 'Uploading…' : 'Upload cover image'}
-                  </button>
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+                  </label>
                 )}
                 {heroUploadErr && <p className="text-red-400 text-xs mt-1">{heroUploadErr}</p>}
               </div>
@@ -2586,6 +2622,81 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                   placeholder="e.g. AI, semiconductor, defence tech"
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-slate-600 transition-colors"
                 />
+              </div>
+
+              {/* ── Document Import & AI Optimization ── */}
+              <div className="border border-slate-800 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowDocImport(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-900 hover:bg-slate-800/80 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm">📎</span>
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">Document Import &amp; AI Optimization</span>
+                    {(extractedWord || extractedReport) && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-300 border border-emerald-700 font-semibold">
+                        {[extractedWord && 'Doc', extractedReport && 'STEEP'].filter(Boolean).join(' + ')} ready
+                      </span>
+                    )}
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={`text-slate-500 transition-transform flex-shrink-0 ml-2 ${showDocImport ? 'rotate-180' : ''}`}>
+                    <path d="M2 4l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
+                {showDocImport && (
+                  <div className="px-4 py-4 space-y-4 bg-slate-950 border-t border-slate-800">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1.5">Company Doc / Profile</p>
+                        <label className={`flex flex-col items-center gap-1.5 border-2 border-dashed rounded-xl py-4 cursor-pointer transition-colors text-center ${docUploading === 'word' ? 'border-blue-600 bg-blue-950/20 pointer-events-none' : extractedWord ? 'border-emerald-700 bg-emerald-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
+                          <span className="text-xl">{extractedWord ? '✅' : '📄'}</span>
+                          <span className="text-xs text-slate-400 px-2 leading-snug">{docUploading === 'word' ? 'Reading…' : extractedWord ? 'Loaded — click to replace' : '.docx / .doc'}</span>
+                          <input type="file" accept=".docx,.doc" className="hidden" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'word'); e.target.value = ''; }} />
+                        </label>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-1.5">STEEP Report PDF</p>
+                        <label className={`flex flex-col items-center gap-1.5 border-2 border-dashed rounded-xl py-4 cursor-pointer transition-colors text-center ${docUploading === 'report' ? 'border-blue-600 bg-blue-950/20 pointer-events-none' : extractedReport ? 'border-emerald-700 bg-emerald-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
+                          <span className="text-xl">{extractedReport ? '✅' : '📊'}</span>
+                          <span className="text-xs text-slate-400 px-2 leading-snug">{docUploading === 'report' ? 'Reading…' : extractedReport ? 'Loaded — click to replace' : '.pdf'}</span>
+                          <input type="file" accept=".pdf" className="hidden" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'report'); e.target.value = ''; }} />
+                        </label>
+                      </div>
+                    </div>
+
+                    {docExtractErr && <p className="text-red-400 text-xs">{docExtractErr}</p>}
+
+                    <div className="border-t border-slate-800 pt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => refineIIContent('refine')}
+                        disabled={refining || (!extractedWord && !form.contentMarkdown) || !!docUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
+                        style={{ background: 'linear-gradient(135deg,#1d4ed8,#4f46e5)' }}
+                      >
+                        {refining ? <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg> : null}
+                        {refining ? 'Optimising…' : 'Optimise Format'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => refineIIContent('integrate')}
+                        disabled={refining || !extractedReport || !!docUploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-opacity"
+                        style={{ background: 'linear-gradient(135deg,#065f46,#1e3a5f)' }}
+                      >
+                        {refining ? <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg> : null}
+                        {refining ? 'Integrating…' : 'Integrate STEEP Data'}
+                      </button>
+                      {refineMsg && !refining && (
+                        <span className={`text-xs font-medium ${refineMsgType === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {refineMsgType === 'success' ? '✓ ' : '✗ '}{refineMsg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Content */}
@@ -5656,7 +5767,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <span className="text-base leading-none">✍</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">Thought Leadership</span>
-              <span className="block text-slate-600 text-xs">GEO intelligence briefs</span>
+              <span className="block text-slate-600 text-xs">Intelligence briefs</span>
             </span>
             {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
           </button>
