@@ -1789,13 +1789,31 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
 
   dispatch({ type: 'SET_PREDICTION_TAGS', payload: tags });
 
-  // Step 2: browser-direct Polymarket Gamma API fetch (bypasses Cloudflare JA3)
+  // Step 2: fetch Polymarket Gamma API — try server-side proxy first (avoids CORS),
+  // fall back to browser-direct if the proxy itself fails.
   const doGammaFetch = async () => {
+    const dedupe = new Map();
+
+    // ── Primary: server-side proxy (no CORS, browser-like headers) ──
+    try {
+      const proxyRes = await fetch('/api/prediction-markets/proxy', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ tags }),
+      });
+      if (proxyRes.ok) {
+        const { markets = [] } = await proxyRes.json();
+        for (const m of markets) {
+          if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
+        }
+        if (dedupe.size > 0) return dedupe;
+      }
+    } catch { /* fall through to browser-direct */ }
+
+    // ── Fallback: browser-direct (bypasses JA3 fingerprinting when proxy is blocked) ──
     const GAMMA    = 'https://gamma-api.polymarket.com/markets';
     const usedTags = tags.slice(0, 6);
-    const dedupe   = new Map();
-
-    const results = await Promise.allSettled(
+    const results  = await Promise.allSettled(
       usedTags.map(tag =>
         fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=50&active=true&closed=false`)
           .then(r => r.ok ? r.json() : [])
@@ -1809,6 +1827,7 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
         }
       }
     }
+
     if (dedupe.size === 0) throw new Error('no markets returned from Gamma API');
     return dedupe;
   };
