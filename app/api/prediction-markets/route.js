@@ -1,31 +1,29 @@
 /**
  * POST /api/prediction-markets
  *
- * Accepts { subject, subjectType, synthesis } and uses Groq to generate
- * 6-10 Polymarket-compatible tag strings for the browser-direct Gamma API fetch.
- * Falls back to a static subject-aware tag map when Groq is unavailable.
+ * Accepts { subject, subjectType, synthesis } and uses Groq to generate:
+ *   searchTerms – 3-5 specific phrases for Gamma API _q full-text search
+ *   tags        – 2-3 broad Polymarket topic tags for supplementary coverage
  *
- * NOTE: This route does NOT proxy to Polymarket — that fetch must happen
- * browser-side to bypass Cloudflare JA3 TLS fingerprinting.
+ * Falls back to a static subject-aware map when Groq is unavailable.
  */
 
 import { NextResponse } from 'next/server';
 
-export const dynamic  = 'force-dynamic';
-export const runtime  = 'nodejs';
+export const dynamic     = 'force-dynamic';
+export const runtime     = 'nodejs';
 export const maxDuration = 20;
 
-const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
-const TAG_MODEL    = 'llama-3.1-8b-instant'; // fast, low-token — sufficient for tag generation
+const GROQ_URL  = 'https://api.groq.com/openai/v1/chat/completions';
+const TAG_MODEL = 'llama-3.1-8b-instant';
 
-// ── Static fallback tag map ───────────────────────────────────────
-const STATIC_MAP = {
-  tech:       ['ai', 'technology', 'crypto', 'business', 'science'],
-  geo:        ['politics', 'world', 'ukraine', 'middle-east', 'economy'],
-  company:    ['business', 'markets', 'economy', 'finance', 'technology'],
-  climate:    ['climate', 'energy', 'environment', 'politics', 'economy'],
-  finance:    ['economy', 'markets', 'fed', 'inflation', 'finance'],
-  default:    ['politics', 'world', 'economy', 'ai', 'technology'],
+const STATIC_TAGS = {
+  tech:    ['ai', 'technology', 'crypto'],
+  geo:     ['politics', 'world', 'ukraine'],
+  company: ['business', 'markets', 'economy'],
+  climate: ['climate', 'energy', 'environment'],
+  finance: ['economy', 'fed', 'inflation'],
+  default: ['politics', 'world', 'economy'],
 };
 
 const TECH_RE    = /\bai\b|tech|software|cyber|quantum|crypto|blockchain|chip|semiconductor|saas|cloud|robotics|autonomous/i;
@@ -33,13 +31,15 @@ const GEO_RE     = /russia|china|ukraine|middle.?east|nato|europe|asia|africa|la
 const CLIMATE_RE = /climate|carbon|energy|renewable|fossil|coal|oil|gas|nuclear|solar|wind/i;
 const FINANCE_RE = /\bfed\b|interest rate|inflation|gdp|recession|bank|finance|forex|currency|bond|yield/i;
 
-function getStaticTags(subject = '', subjectType = '') {
-  if (TECH_RE.test(subject))    return STATIC_MAP.tech;
-  if (GEO_RE.test(subject))     return STATIC_MAP.geo;
-  if (CLIMATE_RE.test(subject)) return STATIC_MAP.climate;
-  if (FINANCE_RE.test(subject)) return STATIC_MAP.finance;
-  if (subjectType === 'company') return STATIC_MAP.company;
-  return STATIC_MAP.default;
+function getStatic(subject = '', subjectType = '') {
+  let tagBucket = STATIC_TAGS.default;
+  if (TECH_RE.test(subject))         tagBucket = STATIC_TAGS.tech;
+  else if (GEO_RE.test(subject))     tagBucket = STATIC_TAGS.geo;
+  else if (CLIMATE_RE.test(subject)) tagBucket = STATIC_TAGS.climate;
+  else if (FINANCE_RE.test(subject)) tagBucket = STATIC_TAGS.finance;
+  else if (subjectType === 'company') tagBucket = STATIC_TAGS.company;
+  const name = subject.trim();
+  return { searchTerms: name ? [name] : [], tags: tagBucket };
 }
 
 function cleanApiKey(raw) {
@@ -61,26 +61,30 @@ export async function POST(req) {
     if (!apiKey) {
       return NextResponse.json({
         found: true,
-        tags: getStaticTags(subject, subjectType),
-        rationale: 'Static tag map (Groq not configured)',
+        ...getStatic(subject, subjectType),
+        rationale: 'Static map (Groq not configured)',
         source: 'static',
       });
     }
 
-    const summarySlice = (synthesis?.executive_summary || synthesis?.summary || '').slice(0, 350);
+    const summarySlice = (synthesis?.executive_summary || synthesis?.summary || '').slice(0, 400);
 
-    const prompt = `You are a Polymarket research assistant. Generate 6-10 concise tag strings to search Polymarket prediction markets that are directly relevant to the subject below.
+    const prompt = `You are a Polymarket research assistant. For the subject below, return TWO things:
+
+1. searchTerms: 3-5 short, specific phrases that would appear verbatim (or near-verbatim) in relevant Polymarket market question text.
+   - Include the subject name itself, key related entities, and specific events from the STEEP context.
+   - Good examples for "Nvidia": ["Nvidia", "Nvidia revenue", "Nvidia stock price", "H100 chip", "chip export ban"]
+   - Good examples for "US-China trade war": ["US China tariffs", "trade war", "semiconductor export", "China tariff deal", "bilateral trade"]
+   - Each term must be 1-5 words. Avoid generic terms like "technology" or "economy" alone.
+
+2. tags: 2-3 broad Polymarket topic tag identifiers (lowercase, hyphen-separated) for supplementary coverage.
+   - Valid tags include: "ai", "politics", "ukraine", "crypto", "economy", "middle-east", "china", "elections", "fed", "technology", "space", "energy", "climate", "israel", "iran", "india", "europe", "business"
+   - NEVER include sports, entertainment, or pop-culture tags.
 
 SUBJECT: "${subject}" (type: ${subjectType || 'general'})
 STEEP SUMMARY: ${summarySlice || '(not provided)'}
 
-Rules:
-- Tags must be real Polymarket tag identifiers (lowercase, hyphen-separated where needed)
-- Examples of valid tags: "ai", "politics", "ukraine", "crypto", "economy", "middle-east", "china", "elections", "fed", "technology", "space", "energy", "climate", "israel", "iran", "india", "europe"
-- Prefer specific geographic or thematic tags over broad ones
-- Include both tech and geopolitical tags when both are relevant to the subject
-- NEVER include sports, entertainment, or pop-culture tags
-- Return ONLY valid JSON: { "tags": ["tag1","tag2",...], "rationale": "one sentence why these tags" }`;
+Return ONLY valid JSON: { "searchTerms": ["..."], "tags": ["..."], "rationale": "one sentence" }`;
 
     const res = await fetch(GROQ_URL, {
       method: 'POST',
@@ -91,7 +95,7 @@ Rules:
       body: JSON.stringify({
         model:           TAG_MODEL,
         messages:        [{ role: 'user', content: prompt }],
-        max_tokens:      220,
+        max_tokens:      300,
         temperature:     0.15,
         response_format: { type: 'json_object' },
         stream:          false,
@@ -101,8 +105,8 @@ Rules:
     if (!res.ok) {
       return NextResponse.json({
         found: true,
-        tags: getStaticTags(subject, subjectType),
-        rationale: `Groq error ${res.status} — using static tags`,
+        ...getStatic(subject, subjectType),
+        rationale: `Groq error ${res.status} — static fallback`,
         source: 'static',
       });
     }
@@ -112,15 +116,22 @@ Rules:
     let parsed;
     try { parsed = JSON.parse(content); } catch { parsed = {}; }
 
-    const tags = Array.isArray(parsed.tags) && parsed.tags.length >= 2
-      ? parsed.tags.slice(0, 10).map(t => String(t).toLowerCase().trim()).filter(Boolean)
-      : getStaticTags(subject, subjectType);
+    const fallback = getStatic(subject, subjectType);
+
+    const searchTerms = Array.isArray(parsed.searchTerms) && parsed.searchTerms.length >= 1
+      ? parsed.searchTerms.slice(0, 5).map(t => String(t).trim()).filter(Boolean)
+      : fallback.searchTerms;
+
+    const tags = Array.isArray(parsed.tags) && parsed.tags.length >= 1
+      ? parsed.tags.slice(0, 3).map(t => String(t).toLowerCase().trim()).filter(Boolean)
+      : fallback.tags;
 
     return NextResponse.json({
-      found:     true,
+      found: true,
+      searchTerms,
       tags,
       rationale: parsed.rationale || '',
-      source:    'groq',
+      source: 'groq',
     });
 
   } catch (err) {

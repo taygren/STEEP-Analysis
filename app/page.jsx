@@ -1731,6 +1731,9 @@ function PmMarketCard({ m }) {
           <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
         </div>
       </div>
+      {m.steepAngle && (
+        <p className="text-slate-500 text-xs leading-snug mb-2 italic">{m.steepAngle}</p>
+      )}
       <div className="flex items-center gap-4 text-xs text-slate-500">
         <span><span className="text-slate-400">Vol 24h</span> {fmtMarketUsd(vol)}</span>
         <span><span className="text-slate-400">Liq</span> {fmtMarketUsd(liq)}</span>
@@ -1773,8 +1776,9 @@ function PmMarketGroup({ title, icon, description, accent, markets, defaultOpen 
 async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
   dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'loading' });
 
-  // Step 1: AI-suggested tags from server (Groq fast model or static fallback)
-  let tags = ['politics', 'world', 'economy', 'ai', 'technology'];
+  // Step 1: AI-suggested searchTerms + tags from server (Groq fast model or static fallback)
+  let searchTerms = [subject].filter(Boolean);
+  let tags        = ['politics', 'world', 'economy'];
   try {
     const tagRes = await fetch('/api/prediction-markets', {
       method: 'POST',
@@ -1783,23 +1787,24 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
     });
     if (tagRes.ok) {
       const tagData = await tagRes.json();
-      if (Array.isArray(tagData.tags) && tagData.tags.length >= 2) tags = tagData.tags;
+      if (Array.isArray(tagData.searchTerms) && tagData.searchTerms.length >= 1) searchTerms = tagData.searchTerms;
+      if (Array.isArray(tagData.tags)        && tagData.tags.length >= 1)        tags        = tagData.tags;
     }
-  } catch { /* fall through to default tags */ }
+  } catch { /* fall through to defaults */ }
 
-  dispatch({ type: 'SET_PREDICTION_TAGS', payload: tags });
+  // Store search terms for display in the tab header (replaces old tag display)
+  dispatch({ type: 'SET_PREDICTION_TAGS', payload: searchTerms });
 
-  // Step 2: fetch Polymarket Gamma API — try server-side proxy first (avoids CORS),
-  // fall back to browser-direct if the proxy itself fails.
+  // Step 2: fetch Polymarket markets via server-side proxy (uses _q search + AI relevance scoring)
   const doGammaFetch = async () => {
     const dedupe = new Map();
 
-    // ── Primary: server-side proxy (no CORS, browser-like headers) ──
+    // ── Primary: server-side proxy (no CORS, full-text _q search + AI scoring) ──
     try {
       const proxyRes = await fetch('/api/prediction-markets/proxy', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ tags }),
+        body:    JSON.stringify({ searchTerms, tags, subject, synthesis }),
       });
       if (proxyRes.ok) {
         const { markets = [] } = await proxyRes.json();
@@ -1810,12 +1815,12 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
       }
     } catch { /* fall through to browser-direct */ }
 
-    // ── Fallback: browser-direct (bypasses JA3 fingerprinting when proxy is blocked) ──
+    // ── Fallback: browser-direct tag fetch (no AI scoring — no GROQ access from browser) ──
     const GAMMA    = 'https://gamma-api.polymarket.com/markets';
-    const usedTags = tags.slice(0, 6);
+    const usedTags = tags.slice(0, 4);
     const results  = await Promise.allSettled(
       usedTags.map(tag =>
-        fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=50&active=true&closed=false`)
+        fetch(`${GAMMA}?tag=${encodeURIComponent(tag)}&limit=40&active=true&closed=false`)
           .then(r => r.ok ? r.json() : [])
           .catch(() => [])
       )
@@ -1847,7 +1852,12 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
   }
 
   const filtered = [...dedupe.values()].filter(passesMarketFilter);
-  filtered.sort((a, b) => getMarketVol(b) - getMarketVol(a));
+  // Sort by relevanceScore desc (AI-scored), then volume desc as tiebreaker
+  filtered.sort((a, b) => {
+    const scoreDiff = (b.relevanceScore ?? -1) - (a.relevanceScore ?? -1);
+    if (scoreDiff !== 0) return scoreDiff;
+    return getMarketVol(b) - getMarketVol(a);
+  });
   dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString() });
 }
 
@@ -1882,7 +1892,7 @@ function PredictionMarketsTab({ state, dispatch }) {
           <p className="text-slate-500 text-sm mt-0.5">
             Live Polymarket contracts related to <span className="text-slate-300 font-medium">{subject}</span>
             {predictionTags?.length > 0 && (
-              <> · <span className="text-slate-600 text-xs">tags: {predictionTags.slice(0, 6).join(', ')}</span></>
+              <> · <span className="text-slate-600 text-xs">searching: {predictionTags.slice(0, 5).join(', ')}</span></>
             )}
           </p>
         </div>
@@ -1904,8 +1914,8 @@ function PredictionMarketsTab({ state, dispatch }) {
       {predictionStatus === 'loading' && (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <Spinner size={28} />
-          <p className="text-slate-500 text-sm">Fetching live markets from Polymarket…</p>
-          <p className="text-slate-700 text-xs">Browser-direct connection · bypasses JA3 fingerprinting</p>
+          <p className="text-slate-500 text-sm">Searching Polymarket for relevant contracts…</p>
+          <p className="text-slate-700 text-xs">Full-text search · AI relevance scoring · STEEP angle generation</p>
         </div>
       )}
 
