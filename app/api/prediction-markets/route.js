@@ -2,8 +2,15 @@
  * POST /api/prediction-markets
  *
  * Accepts { subject, subjectType, synthesis } and uses Groq to generate:
- *   searchTerms – 3-5 specific phrases for Gamma API _q full-text search
- *   tags        – 2-3 broad Polymarket topic tags for supplementary coverage
+ *   tags           – 6-8 Polymarket topic tags covering the subject's domain
+ *   keywordAliases – 3-6 short keywords/phrases used for cheap question-text
+ *                    pre-filtering before AI scoring (subject name, ticker,
+ *                    key entities, related events)
+ *
+ * NOTE: The old "searchTerms" / "_q" approach has been removed.
+ * The Gamma API _q parameter does NOT search question text — it returns
+ * completely unrelated results. We now fetch broadly by tag + volume and
+ * filter using keywordAliases + AI scoring.
  *
  * Falls back to a static subject-aware map when Groq is unavailable.
  */
@@ -17,13 +24,14 @@ export const maxDuration = 20;
 const GROQ_URL  = 'https://api.groq.com/openai/v1/chat/completions';
 const TAG_MODEL = 'llama-3.1-8b-instant';
 
-const STATIC_TAGS = {
-  tech:    ['ai', 'technology', 'crypto'],
-  geo:     ['politics', 'world', 'ukraine'],
-  company: ['business', 'markets', 'economy'],
-  climate: ['climate', 'energy', 'environment'],
-  finance: ['economy', 'fed', 'inflation'],
-  default: ['politics', 'world', 'economy'],
+// ── Static fallback tag map ────────────────────────────────────────────────
+const STATIC = {
+  tech:    { tags: ['ai', 'technology', 'crypto', 'science', 'business'],    keywordAliases: [] },
+  geo:     { tags: ['politics', 'world', 'ukraine', 'middle-east', 'china'], keywordAliases: [] },
+  company: { tags: ['business', 'markets', 'economy', 'finance', 'ai'],      keywordAliases: [] },
+  climate: { tags: ['climate', 'energy', 'environment', 'politics', 'economy'], keywordAliases: [] },
+  finance: { tags: ['economy', 'fed', 'inflation', 'markets', 'finance'],    keywordAliases: [] },
+  default: { tags: ['politics', 'world', 'economy', 'ai', 'technology'],     keywordAliases: [] },
 };
 
 const TECH_RE    = /\bai\b|tech|software|cyber|quantum|crypto|blockchain|chip|semiconductor|saas|cloud|robotics|autonomous/i;
@@ -32,14 +40,17 @@ const CLIMATE_RE = /climate|carbon|energy|renewable|fossil|coal|oil|gas|nuclear|
 const FINANCE_RE = /\bfed\b|interest rate|inflation|gdp|recession|bank|finance|forex|currency|bond|yield/i;
 
 function getStatic(subject = '', subjectType = '') {
-  let tagBucket = STATIC_TAGS.default;
-  if (TECH_RE.test(subject))         tagBucket = STATIC_TAGS.tech;
-  else if (GEO_RE.test(subject))     tagBucket = STATIC_TAGS.geo;
-  else if (CLIMATE_RE.test(subject)) tagBucket = STATIC_TAGS.climate;
-  else if (FINANCE_RE.test(subject)) tagBucket = STATIC_TAGS.finance;
-  else if (subjectType === 'company') tagBucket = STATIC_TAGS.company;
+  let bucket = STATIC.default;
+  if (TECH_RE.test(subject))          bucket = STATIC.tech;
+  else if (GEO_RE.test(subject))      bucket = STATIC.geo;
+  else if (CLIMATE_RE.test(subject))  bucket = STATIC.climate;
+  else if (FINANCE_RE.test(subject))  bucket = STATIC.finance;
+  else if (subjectType === 'company') bucket = STATIC.company;
   const name = subject.trim();
-  return { searchTerms: name ? [name] : [], tags: tagBucket };
+  return {
+    tags:           bucket.tags,
+    keywordAliases: name ? [name] : [],
+  };
 }
 
 function cleanApiKey(raw) {
@@ -67,24 +78,32 @@ export async function POST(req) {
       });
     }
 
-    const summarySlice = (synthesis?.executive_summary || synthesis?.summary || '').slice(0, 400);
+    const summarySlice = (synthesis?.executive_summary || synthesis?.summary || '').slice(0, 500);
 
     const prompt = `You are a Polymarket research assistant. For the subject below, return TWO things:
 
-1. searchTerms: 3-5 short, specific phrases that would appear verbatim (or near-verbatim) in relevant Polymarket market question text.
-   - Include the subject name itself, key related entities, and specific events from the STEEP context.
-   - Good examples for "Nvidia": ["Nvidia", "Nvidia revenue", "Nvidia stock price", "H100 chip", "chip export ban"]
-   - Good examples for "US-China trade war": ["US China tariffs", "trade war", "semiconductor export", "China tariff deal", "bilateral trade"]
-   - Each term must be 1-5 words. Avoid generic terms like "technology" or "economy" alone.
+1. tags: 6-8 Polymarket topic tag identifiers (lowercase, hyphen-separated) that cover the subject's domain broadly. These are used to fetch batches of candidate markets from Polymarket's tag-based API.
+   Valid tag examples: "ai", "politics", "ukraine", "crypto", "economy", "middle-east", "china", "elections", "fed", "technology", "space", "energy", "climate", "israel", "iran", "india", "europe", "business", "finance", "usa", "stocks", "science"
+   - Choose tags relevant to the subject's industry, geography, and regulatory context
+   - Include both thematic tags (e.g. "ai") and geographic tags (e.g. "china") when both apply
+   - NEVER include sports, entertainment, celebrities, or pop-culture tags
 
-2. tags: 2-3 broad Polymarket topic tag identifiers (lowercase, hyphen-separated) for supplementary coverage.
-   - Valid tags include: "ai", "politics", "ukraine", "crypto", "economy", "middle-east", "china", "elections", "fed", "technology", "space", "energy", "climate", "israel", "iran", "india", "europe", "business"
-   - NEVER include sports, entertainment, or pop-culture tags.
+2. keywordAliases: 3-6 short keywords or phrases that, if found ANYWHERE in a Polymarket market question, suggest that market could be about this subject. These are used for fast text filtering before expensive AI scoring.
+   - MUST include the subject name itself (e.g. "Nvidia")
+   - Include common abbreviations (e.g. "NVDA"), product names (e.g. "H100", "Blackwell"), and key related entities
+   - Include 1-2 key thematic phrases (e.g. "chip export ban", "semiconductor tariff") that would appear in a relevant question
+   - Keep each alias short: 1-4 words maximum
+   - Do NOT include generic words like "technology", "economy", "stock" alone
+
+Examples:
+  Subject "Nvidia" → keywordAliases: ["Nvidia", "NVDA", "H100", "Blackwell", "chip export", "GPU"]
+  Subject "US-China trade war" → keywordAliases: ["China tariff", "US tariff", "trade war", "semiconductor export", "trade deal"]
+  Subject "Federal Reserve" → keywordAliases: ["Federal Reserve", "Fed rate", "interest rate cut", "FOMC", "rate hike"]
 
 SUBJECT: "${subject}" (type: ${subjectType || 'general'})
-STEEP SUMMARY: ${summarySlice || '(not provided)'}
+STEEP CONTEXT: ${summarySlice || '(not provided)'}
 
-Return ONLY valid JSON: { "searchTerms": ["..."], "tags": ["..."], "rationale": "one sentence" }`;
+Return ONLY valid JSON: { "tags": ["..."], "keywordAliases": ["..."], "rationale": "one sentence" }`;
 
     const res = await fetch(GROQ_URL, {
       method: 'POST',
@@ -95,7 +114,7 @@ Return ONLY valid JSON: { "searchTerms": ["..."], "tags": ["..."], "rationale": 
       body: JSON.stringify({
         model:           TAG_MODEL,
         messages:        [{ role: 'user', content: prompt }],
-        max_tokens:      300,
+        max_tokens:      350,
         temperature:     0.15,
         response_format: { type: 'json_object' },
         stream:          false,
@@ -118,18 +137,18 @@ Return ONLY valid JSON: { "searchTerms": ["..."], "tags": ["..."], "rationale": 
 
     const fallback = getStatic(subject, subjectType);
 
-    const searchTerms = Array.isArray(parsed.searchTerms) && parsed.searchTerms.length >= 1
-      ? parsed.searchTerms.slice(0, 5).map(t => String(t).trim()).filter(Boolean)
-      : fallback.searchTerms;
-
-    const tags = Array.isArray(parsed.tags) && parsed.tags.length >= 1
-      ? parsed.tags.slice(0, 3).map(t => String(t).toLowerCase().trim()).filter(Boolean)
+    const tags = Array.isArray(parsed.tags) && parsed.tags.length >= 2
+      ? parsed.tags.slice(0, 8).map(t => String(t).toLowerCase().trim()).filter(Boolean)
       : fallback.tags;
+
+    const keywordAliases = Array.isArray(parsed.keywordAliases) && parsed.keywordAliases.length >= 1
+      ? parsed.keywordAliases.slice(0, 6).map(t => String(t).trim()).filter(Boolean)
+      : fallback.keywordAliases;
 
     return NextResponse.json({
       found: true,
-      searchTerms,
       tags,
+      keywordAliases,
       rationale: parsed.rationale || '',
       source: 'groq',
     });

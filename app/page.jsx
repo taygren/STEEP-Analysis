@@ -401,7 +401,7 @@ function reducer(state, action) {
     case 'SET_SELECTED_MODEL':return { ...state, selectedModel: action.payload };
     case 'SET_GROQ_STATUS':   return { ...state, groqStatus: action.status };
     case 'SET_MODELS':        return { ...state, availableModels: action.payload };
-    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null, snapshotData: null, snapshotStatus: 'idle', bigCycleData: null, bigCycleStatus: 'idle', predictionMarkets: null, predictionStatus: 'idle', predictionTags: [], predictionFetchedAt: null };
+    case 'START_ANALYSIS':    return { ...state, status: 'classifying', error: null, steepData: blankDims(), synthesis: null, agentStatuses: blankStats(), ticker: null, fundamentals: null, investmentThesis: null, thesisStatus: 'idle', sentimentData: null, macroData: null, snapshotData: null, snapshotStatus: 'idle', bigCycleData: null, bigCycleStatus: 'idle', predictionMarkets: null, predictionStatus: 'idle', predictionTags: [], predictionFetchedAt: null, predictionLowConfidence: false };
     case 'SET_SUBJECT_TYPE':  return { ...state, subjectType: action.payload, status: 'researching' };
     case 'SET_TICKER':        return { ...state, ticker: action.payload };
     case 'SET_FUNDAMENTALS':  return { ...state, fundamentals: action.data };
@@ -413,7 +413,7 @@ function reducer(state, action) {
     case 'SET_SNAPSHOT_STATUS': return { ...state, snapshotStatus: action.payload };
     case 'SET_BIG_CYCLE_DATA':  return { ...state, bigCycleData: action.data, bigCycleStatus: 'complete' };
     case 'SET_BIG_CYCLE_STATUS':return { ...state, bigCycleStatus: action.payload };
-    case 'SET_PREDICTION_MARKETS': return { ...state, predictionMarkets: action.data, predictionStatus: 'complete', predictionFetchedAt: action.fetchedAt ?? new Date().toISOString() };
+    case 'SET_PREDICTION_MARKETS': return { ...state, predictionMarkets: action.data, predictionStatus: 'complete', predictionFetchedAt: action.fetchedAt ?? new Date().toISOString(), predictionLowConfidence: action.lowConfidence ?? false };
     case 'SET_PREDICTION_STATUS':  return { ...state, predictionStatus: action.payload };
     case 'SET_PREDICTION_TAGS':    return { ...state, predictionTags: action.payload };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
@@ -1776,9 +1776,11 @@ function PmMarketGroup({ title, icon, description, accent, markets, defaultOpen 
 async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
   dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'loading' });
 
-  // Step 1: AI-suggested searchTerms + tags from server (Groq fast model or static fallback)
-  let searchTerms = [subject].filter(Boolean);
-  let tags        = ['politics', 'world', 'economy'];
+  // Step 1: Generate subject-domain tags + keyword aliases via Groq (fast model)
+  // Tags → broad Polymarket tag-based fetches
+  // keywordAliases → cheap regex pre-filter before expensive AI scoring
+  let keywordAliases = [subject].filter(Boolean);
+  let tags           = ['politics', 'world', 'economy', 'ai', 'technology'];
   try {
     const tagRes = await fetch('/api/prediction-markets', {
       method: 'POST',
@@ -1787,27 +1789,33 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
     });
     if (tagRes.ok) {
       const tagData = await tagRes.json();
-      if (Array.isArray(tagData.searchTerms) && tagData.searchTerms.length >= 1) searchTerms = tagData.searchTerms;
-      if (Array.isArray(tagData.tags)        && tagData.tags.length >= 1)        tags        = tagData.tags;
+      if (Array.isArray(tagData.keywordAliases) && tagData.keywordAliases.length >= 1) keywordAliases = tagData.keywordAliases;
+      if (Array.isArray(tagData.tags)           && tagData.tags.length >= 1)           tags           = tagData.tags;
     }
   } catch { /* fall through to defaults */ }
 
-  // Store search terms for display in the tab header (replaces old tag display)
-  dispatch({ type: 'SET_PREDICTION_TAGS', payload: searchTerms });
+  // Show keyword aliases in the header so user sees what we're filtering by
+  dispatch({ type: 'SET_PREDICTION_TAGS', payload: keywordAliases });
 
-  // Step 2: fetch Polymarket markets via server-side proxy (uses _q search + AI relevance scoring)
-  const doGammaFetch = async () => {
+  // Step 2: Fetch broadly by volume + tags, then filter and AI-score server-side
+  // Approach: broad fetch → keyword pre-filter → AI relevance scoring (70B model)
+  // This replaces the broken _q search approach — Gamma _q does NOT search question text.
+  let proxyLowConfidence = false;
+
+  const doProxyFetch = async () => {
     const dedupe = new Map();
 
-    // ── Primary: server-side proxy (no CORS, full-text _q search + AI scoring) ──
+    // ── Primary: server-side proxy (volume-pull + keyword pre-filter + AI scoring) ──
     try {
       const proxyRes = await fetch('/api/prediction-markets/proxy', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ searchTerms, tags, subject, synthesis }),
+        body:    JSON.stringify({ keywordAliases, tags, subject, synthesis }),
       });
       if (proxyRes.ok) {
-        const { markets = [] } = await proxyRes.json();
+        const proxyData = await proxyRes.json();
+        const markets   = proxyData.markets || [];
+        proxyLowConfidence = proxyData.lowConfidence === true;
         for (const m of markets) {
           if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
         }
@@ -1815,7 +1823,7 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
       }
     } catch { /* fall through to browser-direct */ }
 
-    // ── Fallback: browser-direct tag fetch (no AI scoring — no GROQ access from browser) ──
+    // ── Fallback: browser-direct tag fetch (no AI scoring available from browser) ──
     const GAMMA    = 'https://gamma-api.polymarket.com/markets';
     const usedTags = tags.slice(0, 4);
     const results  = await Promise.allSettled(
@@ -1832,6 +1840,7 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
         }
       }
     }
+    proxyLowConfidence = true;
 
     if (dedupe.size === 0) throw new Error('no markets returned from Gamma API');
     return dedupe;
@@ -1839,12 +1848,12 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
 
   let dedupe;
   try {
-    dedupe = await doGammaFetch();
+    dedupe = await doProxyFetch();
   } catch {
     // Retry once after 3 seconds on first failure
     await new Promise(resolve => setTimeout(resolve, 3000));
     try {
-      dedupe = await doGammaFetch();
+      dedupe = await doProxyFetch();
     } catch {
       dispatch({ type: 'SET_PREDICTION_STATUS', payload: 'error' });
       return;
@@ -1858,11 +1867,11 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
     if (scoreDiff !== 0) return scoreDiff;
     return getMarketVol(b) - getMarketVol(a);
   });
-  dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString() });
+  dispatch({ type: 'SET_PREDICTION_MARKETS', data: filtered, fetchedAt: new Date().toISOString(), lowConfidence: proxyLowConfidence });
 }
 
 function PredictionMarketsTab({ state, dispatch }) {
-  const { subject, subjectType, synthesis, predictionMarkets, predictionStatus, predictionTags, predictionFetchedAt } = state;
+  const { subject, subjectType, synthesis, predictionMarkets, predictionStatus, predictionTags, predictionFetchedAt, predictionLowConfidence } = state;
 
   const fetchMarkets = useCallback(
     () => runPredictionFetch(subject, subjectType, synthesis, dispatch),
@@ -1892,7 +1901,7 @@ function PredictionMarketsTab({ state, dispatch }) {
           <p className="text-slate-500 text-sm mt-0.5">
             Live Polymarket contracts related to <span className="text-slate-300 font-medium">{subject}</span>
             {predictionTags?.length > 0 && (
-              <> · <span className="text-slate-600 text-xs">searching: {predictionTags.slice(0, 5).join(', ')}</span></>
+              <> · <span className="text-slate-600 text-xs">filtering by: {predictionTags.slice(0, 5).join(', ')}</span></>
             )}
           </p>
         </div>
@@ -1914,8 +1923,8 @@ function PredictionMarketsTab({ state, dispatch }) {
       {predictionStatus === 'loading' && (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <Spinner size={28} />
-          <p className="text-slate-500 text-sm">Searching Polymarket for relevant contracts…</p>
-          <p className="text-slate-700 text-xs">Full-text search · AI relevance scoring · STEEP angle generation</p>
+          <p className="text-slate-500 text-sm">Scanning Polymarket for relevant contracts…</p>
+          <p className="text-slate-700 text-xs">Broad volume pull · keyword filter · AI relevance scoring</p>
         </div>
       )}
 
@@ -1948,6 +1957,12 @@ function PredictionMarketsTab({ state, dispatch }) {
       {/* Results */}
       {predictionStatus === 'complete' && predictionMarkets?.length > 0 && (
         <>
+          {predictionLowConfidence && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-950 border border-amber-800 text-amber-300 text-xs">
+              <span className="mt-0.5 flex-shrink-0">⚠</span>
+              <span>No high-confidence matches found for this subject on Polymarket. Showing closest available markets — treat signals with caution.</span>
+            </div>
+          )}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
             <span><span className="text-yellow-400">⚡</span> Price moved &gt;5pp in 24h — rapidly shifting signal</span>
             <span><span className="text-emerald-400">■</span> Green = Yes &gt;70%</span>

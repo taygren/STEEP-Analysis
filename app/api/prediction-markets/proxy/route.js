@@ -3,31 +3,39 @@
  *
  * Server-side proxy to the Polymarket Gamma API with AI relevance scoring.
  *
- * Accepts { searchTerms, tags, subject, synthesis } and:
- *   1. Runs each searchTerm as a parallel _q full-text search against Gamma API
- *   2. Runs supplementary tag-based fetches for additional coverage
- *   3. Deduplicates across all results (up to ~150 raw markets)
- *   4. Calls Groq (llama-3.1-8b-instant) to score each market for relevance
- *      and generate a one-sentence STEEP angle per market
- *   5. Filters out markets with relevanceScore < 0.45
- *   6. Returns scored, sorted markets
+ * Methodology (inspired by Jon-Becker/prediction-market-analysis):
+ *   fetch broadly → filter analytically locally → never rely on _q search
  *
- * Running server-side avoids browser CORS restrictions. Browser-like headers
- * are sent to minimise Cloudflare JA3 friction.
+ * The Gamma API _q parameter does NOT search question text — empirically
+ * proven to return completely unrelated results. It is NOT used here.
+ *
+ * Pipeline:
+ *   1. Fetch top-active markets by volume (limit=100)
+ *   2. Fetch markets from 6-8 subject-domain tags (limit=60 each)
+ *   3. Deduplicate → up to 300 raw candidates
+ *   4. Keyword pre-filter: keep only markets whose question text contains
+ *      at least one keywordAlias (subject name, ticker, key entities)
+ *      Fallback relaxation: subject-name-only → no filter (cap at 80)
+ *   5. AI scoring via Groq llama-3.3-70b-versatile: each candidate gets
+ *      relevanceScore (0-1) + steepAngle (one sentence)
+ *   6. Threshold filter: ≥ 0.65 (strict); fallback to ≥ 0.45 if empty
+ *   7. Return scored, filtered markets
  */
 
 import { NextResponse } from 'next/server';
 
 export const dynamic     = 'force-dynamic';
 export const runtime     = 'nodejs';
-export const maxDuration = 40;
+export const maxDuration = 45;
 
-const GAMMA_BASE = 'https://gamma-api.polymarket.com/markets';
-const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-const SCORE_MODEL = 'llama-3.1-8b-instant';
-const RELEVANCE_THRESHOLD = 0.45;
-const MAX_RAW_MARKETS = 150;
-const SCORE_BATCH_SIZE = 40;
+const GAMMA_BASE          = 'https://gamma-api.polymarket.com/markets';
+const GROQ_URL            = 'https://api.groq.com/openai/v1/chat/completions';
+const SCORE_MODEL         = 'llama-3.3-70b-versatile'; // accuracy >> speed for scoring
+const RELEVANCE_THRESHOLD = 0.65;
+const FALLBACK_THRESHOLD  = 0.45;
+const MAX_RAW_MARKETS     = 300;
+const MAX_SCORE_POOL      = 80;  // max markets sent to Groq
+const SCORE_BATCH_SIZE    = 30;  // smaller batch — 70b needs more tokens per market
 
 const BROWSER_HEADERS = {
   'User-Agent':        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -52,8 +60,9 @@ function cleanApiKey(raw) {
   return k.replace(/^["']|["']$/g, '');
 }
 
-async function fetchBySearchTerm(term) {
-  const url = `${GAMMA_BASE}?_q=${encodeURIComponent(term)}&limit=30&active=true&closed=false`;
+/** Fetch the most-active markets globally by volume */
+async function fetchTopByVolume(limit = 100) {
+  const url = `${GAMMA_BASE}?limit=${limit}&active=true&closed=false`;
   try {
     const res = await fetch(url, { headers: BROWSER_HEADERS, next: { revalidate: 0 } });
     if (!res.ok) return [];
@@ -64,8 +73,9 @@ async function fetchBySearchTerm(term) {
   }
 }
 
-async function fetchByTag(tag) {
-  const url = `${GAMMA_BASE}?tag=${encodeURIComponent(tag)}&limit=30&active=true&closed=false`;
+/** Fetch markets by Polymarket topic tag */
+async function fetchByTag(tag, limit = 60) {
+  const url = `${GAMMA_BASE}?tag=${encodeURIComponent(tag)}&limit=${limit}&active=true&closed=false`;
   try {
     const res = await fetch(url, { headers: BROWSER_HEADERS, next: { revalidate: 0 } });
     if (!res.ok) return [];
@@ -77,34 +87,95 @@ async function fetchByTag(tag) {
 }
 
 /**
- * Call Groq to score a batch of markets for relevance to the STEEP subject.
- * Returns a map of market id -> { relevanceScore, steepAngle }
+ * Keyword pre-filter — keeps only markets whose question text contains
+ * at least one alias from keywordAliases. Applies three levels of relaxation:
+ *   1. Full alias set match
+ *   2. Subject-name-only match (if full match produces < 5 results)
+ *   3. No keyword filter — fall back to top-volume cap (if still < 3)
  */
-async function scoreMarkets(markets, subject, summarySlice, apiKey) {
+function keywordPreFilter(markets, keywordAliases, subject) {
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Level 1 — full alias set
+  if (keywordAliases.length > 0) {
+    const fullRe = new RegExp(keywordAliases.map(escapeRe).join('|'), 'i');
+    const fullMatch = markets.filter(m => fullRe.test(m.question || ''));
+    if (fullMatch.length >= 5) return { markets: fullMatch, level: 'full' };
+  }
+
+  // Level 2 — subject name only
+  const subjectName = (subject || '').trim();
+  if (subjectName.length >= 2) {
+    const nameRe = new RegExp(escapeRe(subjectName), 'i');
+    const nameMatch = markets.filter(m => nameRe.test(m.question || ''));
+    if (nameMatch.length >= 3) return { markets: nameMatch, level: 'name-only' };
+  }
+
+  // Level 3 — no keyword filter; cap at MAX_SCORE_POOL most-active markets
+  return {
+    markets: markets.slice(0, MAX_SCORE_POOL),
+    level: 'unfiltered',
+  };
+}
+
+/**
+ * Extract a compact STEEP context string from the synthesis object.
+ * Uses individual dimension summaries when available, falls back to executive_summary.
+ */
+function buildSteepContext(synthesis) {
+  if (!synthesis) return '';
+
+  const dims = ['social', 'technological', 'economic', 'environmental', 'political'];
+  const bullets = [];
+
+  for (const dim of dims) {
+    const d = synthesis[dim] || synthesis[dim.charAt(0).toUpperCase() + dim.slice(1)];
+    if (d?.summary) {
+      bullets.push(`• ${dim.charAt(0).toUpperCase() + dim.slice(1)}: ${String(d.summary).slice(0, 150)}`);
+    }
+  }
+
+  if (bullets.length >= 2) return bullets.join('\n');
+
+  // Fallback to executive summary
+  return (synthesis.executive_summary || synthesis.summary || '').slice(0, 600);
+}
+
+/**
+ * Score a batch of pre-filtered markets via Groq.
+ * Returns Map<id, { relevanceScore, steepAngle }>
+ */
+async function scoreMarkets(markets, subject, steepContext, apiKey) {
   if (!apiKey || markets.length === 0) return new Map();
 
   const marketList = markets.map((m, i) =>
-    `${i + 1}. [ID:${m.id}] ${(m.question || '').slice(0, 120)}`
+    `${i + 1}. [ID:${m.id}] ${(m.question || '').slice(0, 130)}`
   ).join('\n');
 
-  const prompt = `You are a strategic intelligence analyst scoring Polymarket prediction markets for relevance to a STEEP analysis subject.
+  const prompt = `You are a senior strategic intelligence analyst. Score each Polymarket prediction market for its relevance to a STEEP analysis.
 
 SUBJECT: "${subject}"
-STEEP CONTEXT: ${summarySlice || '(not provided)'}
 
-For each market question below, provide:
-- relevanceScore: 0.0-1.0 (how directly relevant this market is to the subject)
-  - 0.9-1.0: directly about the subject or its immediate outcomes
-  - 0.7-0.89: closely related (same sector, key competitor, direct policy impact)
-  - 0.45-0.69: tangentially related (broader theme that affects the subject)
-  - 0.0-0.44: not meaningfully related (generic politics, unrelated sectors)
-- steepAngle: one concise sentence explaining which STEEP dimension this market signals and why it matters for "${subject}" (start with the dimension: "Technological:", "Economic:", "Social:", "Political:", "Environmental:", or "Cross-cutting:")
+STEEP ANALYSIS CONTEXT:
+${steepContext || '(not provided)'}
 
-MARKETS:
+SCORING INSTRUCTIONS — be STRICT and CONSERVATIVE:
+- relevanceScore 0.85-1.0: Market question is directly about "${subject}" by name, or its immediate product/outcome (e.g. "Will Nvidia's revenue exceed $X?")
+- relevanceScore 0.65-0.84: Market closely tracks a causal force that directly impacts "${subject}" (e.g. "Will US ban chip exports to China?" is highly relevant to Nvidia)
+- relevanceScore 0.45-0.64: Market is thematically related but does not directly affect "${subject}"'s specific prospects (tangential)
+- relevanceScore 0.0-0.44: Market is NOT meaningfully about "${subject}" — generic politics, unrelated sectors, entertainment, sports → score 0.0
+
+IMPORTANT: If the market question makes no direct reference to "${subject}" and no clear causal link exists, score it 0.0. Do not give partial credit for vague thematic overlap.
+
+For each market also provide:
+- steepAngle: One sentence starting with a STEEP dimension label ("Technological:", "Economic:", "Social:", "Political:", "Environmental:", or "Cross-cutting:") explaining WHY this market is a signal for "${subject}". Only write this if relevanceScore ≥ 0.45; otherwise leave it empty string.
+
+MARKETS TO SCORE:
 ${marketList}
 
-Return ONLY valid JSON: { "scores": [ { "id": "...", "relevanceScore": 0.0, "steepAngle": "..." }, ... ] }
-Include ALL ${markets.length} markets in your response.`;
+Return ONLY valid JSON:
+{ "scores": [ { "id": "MARKET_ID", "relevanceScore": 0.0, "steepAngle": "..." }, ... ] }
+Include ALL ${markets.length} entries. Use the exact ID string from [ID:...] above.`;
 
   try {
     const res = await fetch(GROQ_URL, {
@@ -116,15 +187,15 @@ Include ALL ${markets.length} markets in your response.`;
       body: JSON.stringify({
         model:           SCORE_MODEL,
         messages:        [{ role: 'user', content: prompt }],
-        max_tokens:      1800,
-        temperature:     0.1,
+        max_tokens:      2400,
+        temperature:     0.05,
         response_format: { type: 'json_object' },
         stream:          false,
       }),
     });
 
     if (!res.ok) {
-      console.warn('[prediction-markets/proxy] Groq scoring error:', res.status);
+      console.warn('[prediction-markets/proxy] Groq scoring HTTP error:', res.status);
       return new Map();
     }
 
@@ -137,12 +208,13 @@ Include ALL ${markets.length} markets in your response.`;
     if (Array.isArray(parsed.scores)) {
       for (const s of parsed.scores) {
         if (s.id != null) {
-          // Normalise id: model sometimes echoes "[ID:xxx]" or "ID:xxx" format
-          const rawId  = String(s.id).trim();
-          const normId = rawId.replace(/^\[?ID:/i, '').replace(/\]$/, '').trim();
+          // Normalise id — model sometimes echoes "[ID:xxx]" or "ID:xxx"
+          const normId = String(s.id).trim().replace(/^\[?ID:/i, '').replace(/\]$/, '').trim();
           scoreMap.set(normId, {
-            relevanceScore: typeof s.relevanceScore === 'number' ? s.relevanceScore : 0,
-            steepAngle:     typeof s.steepAngle === 'string' ? s.steepAngle.trim() : '',
+            relevanceScore: typeof s.relevanceScore === 'number'
+              ? Math.max(0, Math.min(1, s.relevanceScore))
+              : 0,
+            steepAngle: typeof s.steepAngle === 'string' ? s.steepAngle.trim() : '',
           });
         }
       }
@@ -157,26 +229,24 @@ Include ALL ${markets.length} markets in your response.`;
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { searchTerms, tags, subject, synthesis } = body;
+    const { keywordAliases, tags, subject, synthesis } = body;
 
-    const hasTerms = Array.isArray(searchTerms) && searchTerms.length > 0;
+    // Also accept legacy 'searchTerms' field name for backward compat
+    const aliases  = Array.isArray(keywordAliases) ? keywordAliases
+                   : Array.isArray(body.searchTerms) ? body.searchTerms
+                   : [];
     const hasTags  = Array.isArray(tags) && tags.length > 0;
 
-    if (!hasTerms && !hasTags) {
-      return NextResponse.json({ error: 'searchTerms or tags required' }, { status: 400 });
+    if (!hasTags && !subject) {
+      return NextResponse.json({ error: 'tags or subject required' }, { status: 400 });
     }
 
-    // ── 1. Fetch markets in parallel (_q searches + tag fetches) ──────────────
-    const searchFetches = hasTerms
-      ? searchTerms.slice(0, 5).map(t => fetchBySearchTerm(t))
-      : [];
-    const tagFetches = hasTags
-      ? tags.slice(0, 3).map(t => fetchByTag(t))
-      : [];
+    // ── 1. Parallel fetch: top-volume globals + subject-domain tags ────────────
+    const tagFetches  = hasTags ? tags.slice(0, 8).map(t => fetchByTag(t, 60)) : [];
+    const allFetches  = [fetchTopByVolume(100), ...tagFetches];
+    const allResults  = await Promise.allSettled(allFetches);
 
-    const allResults = await Promise.allSettled([...searchFetches, ...tagFetches]);
-
-    // ── 2. Deduplicate — _q results first (higher precision) ─────────────────
+    // ── 2. Deduplicate — volume fetch first, then tags ─────────────────────────
     const dedupe = new Map();
     outer: for (const r of allResults) {
       if (r.status === 'fulfilled') {
@@ -188,20 +258,28 @@ export async function POST(req) {
     }
 
     const rawMarkets = [...dedupe.values()];
+    console.log(`[prediction-markets/proxy] raw pool: ${rawMarkets.length} markets`);
 
-    // ── 3. AI relevance scoring via Groq ──────────────────────────────────────
+    // ── 3. Keyword pre-filter ──────────────────────────────────────────────────
+    const { markets: preFiltered, level: filterLevel } =
+      keywordPreFilter(rawMarkets, aliases, subject || '');
+    console.log(`[prediction-markets/proxy] keyword filter (${filterLevel}): ${preFiltered.length} candidates`);
+
+    // ── 4. AI relevance scoring via Groq 70B ──────────────────────────────────
     const apiKey      = cleanApiKey(process.env.GROQ_API_KEY);
-    const summarySlice = (synthesis?.executive_summary || synthesis?.summary || '').slice(0, 500);
+    const steepContext = buildSteepContext(synthesis);
+
+    // Cap scoring pool to MAX_SCORE_POOL to stay within token budget
+    const scorePool = preFiltered.slice(0, MAX_SCORE_POOL);
 
     let scoreMap = new Map();
-    if (apiKey && rawMarkets.length > 0) {
-      // Score in batches to stay within token limits
+    if (apiKey && scorePool.length > 0) {
       const batches = [];
-      for (let i = 0; i < rawMarkets.length; i += SCORE_BATCH_SIZE) {
-        batches.push(rawMarkets.slice(i, i + SCORE_BATCH_SIZE));
+      for (let i = 0; i < scorePool.length; i += SCORE_BATCH_SIZE) {
+        batches.push(scorePool.slice(i, i + SCORE_BATCH_SIZE));
       }
       const batchResults = await Promise.allSettled(
-        batches.map(batch => scoreMarkets(batch, subject || '', summarySlice, apiKey))
+        batches.map(batch => scoreMarkets(batch, subject || '', steepContext, apiKey))
       );
       for (const r of batchResults) {
         if (r.status === 'fulfilled') {
@@ -210,9 +288,10 @@ export async function POST(req) {
       }
     }
 
-    // ── 4. Merge scores into market objects & filter ──────────────────────────
-    const scored = rawMarkets.map(m => {
-      // scoreMap is keyed by normalised id; try both raw and string forms
+    console.log(`[prediction-markets/proxy] scored ${scoreMap.size} of ${scorePool.length} markets`);
+
+    // ── 5. Merge scores → filter → optional fallback ───────────────────────────
+    const scored = scorePool.map(m => {
       const s = scoreMap.get(String(m.id)) ?? scoreMap.get(m.id);
       return {
         ...m,
@@ -222,34 +301,37 @@ export async function POST(req) {
     });
 
     const scoringWorked = scoreMap.size > 0;
-
+    let lowConfidence   = false;
     let filtered;
+
     if (scoringWorked) {
-      // AI scoring succeeded — apply strict relevance threshold
+      // Primary threshold
       filtered = scored.filter(m => (m.relevanceScore ?? 0) >= RELEVANCE_THRESHOLD);
-    } else {
-      // Groq unavailable — apply keyword-based pre-filter using searchTerms as a signal
-      // so the fallback still excludes obviously unrelated markets rather than returning
-      // everything raw. The existing passesMarketFilter on the client handles volume/divergence.
-      if (Array.isArray(searchTerms) && searchTerms.length > 0) {
-        const keyRe = new RegExp(
-          searchTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
-          'i'
-        );
-        const keyFiltered = scored.filter(m => keyRe.test(m.question || ''));
-        // Only apply keyword filter when it retains a reasonable number of results;
-        // if it's too aggressive, fall back to unfiltered so the tab isn't empty.
-        filtered = keyFiltered.length >= 3 ? keyFiltered : scored;
-      } else {
-        filtered = scored;
+
+      // Fallback: relax threshold if nothing cleared the bar
+      if (filtered.length === 0) {
+        filtered = scored.filter(m => (m.relevanceScore ?? 0) >= FALLBACK_THRESHOLD);
+        lowConfidence = true;
       }
+    } else {
+      // Groq unavailable — keyword-only filter
+      if (aliases.length > 0 && filterLevel !== 'unfiltered') {
+        filtered = scored; // already keyword-filtered above
+      } else {
+        // No scoring, no keyword filter — return empty so tab shows "no results"
+        // rather than unrelated noise
+        filtered = [];
+      }
+      lowConfidence = true;
     }
 
-    // Note: final sort (relevanceScore desc → volume desc) happens client-side in runPredictionFetch
     return NextResponse.json({
-      markets: filtered,
+      markets:            filtered,
       scoringWorked,
-      rawCount: rawMarkets.length,
+      rawCount:           rawMarkets.length,
+      keywordFilterCount: preFiltered.length,
+      filterLevel,
+      lowConfidence,
     });
 
   } catch (err) {
