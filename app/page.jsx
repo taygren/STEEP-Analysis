@@ -2405,7 +2405,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Publish failed');
-      onPublished(token);
+      onPublished(token, data.post);
       onClose();
     } catch (e) { setPublishErr(e.message); }
     setPublishing(false);
@@ -3638,7 +3638,13 @@ function InnovatorIlluminationPanel() {
           initialToken={adminToken}
           initialPost={editingPost}
           onClose={() => setEditingPost(null)}
-          onPublished={() => { setEditingPost(null); loadPosts(); }}
+          onPublished={(tok, updatedPost) => {
+            setEditingPost(null);
+            loadPosts();
+            if (updatedPost && selectedPost && selectedPost.id === updatedPost.id) {
+              setSelectedPost(updatedPost);
+            }
+          }}
         />
       )}
     </div>

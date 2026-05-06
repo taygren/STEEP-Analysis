@@ -67,6 +67,8 @@ export async function POST(req) {
     const id   = body.id || randomUUID();
     const slug = body.slug || slugify(body.title || id);
 
+    const existing = body.id ? await kvGet(`innovatorillumination:post:${body.id}`) : null;
+
     const post = {
       id,
       slug,
@@ -79,9 +81,9 @@ export async function POST(req) {
       heroImageUrl:    body.heroImageUrl    || '',
       geoKeywords:     body.geoKeywords     || [],
       status:          body.status          || 'draft',
-      publishedAt:     body.status === 'published' ? (body.publishedAt || now) : null,
+      publishedAt:     body.status === 'published' ? (body.publishedAt || existing?.publishedAt || now) : null,
       updatedAt:       now,
-      createdAt:       body.createdAt || now,
+      createdAt:       existing?.createdAt || body.createdAt || now,
     };
 
     await kvSet(`innovatorillumination:post:${id}`, post);
