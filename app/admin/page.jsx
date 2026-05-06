@@ -530,7 +530,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
                       <label className="cursor-pointer px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg font-semibold hover:bg-slate-700 transition-colors">
                         Replace
-                        <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
+                        <input type="file" accept="image/*" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
                       </label>
                       <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="px-3 py-1.5 bg-red-900 text-red-200 text-xs rounded-lg font-semibold hover:bg-red-800 transition-colors">Remove</button>
                     </div>
@@ -540,7 +540,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
                   <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-6 cursor-pointer transition-colors ${imgUploading ? 'border-blue-700 bg-blue-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
                     {imgUploading ? <Spinner /> : <span className="text-2xl">🖼️</span>}
                     <span className="text-xs text-slate-500">{imgUploading ? 'Uploading…' : 'Upload cover image · JPEG, PNG, WebP, GIF'}</span>
-                    <input type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
+                    <input type="file" accept="image/*" className="sr-only" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadHeroImage(e.target.files[0]); e.target.value = ''; }} />
                   </label>
                 )}
                 {imgUploadErr && <p className="text-xs text-red-400">{imgUploadErr}</p>}
@@ -776,7 +776,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
                   <label className={`cursor-pointer flex items-center gap-1 hover:text-slate-300 transition-colors ${imgUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                     {imgUploading ? <Spinner /> : '🖼'}
                     <span className="font-mono">Insert Image</span>
-                    <input ref={imgInputRef} type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value = ''; }} />
+                    <input ref={imgInputRef} type="file" accept="image/*" className="sr-only" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value = ''; }} />
                   </label>
                 </div>
               </div>
@@ -984,7 +984,7 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs placeholder-slate-600 focus:outline-none focus:border-slate-600" />
                   <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-700 hover:border-slate-500 text-slate-500 hover:text-slate-300 text-xs cursor-pointer ${imgUploading ? 'opacity-40 pointer-events-none' : ''}`}>
                     {imgUploading ? <Spinner /> : '⬆'} Upload logo
-                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'logoUrl'); e.target.value = ''; }} />
+                    <input ref={logoInputRef} type="file" accept="image/*" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'logoUrl'); e.target.value = ''; }} />
                   </label>
                 </div>
               </div>
@@ -1020,7 +1020,7 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
                     <img src={form.heroImageUrl} alt="Cover" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
                       <label className="cursor-pointer px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg font-semibold hover:bg-slate-700">
-                        Replace<input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
+                        Replace<input type="file" accept="image/*" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
                       </label>
                       <button onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="px-3 py-1.5 bg-red-900 text-red-200 text-xs rounded-lg font-semibold hover:bg-red-800">Remove</button>
                     </div>
@@ -1029,7 +1029,7 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
                   <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-5 cursor-pointer transition-colors ${imgUploading ? 'border-blue-700' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
                     {imgUploading ? <Spinner /> : <span className="text-2xl">🖼️</span>}
                     <span className="text-xs text-slate-500">{imgUploading ? 'Uploading…' : 'Upload cover image'}</span>
-                    <input ref={heroInputRef} type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
+                    <input ref={heroInputRef} type="file" accept="image/*" className="sr-only" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0], 'heroImageUrl'); e.target.value = ''; }} />
                   </label>
                 )}
                 {imgUploadErr && <p className="text-xs text-red-400">{imgUploadErr}</p>}
@@ -1145,7 +1145,7 @@ function IIPostEditor({ token, post, onBack, onSaved }) {
                 <label className={`cursor-pointer flex items-center gap-1 text-xs text-slate-600 hover:text-slate-300 transition-colors ${imgUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                   {imgUploading ? <Spinner /> : '🖼'}
                   <span className="font-mono">Insert Image</span>
-                  <input type="file" accept="image/*" className="hidden" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
+                  <input type="file" accept="image/*" className="sr-only" disabled={imgUploading} onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
                 </label>
               </div>
               <textarea ref={contentRef} value={form.contentMarkdown} onChange={e => setForm(f => ({ ...f, contentMarkdown: e.target.value }))}

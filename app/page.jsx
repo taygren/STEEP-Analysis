@@ -2131,7 +2131,7 @@ function TLPublishModal({ onClose, onPublished }) {
                 )}
               </div>
 
-              <input ref={fileInputRef} type="file" accept=".docx,.doc" className="hidden" onChange={e => { if (e.target.files?.[0]) extractFile(e.target.files[0]); e.target.value = ''; }} />
+              <input ref={fileInputRef} type="file" accept=".docx,.doc" className="sr-only" onChange={e => { if (e.target.files?.[0]) extractFile(e.target.files[0]); e.target.value = ''; }} />
               {extractErr && <p className="text-red-400 text-xs text-center">{extractErr}</p>}
             </div>
           )}
@@ -2521,7 +2521,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
             <div className="space-y-5">
 
               {/* Hidden inline-image input (cursor-position aware) */}
-              <input ref={inlineImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden"
+              <input ref={inlineImgInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="sr-only"
                 onChange={e => { if (e.target.files?.[0]) uploadInlineImage(e.target.files[0]); e.target.value = ''; }} />
 
               {/* Logo + preview */}
@@ -2547,7 +2547,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                       {logoUploading ? <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                         : <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       {logoUploading ? 'Uploading…' : 'Upload logo file'}
-                      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'logoUrl', setLogoUploading, setLogoUploadErr); e.target.value = ''; }} />
+                      <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'logoUrl', setLogoUploading, setLogoUploadErr); e.target.value = ''; }} />
                     </label>
                     {logoUploadErr && <p className="text-red-400 text-xs">{logoUploadErr}</p>}
                   </div>
@@ -2596,7 +2596,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                     <div className="absolute top-2 right-2 flex gap-2">
                       <label className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80 cursor-pointer" title="Replace cover image">
                         ↑
-                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+                        <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
                       </label>
                       <button type="button" onClick={() => setForm(f => ({ ...f, heroImageUrl: '' }))} className="w-7 h-7 rounded-lg bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80">✕</button>
                     </div>
@@ -2607,7 +2607,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                     {heroUploading ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
                       : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v9M3 6l4-4 4 4M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     {heroUploading ? 'Uploading…' : 'Upload cover image'}
-                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
+                    <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="sr-only" onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0], 'heroImageUrl', setHeroUploading, setHeroUploadErr); e.target.value = ''; }} />
                   </label>
                 )}
                 {heroUploadErr && <p className="text-red-400 text-xs mt-1">{heroUploadErr}</p>}
@@ -2653,7 +2653,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                         <label className={`flex flex-col items-center gap-1.5 border-2 border-dashed rounded-xl py-4 cursor-pointer transition-colors text-center ${docUploading === 'word' ? 'border-blue-600 bg-blue-950/20 pointer-events-none' : extractedWord ? 'border-emerald-700 bg-emerald-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
                           <span className="text-xl">{extractedWord ? '✅' : '📄'}</span>
                           <span className="text-xs text-slate-400 px-2 leading-snug">{docUploading === 'word' ? 'Reading…' : extractedWord ? 'Loaded — click to replace' : '.docx / .doc'}</span>
-                          <input type="file" accept=".docx,.doc" className="hidden" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'word'); e.target.value = ''; }} />
+                          <input type="file" accept=".docx,.doc" className="sr-only" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'word'); e.target.value = ''; }} />
                         </label>
                       </div>
                       <div>
@@ -2661,7 +2661,7 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
                         <label className={`flex flex-col items-center gap-1.5 border-2 border-dashed rounded-xl py-4 cursor-pointer transition-colors text-center ${docUploading === 'report' ? 'border-blue-600 bg-blue-950/20 pointer-events-none' : extractedReport ? 'border-emerald-700 bg-emerald-950/20' : 'border-slate-700 hover:border-slate-600 bg-slate-900/50'}`}>
                           <span className="text-xl">{extractedReport ? '✅' : '📊'}</span>
                           <span className="text-xs text-slate-400 px-2 leading-snug">{docUploading === 'report' ? 'Reading…' : extractedReport ? 'Loaded — click to replace' : '.pdf'}</span>
-                          <input type="file" accept=".pdf" className="hidden" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'report'); e.target.value = ''; }} />
+                          <input type="file" accept=".pdf" className="sr-only" onChange={e => { if (e.target.files?.[0]) extractDocFile(e.target.files[0], 'report'); e.target.value = ''; }} />
                         </label>
                       </div>
                     </div>
