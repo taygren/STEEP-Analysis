@@ -89,9 +89,9 @@ async function fetchByTag(tag, limit = 60) {
 /**
  * Keyword pre-filter — keeps only markets whose question text contains
  * at least one alias from keywordAliases. Applies three levels of relaxation:
- *   1. Full alias set match
- *   2. Subject-name-only match (if full match produces < 5 results)
- *   3. No keyword filter — fall back to top-volume cap (if still < 3)
+ *   1. Full alias set match (used if ≥ 8 results)
+ *   2. Subject-name-only match (used if full match < 8 but ≥ 3 results)
+ *   3. No keyword filter — fall back to top-volume cap of 60 (if still < 3)
  */
 function keywordPreFilter(markets, keywordAliases, subject) {
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -100,7 +100,7 @@ function keywordPreFilter(markets, keywordAliases, subject) {
   if (keywordAliases.length > 0) {
     const fullRe = new RegExp(keywordAliases.map(escapeRe).join('|'), 'i');
     const fullMatch = markets.filter(m => fullRe.test(m.question || ''));
-    if (fullMatch.length >= 5) return { markets: fullMatch, level: 'full' };
+    if (fullMatch.length >= 8) return { markets: fullMatch, level: 'full' };
   }
 
   // Level 2 — subject name only
@@ -111,9 +111,9 @@ function keywordPreFilter(markets, keywordAliases, subject) {
     if (nameMatch.length >= 3) return { markets: nameMatch, level: 'name-only' };
   }
 
-  // Level 3 — no keyword filter; cap at MAX_SCORE_POOL most-active markets
+  // Level 3 — no keyword filter; cap at 60 most-active markets
   return {
-    markets: markets.slice(0, MAX_SCORE_POOL),
+    markets: markets.slice(0, 60),
     level: 'unfiltered',
   };
 }
@@ -166,6 +166,13 @@ SCORING INSTRUCTIONS — be STRICT and CONSERVATIVE:
 - relevanceScore 0.0-0.44: Market is NOT meaningfully about "${subject}" — generic politics, unrelated sectors, entertainment, sports → score 0.0
 
 IMPORTANT: If the market question makes no direct reference to "${subject}" and no clear causal link exists, score it 0.0. Do not give partial credit for vague thematic overlap.
+
+WORKED EXAMPLE (subject = "Nvidia"):
+  "Will Nvidia's stock exceed $200 by end of 2025?" → 0.92 (directly names Nvidia, immediate financial outcome)
+  "Will the US impose new semiconductor export controls on China?" → 0.78 (causal: export controls directly constrain Nvidia's China revenue)
+  "Will AI investment double in 2025?" → 0.52 (thematic: AI investment benefits Nvidia but no direct causal link)
+  "Will Trump win the 2026 midterms?" → 0.0 (no meaningful connection to Nvidia's prospects)
+  "Will Rihanna release an album before GTA VI?" → 0.0 (completely unrelated — score 0.0 immediately)
 
 For each market also provide:
 - steepAngle: One sentence starting with a STEEP dimension label ("Technological:", "Economic:", "Social:", "Political:", "Environmental:", or "Cross-cutting:") explaining WHY this market is a signal for "${subject}". Only write this if relevanceScore ≥ 0.45; otherwise leave it empty string.

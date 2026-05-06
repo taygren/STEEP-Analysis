@@ -1806,6 +1806,8 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
     const dedupe = new Map();
 
     // ── Primary: server-side proxy (volume-pull + keyword pre-filter + AI scoring) ──
+    // Fall through to browser-direct ONLY on network error or non-OK status.
+    // A successful 200 with zero markets means "no relevant markets found" — honour it.
     try {
       const proxyRes = await fetch('/api/prediction-markets/proxy', {
         method:  'POST',
@@ -1819,9 +1821,11 @@ async function runPredictionFetch(subject, subjectType, synthesis, dispatch) {
         for (const m of markets) {
           if (m.id && !dedupe.has(m.id)) dedupe.set(m.id, m);
         }
-        if (dedupe.size > 0) return dedupe;
+        // Always return after a successful proxy response — even if markets is empty.
+        // Zero markets is a valid "no relevant contracts" signal, not a retry trigger.
+        return dedupe;
       }
-    } catch { /* fall through to browser-direct */ }
+    } catch { /* fall through to browser-direct on network/parse error only */ }
 
     // ── Fallback: browser-direct tag fetch (no AI scoring available from browser) ──
     const GAMMA    = 'https://gamma-api.polymarket.com/markets';
