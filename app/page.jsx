@@ -5492,6 +5492,446 @@ const RASCEF_ELEMENTS = [
   { key: 'F', label: 'Format',  color: '#F97316', desc: 'Output structure, length, formality, and standing elements to include.' },
 ];
 
+// ── Big Cycle Engine static data ─────────────────────────────────────────────
+const EMPIRE_STAGES_DATA = [
+  { n: 1, label: 'New Order / Rising',  c: '#10b981', b: '#10b98112', p: 'Aggressive long' },
+  { n: 2, label: 'Building Power',      c: '#3b82f6', b: '#3b82f612', p: 'Growth' },
+  { n: 3, label: 'Peak Power',          c: '#06b6d4', b: '#06b6d412', p: 'Balanced / selective' },
+  { n: 4, label: 'Overextension',       c: '#eab308', b: '#eab30812', p: 'Defensive rotation begins' },
+  { n: 5, label: 'Decline',            c: '#f97316', b: '#f9731612', p: 'Wealth preservation priority' },
+  { n: 6, label: 'Crisis / Reset',     c: '#ef4444', b: '#ef444412', p: 'Maximum defensive posture' },
+];
+const BCE_PIPELINE = [
+  { key: 'agent1',     label: 'Five Forces Diagnostician', sub: 'Empire stage · Force dimension scoring' },
+  { key: 'agent2',     label: 'Debt & Bubble Analyst',     sub: 'Debt sustainability · Bubble detection' },
+  { key: 'agent3',     label: 'Scenario Architect',        sub: 'Currency regime · Historical analogy' },
+  { key: 'agent4',     label: 'Decision Matrix Executor',  sub: "Allocation matrix · The Spider's Move" },
+  { key: 'supervisor', label: 'Supervisor Synthesis',      sub: 'Conflict resolution · Unified report' },
+];
+const BCE_REC_STYLE = {
+  LONG:     { c: '#10b981', b: '#10b98115' },
+  SHORT:    { c: '#ef4444', b: '#ef444415' },
+  HOLD:     { c: '#64748b', b: '#64748b15' },
+  AVOID:    { c: '#ef4444', b: '#ef444415' },
+  REDUCE:   { c: '#f97316', b: '#f9731615' },
+  INCREASE: { c: '#10b981', b: '#10b98115' },
+};
+const BCE_CONV  = { HIGH: '#10b981', MODERATE: '#f59e0b', LOW: '#94a3b8' };
+const BCE_FORCE = { debt: 'Debt / Money', internal_order: 'Internal Order', external_order: 'External Order', nature: 'Nature / Climate', technology: 'Technology' };
+const BCE_WGHT  = { debt: 30, internal_order: 25, external_order: 20, technology: 15, nature: 10 };
+const BCE_FLAG_STYLE = {
+  CRITICAL_DEBT:     { c: '#ef4444', b: '#ef444415' },
+  WAR_ECONOMY:       { c: '#f97316', b: '#f9731615' },
+  JURISDICTION_RISK: { c: '#eab308', b: '#eab30815' },
+  BUBBLE_ALERT:      { c: '#f97316', b: '#f9731615' },
+};
+const BCE_EXAMPLES = ['United States', 'China', 'Eurozone', 'Japan', 'United Kingdom', 'Emerging Markets'];
+// ─────────────────────────────────────────────────────────────────────────────
+
+function BigCycleEngineTool() {
+  const [step, setStep] = useState('form');
+  const [bceSubject, setBceSubject] = useState('');
+  const [bceError, setBceError] = useState('');
+  const [bceAgents, setBceAgents] = useState({ agent1: 'pending', agent2: 'pending', agent3: 'pending', agent4: 'pending', supervisor: 'pending' });
+  const [bceResult, setBceResult] = useState(null);
+
+  const runBce = async () => {
+    if (!bceSubject.trim()) return;
+    setStep('running');
+    setBceError('');
+    setBceAgents({ agent1: 'running', agent2: 'pending', agent3: 'pending', agent4: 'pending', supervisor: 'pending' });
+    setBceResult(null);
+    try {
+      const res = await fetch('/api/big-cycle-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: bceSubject.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Request failed (${res.status})`);
+      }
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let ev;
+          try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+          if (ev.event === 'agent_start') {
+            setBceAgents(s => ({ ...s, [ev.agent]: 'running' }));
+          } else if (ev.event === 'agent_complete') {
+            setBceAgents(s => { const n = { ...s, [ev.agent]: 'complete' }; if (ev.next) n[ev.next] = 'running'; return n; });
+          } else if (ev.event === 'complete') {
+            setBceResult(ev.result);
+            setBceAgents({ agent1: 'complete', agent2: 'complete', agent3: 'complete', agent4: 'complete', supervisor: 'complete' });
+            setStep('result');
+          } else if (ev.event === 'error') {
+            throw new Error(ev.message);
+          }
+        }
+      }
+    } catch (err) {
+      setBceError(err.message);
+      setStep('form');
+    }
+  };
+
+  const resetBce = () => {
+    setStep('form');
+    setBceResult(null);
+    setBceError('');
+    setBceAgents({ agent1: 'pending', agent2: 'pending', agent3: 'pending', agent4: 'pending', supervisor: 'pending' });
+  };
+
+  if (step === 'form') return (
+    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl">⊕</div>
+          <h1 className="text-2xl font-black text-white mb-2">Big Cycle Engine</h1>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-md mx-auto">
+            Five-agent sequential pipeline based on the Dalio Big Cycle framework. Enter a country or economic entity to run empire stage classification, debt sustainability analysis, scenario architecture, and allocation matrix generation.
+          </p>
+        </div>
+        <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 mb-6">
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
+          <input
+            type="text"
+            value={bceSubject}
+            onChange={e => setBceSubject(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && bceSubject.trim() && runBce()}
+            placeholder="e.g. United States, China, Eurozone"
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-amber-500/60 focus:outline-none transition-colors mb-4"
+          />
+          <div className="mb-4">
+            <p className="text-xs text-slate-600 mb-2">Quick-pick</p>
+            <div className="flex flex-wrap gap-1.5">
+              {BCE_EXAMPLES.map(s => (
+                <button key={s} onClick={() => setBceSubject(s)}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                >{s}</button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={runBce}
+            disabled={!bceSubject.trim()}
+            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(135deg,#d97706,#ea580c)' }}
+          >Run Big Cycle Engine</button>
+          {bceError && (
+            <div className="mt-4 bg-red-950/50 border border-red-800 rounded-xl p-3">
+              <p className="text-red-300 text-xs">{bceError}</p>
+            </div>
+          )}
+        </div>
+        <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Pipeline</h2>
+          <div className="space-y-3">
+            {BCE_PIPELINE.map((a, i) => (
+              <div key={a.key} className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-400 flex-shrink-0 font-mono mt-0.5">{i + 1}</div>
+                <div>
+                  <p className="text-white text-xs font-medium">{a.label}</p>
+                  <p className="text-slate-600 text-xs">{a.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (step === 'running') return (
+    <div className="h-full flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl animate-pulse">⊕</div>
+          <h2 className="text-white font-bold text-lg">Running Big Cycle Engine</h2>
+          <p className="text-slate-500 text-sm mt-1">{bceSubject}</p>
+        </div>
+        <div className="space-y-2">
+          {BCE_PIPELINE.map(a => {
+            const st = bceAgents[a.key];
+            return (
+              <div key={a.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${st === 'complete' ? 'bg-green-950/25 border-green-900/40' : st === 'running' ? 'bg-amber-950/25 border-amber-800/50' : 'bg-slate-800/30 border-slate-800'}`}>
+                <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${st === 'complete' ? 'bg-green-500/20 text-green-400' : st === 'running' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-600'}`}>
+                  {st === 'complete' ? '✓' : st === 'running' ? '◌' : '○'}
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-xs font-medium ${st === 'running' ? 'text-amber-300' : st === 'complete' ? 'text-green-300' : 'text-slate-500'}`}>{a.label}</p>
+                  <p className="text-slate-600 text-xs truncate">{a.sub}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!bceResult) return null;
+  const { synthesis: syn, layers } = bceResult;
+  const { layer1, layer2, layer3, layer4 } = layers || {};
+  const stg = EMPIRE_STAGES_DATA.find(s => s.n === syn?.empire_stage) || EMPIRE_STAGES_DATA[2];
+  const confColor = BCE_CONV[syn?.confidence] || '#94a3b8';
+  const alloc = syn?.allocation_summary?.length ? syn.allocation_summary : (layer4?.allocation_matrix || []);
+
+  return (
+    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-4xl mx-auto">
+
+        {/* Header */}
+        <div className="flex flex-wrap items-start gap-3 mb-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#d97706,#ea580c)' }}>⊕</div>
+              <h1 className="text-xl font-black text-white truncate">{bceResult.subject}</h1>
+            </div>
+            <p className="text-slate-500 text-xs pl-10">Big Cycle Engine · {new Date(bceResult.generatedAt).toLocaleDateString()}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {syn?.confidence && <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: confColor + '20', color: confColor }}>{syn.confidence} confidence</span>}
+            {syn?.agent_agreement != null && <span className="text-xs px-2.5 py-1 rounded-full bg-slate-700/60 text-slate-400">{syn.agent_agreement}/4 agents agree</span>}
+            <button onClick={resetBce} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">New analysis</button>
+          </div>
+        </div>
+
+        {/* Active flags */}
+        {syn?.active_flags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {syn.active_flags.map(f => {
+              const fs = BCE_FLAG_STYLE[f] || { c: '#94a3b8', b: '#94a3b815' };
+              return <span key={f} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: fs.b, color: fs.c }}>⚑ {f.replace(/_/g, ' ')}</span>;
+            })}
+          </div>
+        )}
+
+        {/* Empire Stage + Executive Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="rounded-2xl p-5" style={{ background: stg.b, border: `1px solid ${stg.c}30` }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl font-black" style={{ background: stg.c + '25', color: stg.c }}>{syn?.empire_stage ?? '?'}</div>
+              <div>
+                <p className="text-white font-bold text-sm">{stg.label}</p>
+                <p className="text-xs" style={{ color: stg.c + 'bb' }}>Empire Stage {syn?.empire_stage}</p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Investment posture</span><span className="text-slate-300 font-medium">{stg.p}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Composite score</span><span className="text-slate-300 font-medium">{layer1?.composite_score != null ? Number(layer1.composite_score).toFixed(1) : '—'} / 10</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Power trajectory</span><span className="text-slate-300 font-medium capitalize">{layer1?.power_trajectory ?? '—'}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Dominant force</span><span className="text-slate-300 font-medium">{BCE_FORCE[layer1?.dominant_force] ?? layer1?.dominant_force ?? '—'}</span></div>
+            </div>
+          </div>
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 flex flex-col">
+            <h2 className="text-white font-bold text-sm mb-2">Executive Summary</h2>
+            <p className="text-slate-400 text-xs leading-relaxed flex-1">{syn?.executive_summary || layer1?.stage_rationale || '—'}</p>
+            <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-700">
+              <div><p className="text-slate-600 text-xs">Printing probability</p><p className="text-white font-bold text-sm">{syn?.printing_probability ?? layer2?.printing_probability ?? '—'}%</p></div>
+              <div><p className="text-slate-600 text-xs">Rerun cadence</p><p className="text-white font-bold text-sm capitalize">{(syn?.rerun_cadence || '—').toLowerCase()}</p></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Five Forces */}
+        {layer1?.force_scores && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <h2 className="text-white font-bold text-sm mb-4">Five Forces</h2>
+            <div className="space-y-3">
+              {Object.entries(layer1.force_scores).map(([key, score]) => {
+                const s = parseFloat(score) || 0;
+                const isDom = key === layer1.dominant_force;
+                const col = s >= 7 ? '#ef4444' : s >= 5 ? '#f97316' : s >= 3 ? '#f59e0b' : '#10b981';
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-slate-300">{BCE_FORCE[key] || key}</span>
+                        {isDom && <span className="text-xs px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 font-medium">dominant</span>}
+                        <span className="text-xs text-slate-600">{BCE_WGHT[key]}%</span>
+                      </div>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: col }}>{s.toFixed(1)}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(s / 10) * 100}%`, background: col }} />
+                    </div>
+                    {layer1.force_rationales?.[key] && <p className="text-slate-600 text-xs mt-1 leading-relaxed">{layer1.force_rationales[key]}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Debt & Bubble */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+            <h2 className="text-white font-bold text-sm mb-3">Debt Sustainability</h2>
+            {layer2 ? <>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${layer2.debt_status === 'PONZI_FINANCE' ? 'bg-red-900/30 text-red-400' : layer2.debt_status === 'UNSUSTAINABLE' ? 'bg-orange-900/30 text-orange-400' : layer2.debt_status === 'BORDERLINE' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'}`}>{(layer2.debt_status || '').replace(/_/g, ' ')}</span>
+                {layer2.critical_debt_flag && <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 font-semibold">⚑ CRITICAL</span>}
+              </div>
+              <div className="space-y-1.5 mb-3">
+                <div className="flex justify-between text-xs"><span className="text-slate-500">MP Stage</span><span className="text-slate-300 font-medium">{layer2.mp_stage || '—'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-slate-500">i − g differential</span><span className="text-slate-300 font-medium">{layer2.i_minus_g != null ? Number(layer2.i_minus_g).toFixed(1) : '—'}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-slate-500">Printing probability</span><span className="text-slate-300 font-medium">{layer2.printing_probability ?? '—'}%</span></div>
+              </div>
+              {layer2.debt_rationale && <p className="text-slate-500 text-xs leading-relaxed">{layer2.debt_rationale}</p>}
+            </> : <p className="text-slate-600 text-xs">No data</p>}
+          </div>
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+            <h2 className="text-white font-bold text-sm mb-3">Bubble Detection</h2>
+            {layer2 ? <>
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`text-2xl font-black ${layer2.bubble_alert ? 'text-orange-400' : 'text-slate-400'}`}>{layer2.bubble_score ?? 0}/7</span>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${layer2.bubble_severity === 'EXTREME' ? 'bg-red-900/30 text-red-400' : layer2.bubble_severity === 'HIGH' ? 'bg-orange-900/30 text-orange-400' : layer2.bubble_severity === 'MODERATE' ? 'bg-yellow-900/30 text-yellow-400' : layer2.bubble_severity === 'LOW' ? 'bg-blue-900/30 text-blue-400' : 'bg-slate-700 text-slate-500'}`}>{layer2.bubble_severity || 'NONE'}</span>
+                {layer2.bubble_alert && <span className="text-xs text-orange-400 font-semibold">⚠ ALERT</span>}
+              </div>
+              {layer2.bubble_conditions_met?.slice(0, 4).map((c, i) => (
+                <div key={i} className="flex items-start gap-1.5 mb-1">
+                  <span className="text-orange-400 text-xs mt-0.5 flex-shrink-0">•</span>
+                  <p className="text-slate-500 text-xs leading-relaxed">{c}</p>
+                </div>
+              ))}
+              {layer2.bubble_rationale && <p className="text-slate-500 text-xs leading-relaxed mt-2">{layer2.bubble_rationale}</p>}
+            </> : <p className="text-slate-600 text-xs">No data</p>}
+          </div>
+        </div>
+
+        {/* Scenario */}
+        {layer3 && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+              <div>
+                <h2 className="text-white font-bold text-sm mb-1.5">Scenario</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${layer3.scenario_type === 'DEFLATIONARY_DEPRESSION' ? 'bg-blue-900/30 text-blue-400' : layer3.scenario_type === 'INFLATIONARY_DEPRESSION' ? 'bg-orange-900/30 text-orange-400' : 'bg-red-900/30 text-red-400'}`}>{layer3.scenario_label || (layer3.scenario_type || '').replace(/_/g, ' ')}</span>
+                  <span className="text-slate-600 text-xs capitalize">{layer3.phase} phase</span>
+                  {layer3.war_economy_flag && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-900/30 text-orange-400 font-semibold">⚑ WAR ECONOMY</span>}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-slate-500 text-xs">Historical analogy</p>
+                <p className="text-slate-200 text-sm font-bold">{layer3.analogy_label || (layer3.analogy_id || '').replace(/_/g, ' ')}</p>
+                <p className="text-xs" style={{ color: BCE_CONV[layer3.analogy_confidence] || '#94a3b8' }}>{layer3.analogy_confidence} confidence</p>
+              </div>
+            </div>
+            {layer3.mechanism && <p className="text-slate-400 text-xs leading-relaxed mb-4">{layer3.mechanism}</p>}
+            {layer3.warning_signals?.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Warning signals</p>
+                <div className="space-y-1">
+                  {layer3.warning_signals.map((w, i) => (
+                    <div key={i} className="flex items-start gap-1.5"><span className="text-yellow-500 text-xs mt-0.5 flex-shrink-0">⚠</span><p className="text-slate-400 text-xs leading-relaxed">{w}</p></div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(layer3.arb_signals?.pre_print || layer3.arb_signals?.post_print) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[['pre_print', 'Pre-print signals'], ['post_print', 'Post-print signals']].map(([key, lbl]) => {
+                  const sig = layer3.arb_signals?.[key];
+                  if (!sig) return null;
+                  return (
+                    <div key={key} className="bg-slate-900/50 rounded-xl p-3">
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">{lbl}</p>
+                      {sig.long?.length > 0 && <p className="text-xs mb-1"><span className="text-green-400 font-medium">Long: </span><span className="text-slate-400">{sig.long.join(', ')}</span></p>}
+                      {sig.short?.length > 0 && <p className="text-xs"><span className="text-red-400 font-medium">Short: </span><span className="text-slate-400">{sig.short.join(', ')}</span></p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* The Spider's Move */}
+        {(syn?.primary_action || layer4?.primary_action) && (
+          <div className="mb-6 rounded-2xl p-5" style={{ background: 'linear-gradient(135deg,#d9770618,#ea580c18)', border: '1px solid #d9770635' }}>
+            <p className="text-xs text-orange-400/70 uppercase tracking-wider mb-2 font-semibold">The Spider's Move</p>
+            <p className="text-white font-bold text-base leading-snug">{syn?.primary_action || layer4?.primary_action}</p>
+            <div className="flex flex-wrap gap-4 mt-3">
+              {layer4?.cycle_stage && <div className="text-xs"><span className="text-slate-500">Cycle stage </span><span className="text-slate-300 font-medium">{layer4.cycle_stage.replace(/_/g, ' ')}</span></div>}
+              {layer4?.position_sizing && <div className="text-xs"><span className="text-slate-500">Position sizing </span><span className="text-slate-300 font-medium">{layer4.position_sizing.replace(/_/g, ' ')}</span></div>}
+              {layer4?.jurisdiction_risk_score != null && <div className="text-xs"><span className="text-slate-500">Jurisdiction risk </span><span className="text-slate-300 font-medium">{Number(layer4.jurisdiction_risk_score).toFixed(1)}/10</span></div>}
+            </div>
+            {layer4?.jurisdiction_override && layer4?.jurisdiction_action && (
+              <div className="mt-3 flex items-start gap-2 pt-3 border-t border-orange-800/30">
+                <span className="text-yellow-400 text-xs flex-shrink-0">⚑</span>
+                <p className="text-yellow-400 text-xs font-medium">{layer4.jurisdiction_action}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Allocation Matrix */}
+        {alloc.length > 0 && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <h2 className="text-white font-bold text-sm mb-4">Allocation Matrix</h2>
+            <div className="space-y-2">
+              {alloc.map((item, i) => {
+                const rs = BCE_REC_STYLE[item.recommendation] || { c: '#94a3b8', b: '#94a3b815' };
+                return (
+                  <div key={i} className="bg-slate-900/40 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white text-xs font-medium flex-1 min-w-0">{item.asset_class}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-md font-semibold flex-shrink-0" style={{ background: rs.b, color: rs.c }}>{item.recommendation}</span>
+                      <span className="text-xs flex-shrink-0" style={{ color: BCE_CONV[item.conviction] || '#94a3b8' }}>{item.conviction}</span>
+                    </div>
+                    {item.rationale && <p className="text-slate-500 text-xs leading-relaxed">{item.rationale}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Feedback loops */}
+        {syn?.feedback_loops_active && (syn.feedback_loops_active.wealth_confiscation || syn.feedback_loops_active.war_economy) && (
+          <div className="bg-red-950/20 border border-red-900/40 rounded-2xl p-5 mb-6">
+            <h2 className="text-red-300 font-bold text-sm mb-3">Active Feedback Loops</h2>
+            <div className="space-y-2">
+              {syn.feedback_loops_active.wealth_confiscation && (
+                <div className="flex items-start gap-2">
+                  <span className="text-red-400 text-xs flex-shrink-0">⊗</span>
+                  <div>
+                    <p className="text-red-300 text-xs font-semibold">Wealth Confiscation Loop</p>
+                    <p className="text-red-400/60 text-xs leading-relaxed">Debt unmanageable → taxes and capital controls rise → capital flight accelerates → more printing required</p>
+                  </div>
+                </div>
+              )}
+              {syn.feedback_loops_active.war_economy && (
+                <div className="flex items-start gap-2">
+                  <span className="text-orange-400 text-xs flex-shrink-0">⊗</span>
+                  <div>
+                    <p className="text-orange-300 text-xs font-semibold">War Economy Loop</p>
+                    <p className="text-orange-400/60 text-xs leading-relaxed">External conflict → supply chains fragment → import prices spike → CB cannot tighten (debt too high) → stagflation</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-center pb-4">
+          <button onClick={resetBce} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">New analysis</button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 function RASCEFTool() {
   const [step, setStep] = useState('form'); // 'form' | 'result'
   const [form, setForm] = useState({ role: '', usecase: '', audience: '', goals: '', outputFormat: 'structured' });
@@ -6219,6 +6659,17 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </span>
             {activeTab === 'rascef' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'bigcycleengine' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">⊕</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Big Cycle Engine</span>
+              <span className="block text-slate-600 text-xs">Dalio Big Cycle pipeline</span>
+            </span>
+            {activeTab === 'bigcycleengine' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
+          </button>
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
@@ -6398,6 +6849,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* Big Cycle Engine — standalone Dalio pipeline tool */}
+        {activeTab === 'bigcycleengine' && (
+          <div className="h-full overflow-y-auto">
+            <BigCycleEngineTool />
+          </div>
+        )}
+
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
@@ -6467,6 +6925,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       Open RASCEF Generator →
                     </button>
                   </div>
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#d9770618', color: '#fbbf24', border: '1.5px solid #d9770625' }}>⊕</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Big Cycle Engine</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Dalio Big Cycle multi-agent pipeline</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Five-agent sequential pipeline that classifies empire stage, diagnoses debt sustainability, detects bubble conditions, architects a macro scenario with historical analogy, and produces an allocation matrix with "The Spider's Move" primary signal.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['Empire Stage', 'Debt Sustainability', 'Bubble Detection', 'Scenario', 'Allocation Matrix', "The Spider's Move"].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-amber-300 border border-amber-900/60 bg-amber-950/30 hover:bg-amber-900/30 hover:text-amber-200 transition-colors"
+                    >
+                      Open Big Cycle Engine →
+                    </button>
+                  </div>
                 </div>
               </section>
 
@@ -6534,7 +7015,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && status === 'idle' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -6639,7 +7120,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -6675,7 +7156,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
