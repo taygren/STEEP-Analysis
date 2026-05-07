@@ -387,7 +387,7 @@ const initialState = {
   agentStatuses: blankStats(),
   steepData: blankDims(),
   synthesis: null,
-  activeTab: 'overview',
+  activeTab: 'home',
   roadmapFilter: [],
   error: null,
   errorType: null,
@@ -6126,8 +6126,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Branding */}
         <div className="px-5 py-4 border-b border-slate-800">
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
-            <span className="font-bold text-white">STINT Studio</span>
+            <button
+              onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
+              className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+            >
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
+              <span className="font-bold text-white">STINT Studio</span>
+            </button>
             <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>
@@ -6150,24 +6155,6 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           />
-          {/* Quick-pick dropdown */}
-          <div className="relative">
-            <select
-              value=""
-              onChange={e => { if (e.target.value) dispatch({ type: 'SET_SUBJECT', payload: e.target.value }); }}
-              disabled={isRunning}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 pr-6 py-1.5 text-xs text-slate-400 focus:border-blue-500 disabled:opacity-50 transition-colors appearance-none cursor-pointer"
-            >
-              <option value="">— quick-pick a subject —</option>
-              <optgroup label="Trends">
-                {SUGGESTED_SUBJECTS.trends.map(s => <option key={s} value={s}>{s}</option>)}
-              </optgroup>
-              <optgroup label="Companies">
-                {SUGGESTED_SUBJECTS.companies.map(s => <option key={s} value={s}>{s}</option>)}
-              </optgroup>
-            </select>
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▾</span>
-          </div>
           <button
             onClick={() => { handleAnalysis(); closeSidebar(); }}
             disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
@@ -6411,8 +6398,8 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
-        {/* Idle */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && status === 'idle' && (
+        {/* Home — portfolio landing */}
+        {activeTab === 'home' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -6542,6 +6529,104 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                 </div>
               </section>
 
+            </div>
+          </div>
+        )}
+
+        {/* Idle — STEEP Overview */}
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && status === 'idle' && (
+          <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+            <div className="max-w-4xl mx-auto">
+
+              {/* Hero */}
+              <div className="text-center mb-10">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-5 flex items-center justify-center text-2xl font-black text-white shadow-2xl">S</div>
+                <h1 className="text-2xl md:text-3xl font-black text-white mb-3">STEEP Analysis</h1>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
+                  Six-agent structured intelligence across Social, Technological, Economic, Environmental, and Political dimensions. Enter a subject in the sidebar to begin, or pick one below.
+                </p>
+              </div>
+
+              {/* What is STEEP */}
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-8">
+                <h2 className="text-white font-bold text-sm mb-2">What is STEEP analysis?</h2>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  STEEP is a structured strategic-intelligence framework used by analysts, executives, and policy makers to map the macro-environmental forces shaping an organisation, industry, or trend. By examining five distinct dimensions — Social, Technological, Economic, Environmental, and Political — it surfaces both the threats and opportunities that lie outside a subject's direct control, enabling better long-range planning and risk management.
+                </p>
+              </div>
+
+              {/* Dimension cards */}
+              <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4 opacity-50">The five dimensions + synthesis agent</h2>
+              <div className="grid grid-cols-1 gap-3 mb-8">
+                {[
+                  { key:'S', label:'Social',        agent:'Agent 1', color:'#3B82F6', desc:'Examines human and societal forces that influence demand, talent, and public perception.',                                                         tags:['Demographics & population','Cultural shifts','Consumer behaviour','Workforce trends','Public health','Education & skills'] },
+                  { key:'T', label:'Technological',  agent:'Agent 2', color:'#8B5CF6', desc:'Maps emerging technologies, R&D momentum, and the pace of digital disruption affecting the subject.',                                              tags:['AI & automation','R&D breakthroughs','Digital infrastructure','Cybersecurity','IP landscape','Platform dynamics'] },
+                  { key:'E', label:'Economic',       agent:'Agent 3', color:'#10B981', desc:'Analyses macroeconomic conditions, market structures, and financial forces shaping viability and growth.',                                        tags:['Market conditions','Trade & tariffs','Investment flows','Inflation & rates','Supply chains','Competitive landscape'] },
+                  { key:'E', label:'Environmental',  agent:'Agent 4', color:'#14B8A6', desc:'Assesses climate risk, natural resource constraints, sustainability expectations, and ecological regulation.',                                    tags:['Climate risk','Energy transition','Resource scarcity','ESG pressure','Carbon regulation','Circular economy'] },
+                  { key:'P', label:'Political',      agent:'Agent 5', color:'#F97316', desc:'Evaluates government policy, regulatory direction, geopolitical instability, and legislative trends.',                                           tags:['Government policy','Regulation & compliance','Geopolitical risk','Elections & stability','International relations','Lobbying dynamics'] },
+                  { key:'✦', label:'Synthesis',      agent:'Agent 6', color:'#818cf8', desc:'Runs after all five dimension agents complete. Integrates findings into a unified executive report with overall strategic posture and roadmap.', tags:['Overall posture','Executive summary','Cross-dimension insights','Near-term milestones','Mid-term milestones','Long-term milestones'], border:'#6366f140' },
+                ].map(d => (
+                  <div key={d.label} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex gap-4" style={d.border ? { borderColor: d.border } : {}}>
+                    <div className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-base font-black" style={{ background: d.color + '20', color: d.color, border: `2px solid ${d.color}40` }}>{d.key}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-white font-bold text-sm">{d.label}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: d.color + '20', color: d.color }}>{d.agent}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs leading-relaxed mb-2">{d.desc}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {d.tags.map(t => <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Output summary */}
+              <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4 opacity-50">What you get</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+                {[
+                  { icon:'📋', title:'Overview',        desc:'Strategic posture badge, executive summary, dimension driver cards, cross-dimension insights, and a full evidence accordion.' },
+                  { icon:'🌐', title:'3D Force Map',    desc:'Interactive Three.js globe with force-directed driver nodes. Click any node for a full detail panel with confidence, impact, and evidence.' },
+                  { icon:'🗺️', title:'Forecast Roadmap',desc:'Near / mid / long-term milestones with trigger points, risks, accelerants, and confidence ratings. Toggle Card or Timeline view.' },
+                ].map(o => (
+                  <div key={o.title} className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
+                    <div className="text-lg mb-2">{o.icon}</div>
+                    <p className="text-white font-semibold text-sm mb-1">{o.title}</p>
+                    <p className="text-slate-500 text-xs leading-relaxed">{o.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick-pick subjects */}
+              <div className="mb-8">
+                <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4 opacity-50">Quick-pick a subject</h2>
+                <div className="mb-4">
+                  <p className="text-slate-600 text-xs font-medium mb-2 uppercase tracking-wider">Trends</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SUGGESTED_SUBJECTS.trends.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => dispatch({ type: 'SET_SUBJECT', payload: s })}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors"
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-600 text-xs font-medium mb-2 uppercase tracking-wider">Companies</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SUGGESTED_SUBJECTS.companies.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => dispatch({ type: 'SET_SUBJECT', payload: s })}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors"
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {groqStatus === 'offline' && (
                 <div className="bg-red-950 border border-red-800 rounded-xl p-4 mb-4">
                   <p className="text-red-300 font-semibold text-sm mb-1">Groq API key not found</p>
@@ -6554,7 +6639,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -6590,7 +6675,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
