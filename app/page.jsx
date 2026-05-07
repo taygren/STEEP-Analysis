@@ -6212,13 +6212,14 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Toolkit</p>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all text-slate-400 hover:text-white hover:bg-slate-800`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === null ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
             <span className="text-base leading-none">📊</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">STEEP Analysis</span>
               <span className="block text-slate-600 text-xs">Six-agent intelligence framework</span>
             </span>
+            {activeTab === null && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'rascef' }); closeSidebar(); }}

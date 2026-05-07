@@ -50,12 +50,17 @@ export async function GET(req) {
   }
 }
 
+const VALID_STATUSES = new Set(['published', 'draft']);
+
 export async function POST(req) {
   const check = authCheck(req);
   if (check !== 'ok') return authResponse(check);
 
   try {
     const body = await req.json();
+    if (body.status && !VALID_STATUSES.has(body.status)) {
+      return Response.json({ error: 'status must be "published" or "draft"' }, { status: 400 });
+    }
     const now  = new Date().toISOString();
     const id   = body.id || randomUUID();
 
@@ -98,6 +103,9 @@ export async function PUT(req) {
   try {
     const { id, status } = await req.json();
     if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+    if (status && !VALID_STATUSES.has(status)) {
+      return Response.json({ error: 'status must be "published" or "draft"' }, { status: 400 });
+    }
 
     const existing = await kvGet(`studioupdates:post:${id}`);
     if (!existing) return Response.json({ error: 'Update not found' }, { status: 404 });
