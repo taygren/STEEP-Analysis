@@ -775,7 +775,7 @@ Schema: {"type":"company","ticker":"AAPL"} or {"type":"trend","ticker":null}
 function Spinner({ size = 16 }) {
   return (
     <span
-      className="inline-block rounded-full border-2 border-slate-600 border-t-blue-400 animate-spin"
+      className="inline-block rounded-full border-2 border-slate-700 border-t-violet-400 animate-spin"
       style={{ width: size, height: size, flexShrink: 0 }}
     />
   );
@@ -814,7 +814,7 @@ function GroqPanel({ state, dispatch }) {
   const { groqStatus, selectedModel } = state;
 
   return (
-    <div className="px-4 py-4 border-b border-slate-800 space-y-3">
+    <div className="px-4 py-4 border-b border-violet-500/10 space-y-3">
       {/* Status row */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-slate-400">Groq</span>
@@ -838,7 +838,7 @@ function GroqPanel({ state, dispatch }) {
         <select
           value={selectedModel}
           onChange={e => dispatch({ type: 'SET_SELECTED_MODEL', payload: e.target.value })}
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 transition-colors appearance-none"
+          className="w-full bg-slate-900/80 border border-violet-500/20 rounded-lg px-2 py-1.5 text-xs text-white focus:border-violet-500 transition-colors appearance-none"
         >
           {CATALOG.map(m => (
             <option key={m.id} value={m.id}>{m.label}</option>
@@ -868,17 +868,17 @@ function ProgressPanel({ agentStatuses, status }) {
   const done = Object.values(agentStatuses).filter(s => s === 'complete').length;
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+    <div className="bg-violet-950/20 border border-violet-500/20 rounded-xl p-4">
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs font-semibold text-white">
           {status === 'synthesizing' ? 'Synthesizing…' : 'Analyzing…'}
         </span>
         <span className="text-xs text-slate-500">{done}/6</span>
       </div>
-      <div className="w-full h-1.5 bg-slate-700 rounded-full mb-4">
+      <div className="w-full h-1.5 bg-slate-800 rounded-full mb-4">
         <div
           className="h-1.5 rounded-full transition-all duration-500"
-          style={{ width: `${(done / 6) * 100}%`, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)' }}
+          style={{ width: `${(done / 6) * 100}%`, background: 'linear-gradient(90deg,#7c3aed,#a78bfa)' }}
         />
       </div>
       <div className="space-y-2">
@@ -889,7 +889,7 @@ function ProgressPanel({ agentStatuses, status }) {
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
               <span className="flex-1 text-slate-300">{label}</span>
               {s === 'idle'        && <span className="text-slate-600">Queued</span>}
-              {s === 'researching' && <div className="flex items-center gap-1"><Spinner size={12} /><span className="text-blue-400">Running</span></div>}
+              {s === 'researching' && <div className="flex items-center gap-1"><Spinner size={12} /><span className="text-violet-400">Running</span></div>}
               {s === 'complete'    && <span className="text-green-400">✓ Done</span>}
               {s === 'error'       && <span className="text-red-400">✗ Error</span>}
             </div>
@@ -6493,9 +6493,9 @@ function RASCEFTool() {
   if (step === 'result' && result) {
     const isStructured = form.outputFormat === 'structured';
     return (
-      <div className="min-h-full bg-slate-950 text-white">
+      <div className="min-h-full bg-[#07070e] text-white">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+        <div className="sticky top-0 z-10 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10">
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 flex items-center gap-3 flex-wrap">
             <button onClick={reset} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors flex-shrink-0">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -6622,7 +6622,7 @@ function RASCEFTool() {
 
   // ── Form / Landing view ────────────────────────────────────────
   return (
-    <div className="min-h-full bg-slate-950 text-white overflow-y-auto">
+    <div className="min-h-full bg-[#07070e] text-white overflow-y-auto">
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 pb-16">
 
         {/* Hero */}
@@ -6635,7 +6635,7 @@ function RASCEFTool() {
         </div>
 
         {/* What is RASCEF */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-8">
+        <div className="bg-[#0f0f1b]/80 border border-violet-500/10 rounded-2xl p-5 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-white font-bold text-sm">What is RASCEF?</h2>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-violet-900 text-violet-300 border border-violet-700 font-semibold">Framework</span>
@@ -7054,7 +7054,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   const tabs = [...coreTabs, ...topOnlyTabs];
 
   return (
-    <div className="flex h-screen bg-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-[#07070e] overflow-hidden">
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -7062,15 +7062,15 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       )}
 
       {/* ── SIDEBAR ── */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-950 border-r border-slate-800 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         {/* Branding */}
-        <div className="px-5 py-4 border-b border-slate-800">
+        <div className="px-5 py-4 border-b border-violet-500/10">
           <div className="flex items-center gap-2.5 mb-1">
             <button
               onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
               className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-800 flex items-center justify-center text-xs font-black text-white flex-shrink-0 violet-glow-sm">S</div>
               <span className="font-bold text-white">STINT Studio</span>
             </button>
             <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
@@ -7084,7 +7084,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         <GroqPanel state={state} dispatch={dispatch} />
 
         {/* Subject + Run */}
-        <div className="px-4 py-4 border-b border-slate-800 space-y-2">
+        <div className="px-4 py-4 border-b border-violet-500/10 space-y-2">
           <label className="block text-xs text-slate-500 font-medium">Subject to Analyze</label>
           <input
             type="text"
@@ -7093,13 +7093,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             placeholder="e.g. quantum computing"
             disabled={isRunning}
             onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-slate-900/80 border border-violet-500/20 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           />
           <button
             onClick={() => { handleAnalysis(); closeSidebar(); }}
             disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
             className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
-            style={{ background: isRunning ? 'linear-gradient(135deg,#1e3a5f,#3730a3)' : 'linear-gradient(135deg,#2563eb,#7c3aed)' }}
+            style={{ background: isRunning ? 'linear-gradient(135deg,#2e1065,#4c1d95)' : 'linear-gradient(135deg,#6d28d9,#7c3aed)' }}
           >
             {isRunning
               ? <span className="flex items-center justify-center gap-2"><Spinner size={12} />Analyzing…</span>
@@ -7114,7 +7114,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Progress */}
         {isRunning && (
-          <div className="px-4 py-4 border-b border-slate-800">
+          <div className="px-4 py-4 border-b border-violet-500/10">
             <ProgressPanel agentStatuses={agentStatuses} status={status} />
           </div>
         )}
@@ -7125,32 +7125,32 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Dashboard</p>
             {coreTabs.map(tab => (
               <button key={tab.key} onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key }); closeSidebar(); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === tab.key ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === tab.key ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}>
                 <span className="text-base leading-none">{tab.icon}</span>
                 <span>{tab.label}</span>
-                {activeTab === tab.key && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                {activeTab === tab.key && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
               </button>
             ))}
           </nav>
         )}
 
         {/* Toolkit — STEEP Analysis + RASCEF Generator */}
-        <div className="px-3 py-3 border-t border-slate-800">
+        <div className="px-3 py-3 border-t border-violet-500/10">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Toolkit</p>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === null ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === null ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">📊</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">STEEP Analysis</span>
               <span className="block text-slate-600 text-xs">Six-agent intelligence framework</span>
             </span>
-            {activeTab === null && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
+            {activeTab === null && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'rascef' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'rascef' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'rascef' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">⚡</span>
             <span className="text-left leading-tight flex-1 min-w-0">
@@ -7161,7 +7161,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'bigcycleengine' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'bigcycleengine' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">⊕</span>
             <span className="text-left leading-tight flex-1 min-w-0">
@@ -7172,7 +7172,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geoinstrument' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geoinstrument' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">◈</span>
             <span className="text-left leading-tight flex-1 min-w-0">
@@ -7184,11 +7184,11 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
-        <div className="px-3 py-3 border-t border-slate-800">
+        <div className="px-3 py-3 border-t border-violet-500/10">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Insights</p>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">✍</span>
             <span className="text-left leading-tight flex-1 min-w-0">
@@ -7199,7 +7199,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">💡</span>
             <span className="text-left leading-tight flex-1 min-w-0">
@@ -7211,27 +7211,27 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         </div>
 
         {/* Studio — About */}
-        <div className="px-3 py-3 border-t border-slate-800">
+        <div className="px-3 py-3 border-t border-violet-500/10">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Studio</p>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'about' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'about' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">◎</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">About</span>
               <span className="block text-slate-600 text-xs">Studio & Taylor Grenawalt</span>
             </span>
-            {activeTab === 'about' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />}
+            {activeTab === 'about' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
         </div>
 
         {/* Examples */}
-        <div className="px-3 py-3 border-t border-slate-800">
+        <div className="px-3 py-3 border-t border-violet-500/10">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
           <button
             onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">⚛</span>
             <span className="text-left leading-tight">
@@ -7239,12 +7239,12 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="block text-slate-600 text-xs">Pre-run example</span>
             </span>
             {status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
             )}
           </button>
           <button
             onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">🍎</span>
             <span className="text-left leading-tight">
@@ -7252,12 +7252,12 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="block text-slate-600 text-xs">Pre-run example</span>
             </span>
             {status === 'complete' && subject === APPLE_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
             )}
           </button>
           <button
             onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: WALMART_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === WALMART_EXAMPLE.subject ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === WALMART_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
             <span className="text-base leading-none">🛒</span>
             <span className="text-left leading-tight">
@@ -7265,7 +7265,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="block text-slate-600 text-xs">Pre-run example</span>
             </span>
             {status === 'complete' && subject === WALMART_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
             )}
           </button>
         </div>
@@ -7301,7 +7301,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
-        <div className="px-5 py-3 border-t border-slate-800 mt-auto">
+        <div className="px-5 py-3 border-t border-violet-500/10 mt-auto">
           <p className="text-slate-700 text-xs">Groq · {selectedModel}</p>
         </div>
       </aside>
@@ -7310,16 +7310,16 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       <main className="flex-1 overflow-y-auto min-w-0">
 
         {/* Mobile header bar */}
-        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-slate-900/95 backdrop-blur border-b border-slate-800 md:hidden">
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-violet-950/40 transition-colors flex-shrink-0"
             aria-label="Open menu"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
+            <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-500 to-purple-800 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
             <span className="text-white font-semibold text-sm truncate">
               {subject ? subject : 'STINT Studio'}
             </span>
@@ -7327,7 +7327,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-400 font-medium flex-shrink-0">Done</span>
             )}
             {isRunning && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900 text-blue-400 font-medium flex-shrink-0 flex items-center gap-1"><Spinner size={9} />Running</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-violet-900 text-violet-400 font-medium flex-shrink-0 flex items-center gap-1"><Spinner size={9} />Running</span>
             )}
           </div>
         </div>
@@ -7382,7 +7382,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               {/* Studio header */}
               <div className="mb-10">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0">S</div>
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-900 flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0 violet-glow">S</div>
                   <div>
                     <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mb-1">STINT.Studio</h1>
                     <p className="text-slate-500 text-sm font-medium">Applied Strategy & Intelligence</p>
@@ -7397,9 +7397,9 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <section className="mb-10">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Toolkit</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#2563eb18', color: '#60a5fa', border: '1.5px solid #2563eb25' }}>S</div>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>S</div>
                       <div className="min-w-0">
                         <h3 className="text-white font-bold text-sm leading-tight">STEEP Analysis</h3>
                         <p className="text-slate-500 text-xs mt-0.5">Six-agent intelligence framework</p>
@@ -7415,12 +7415,12 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                     </div>
                     <button
                       onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: null })}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-blue-300 border border-blue-900/60 bg-blue-950/30 hover:bg-blue-900/30 hover:text-blue-200 transition-colors"
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
                     >
                       Open STEEP Analysis →
                     </button>
                   </div>
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>R</div>
                       <div className="min-w-0">
@@ -7443,7 +7443,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       Open RASCEF Generator →
                     </button>
                   </div>
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#d9770618', color: '#fbbf24', border: '1.5px solid #d9770625' }}>⊕</div>
                       <div className="min-w-0">
@@ -7466,7 +7466,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       Open Big Cycle Engine →
                     </button>
                   </div>
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#0d948818', color: '#2dd4bf', border: '1.5px solid #0d948825' }}>◈</div>
                       <div className="min-w-0">
@@ -7496,7 +7496,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <section className="mb-10">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Insights</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0" style={{ background: '#0f766e18', color: '#2dd4bf', border: '1.5px solid #0f766e25' }}>TL</div>
                       <div className="min-w-0">
@@ -7514,7 +7514,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       View Intelligence Briefs →
                     </button>
                   </div>
-                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0" style={{ background: '#0891b218', color: '#22d3ee', border: '1.5px solid #0891b225' }}>II</div>
                       <div className="min-w-0">
@@ -7538,7 +7538,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               {/* Studio section */}
               <section className="mb-10">
                 <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Studio</h2>
-                <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5">
+                <div className="bg-[#0f0f1b]/80 border border-violet-500/10 rounded-2xl p-5">
                   <p className="text-slate-400 text-sm leading-relaxed mb-4">
                     Applied Strategy & Intelligence is a personal portfolio of practitioner instruments for strategic analysis, applied foresight, and organisational decision-making. Built by Taylor Grenawalt — strategist, applied researcher, and framework designer.
                   </p>
@@ -7665,7 +7665,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
-                <div className="w-20 h-20 rounded-full border-4 border-slate-800 animate-spin" style={{ borderTopColor: '#3B82F6', borderRightColor: '#8B5CF6', animationDuration: '1.5s' }} />
+                <div className="w-20 h-20 rounded-full border-4 border-slate-800 animate-spin" style={{ borderTopColor: '#8B5CF6', borderRightColor: '#a78bfa', animationDuration: '1.5s' }} />
                 <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">S</div>
               </div>
               <h2 className="text-xl font-bold text-white mb-2">
@@ -7699,10 +7699,10 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Results */}
         {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isComplete && (
           <div className="min-h-full flex flex-col">
-            <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-violet-500/10 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
-                  className={`flex items-center gap-1.5 px-3 py-3 md:px-4 text-xs md:text-sm font-medium border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === tab.key ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-600'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-3 md:px-4 text-xs md:text-sm font-medium border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === tab.key ? 'border-violet-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-violet-700/50'}`}>
                   <span>{tab.icon}</span>
                   <span className="hidden sm:inline">{tab.label}</span>
                   <span className="sm:hidden">{tab.label.split(' ')[0]}</span>

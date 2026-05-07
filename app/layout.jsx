@@ -24,7 +24,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="bg-slate-900 text-white antialiased" suppressHydrationWarning>
+      <body className="bg-[#07070e] text-white antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>

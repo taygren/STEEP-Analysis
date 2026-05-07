@@ -8,16 +8,16 @@
 html, body, #__next { height: 100%; margin: 0; padding: 0; }
 
 body {
-  background: #0f172a;
+  background: #07070e;
   color: #f1f5f9;
   overflow: hidden;
 }
 
 /* ── Scrollbars ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #1e293b; }
-::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #64748b; }
+::-webkit-scrollbar-track { background: #0d0d1a; }
+::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
 
 /* ── Animations ── */
 @keyframes fadeIn {
@@ -32,9 +32,49 @@ body {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.6; }
 }
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(139,92,246,0.15); }
+  50%       { box-shadow: 0 0 20px 4px rgba(139,92,246,0.28); }
+}
 
 .fade-in  { animation: fadeIn  0.25s ease-out both; }
 .slide-in { animation: slideIn 0.2s ease-out both; }
+
+/* ── Purple ambient glow behind sidebar ── */
+.sidebar-glow {
+  position: relative;
+}
+.sidebar-glow::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: radial-gradient(ellipse 160px 400px at 0% 40%, rgba(109,40,217,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Gradient text utility ── */
+.gradient-text {
+  background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Purple glow utility ── */
+.violet-glow {
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.2), 0 4px 24px rgba(109,40,217,0.15);
+}
+.violet-glow-sm {
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.15), 0 2px 12px rgba(109,40,217,0.12);
+}
 
 /* ── Three.js canvas ── */
 canvas { display: block; cursor: grab; touch-action: none; }
@@ -46,14 +86,12 @@ canvas:active { cursor: grabbing; }
 
 /* ── Mobile touch improvements ── */
 @media (max-width: 767px) {
-  /* Prevent double-tap zoom on buttons */
   button { touch-action: manipulation; }
-  /* Prevent text selection on touch gestures */
   .select-none { -webkit-user-select: none; user-select: none; }
 }
 
 /* ── Remove outlines on interactive elements ── */
-button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+button:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
 input:focus  { outline: none; }
 select:focus { outline: none; }
 
@@ -67,7 +105,7 @@ select:focus { outline: none; }
   font-family: monospace;
 }
 .sa-link {
-  color: #60a5fa;
+  color: #a78bfa;
   text-decoration: underline;
 }
 
@@ -79,13 +117,11 @@ select:focus { outline: none; }
     overflow: visible !important;
   }
 
-  /* Hide nav, share bars, and any element marked print-hide */
   .print-hide,
   nav {
     display: none !important;
   }
 
-  /* Article headings */
   .print-article .sa-h1,
   .print-article .sa-h2,
   .print-article .sa-h3,
@@ -95,7 +131,6 @@ select:focus { outline: none; }
     border-color: #e5e7eb !important;
   }
 
-  /* Article body copy */
   .print-article .sa-p,
   .print-article .sa-li,
   .print-article .sa-dek,
@@ -103,48 +138,37 @@ select:focus { outline: none; }
     color: #374151 !important;
   }
 
-  /* Code blocks */
   .print-article .sa-pre {
     background: #f8fafc !important;
     color: #334155 !important;
     border: 1px solid #e2e8f0 !important;
   }
 
-  /* Inline code */
   .sa-code {
     background: #f1f5f9 !important;
     color: #334155 !important;
   }
 
-  /* Links */
   .sa-link { color: #1d4ed8 !important; }
 
-  /* Blockquote */
-  .print-article blockquote { border-left-color: #3b82f6 !important; }
+  .print-article blockquote { border-left-color: #7c3aed !important; }
 
-  /* Tables */
   .print-article table    { border: 1px solid #e5e7eb !important; }
   .print-article .sa-th  { background: #f8fafc !important; color: #374151 !important; border-color: #e5e7eb !important; }
   .print-article .sa-td  { color: #374151 !important; border-color: #e5e7eb !important; }
 
-  /* HR */
   .print-article .sa-hr  { border-color: #e5e7eb !important; }
 
-  /* Images */
   img { max-width: 100% !important; page-break-inside: avoid; }
 
-  /* Page breaks */
   h1, h2, h3, h4 { page-break-after: avoid; }
   ul, ol, pre, blockquote, figure { page-break-inside: avoid; }
 
-  /* Standalone page title/dek for print */
   .sa-title { color: #111827 !important; }
   .sa-dek   { color: #4b5563 !important; }
   .sa-meta  { color: #9ca3af !important; }
 
-  /* Container background */
   .min-h-screen, main, div { background: transparent !important; }
 
-  /* Remove shadows and border-radius for print */
   .shadow-2xl, .shadow-lg { box-shadow: none !important; }
 }
