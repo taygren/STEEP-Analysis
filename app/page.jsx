@@ -8251,7 +8251,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Prompt Engineering Package — techniques, adversarial modes, task brief builder */}
         {activeTab === 'promptpkg' && (
-          <div className="h-full overflow-hidden">
+          <div className="h-full overflow-y-auto">
             <PromptEngineeringPackageTool />
           </div>
         )}

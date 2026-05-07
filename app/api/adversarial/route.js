@@ -10,7 +10,7 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MAX_RETRIES  = 4;
 
-function cleanKey(raw) {
+function cleanApiKey(raw) {
   if (!raw) return raw;
   let key = raw.trim().replace(/^["']|["']$/g, '');
   const eq = key.indexOf('=');
@@ -128,7 +128,7 @@ export async function POST(req) {
   if (!systemPrompt) return Response.json({ error: `Unknown mode: ${mode}` }, { status: 400 });
   if (!userInput)    return Response.json({ error: 'userInput is required' }, { status: 400 });
 
-  const apiKey = cleanKey(process.env.GROQ_API_KEY);
+  const apiKey = cleanApiKey(process.env.GROQ_API_KEY);
   if (!apiKey) return Response.json({ error: 'GROQ_API_KEY is not configured' }, { status: 503 });
 
   const encoder = new TextEncoder();
