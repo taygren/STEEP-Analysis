@@ -17,20 +17,20 @@ function getBaseUrl() {
 export async function generateMetadata({ params }) {
   const profile = await kvGet(`innovatorillumination:post:${params.id}`);
   if (!profile || profile.status !== 'published') {
-    return { title: 'Innovator Not Found | STEEP Platform' };
+    return { title: 'Innovator Not Found | STINT Studio' };
   }
   const base = getBaseUrl();
   const url  = `${base}/innovator-illumination/${params.id}`;
   const desc = (profile.solutionOverview || profile.excerpt || '').slice(0, 200);
   return {
-    title: `${profile.title} | Innovator Illumination | STEEP Platform`,
+    title: `${profile.title} | Innovator Illumination | STINT Studio`,
     description: desc,
     openGraph: {
       title: profile.title,
       description: desc,
       url,
       type: 'article',
-      siteName: 'STEEP Platform — Innovator Illumination',
+      siteName: 'STINT Studio — Innovator Illumination',
       ...(profile.heroImageUrl ? { images: [{ url: profile.heroImageUrl, width: 1200, height: 630, alt: profile.title }] } : {}),
     },
     twitter: {

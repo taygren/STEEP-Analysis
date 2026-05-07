@@ -1,104 +1,82 @@
-# STEEP Analysis Platform
+# STINT Studio
 
-AI-powered STEEP Analysis Platform using Groq/Cerebras cloud inference with Tavily research. Six coordinated agents analyse any subject and return structured intelligence across five tabs, plus geoeconomic Big Cycle assessment, a Prediction Markets tab (live Polymarket contracts), a Thought Leadership publishing system, and an Innovator Illumination company spotlight directory.
+Applied Strategy & Intelligence — a personal portfolio and practitioner toolkit by Taylor Grenawalt. AI-powered STEEP Analysis, RASCEF Generator, Thought Leadership briefs, Innovator Illumination directory, and an About/Studio Updates panel. Uses Groq/Cerebras cloud inference with Tavily research.
 
-## Architecture
+## Run & Operate
+- **Start**: `bash start-dev.sh` (port 5000)
+- **Workflow**: "Start application" → `bash start-dev.sh`
+- **Required env**: `GROQ_API_KEY` (primary LLM), `ADMIN_PUBLISH_TOKEN` (admin CRUD for TL, II, Studio Updates)
+- **Optional env**: `CEREBRAS_API_KEY`, `TAVILY_API_KEY`, `STEEP_DEFAULT_MODEL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`
 
-- **Framework**: Next.js 14 (App Router)
+## Stack
+- **Framework**: Next.js 14 (App Router), `app/` directory
 - **Styling**: Tailwind CSS
-- **3D Visualization**: Three.js
+- **3D**: Three.js
 - **Charts**: Recharts (RadarChart, BarChart)
-- **AI Backend**: Groq cloud API + Cerebras (OpenAI-compatible SSE streaming)
-- **Key-Value Store**: Vercel KV (file-backed JSON fallback for dev/Replit — `.steep-data/kv.json`)
-- **Port**: 5000
+- **AI**: Groq cloud API + Cerebras (OpenAI-compatible SSE streaming)
+- **KV Store**: Vercel KV (prod) / file-backed JSON fallback (`.steep-data/kv.json`) via `lib/kv.js`
 
-## Project Structure
-
+## Where things live
 ```
 app/
-  page.jsx              — Main UI (single-page, ~3800 lines), 'use client'
-  layout.jsx            — Root layout
-  globals.css           — Global styles
+  page.jsx                  — Main SPA (~6600 lines), 'use client'; all STEEP logic
+  layout.jsx                — Root layout + metadata (STINT Studio branding)
+  components/
+    AboutPanel.jsx          — About/bio/Studio Updates panel (standalone 'use client')
+    StandaloneMarkdown.jsx  — Markdown renderer for standalone post/profile pages
   api/
-    analyze/route.js      — Proxies to Groq with retry-on-ratelimit (SSE stream)
-    research/route.js     — Proxies to Tavily for fresh sources (last-6-month window)
-    health/route.js       — Probes Groq + Cerebras in parallel
-    models/route.js       — Returns curated model catalog
-    fundamentals/route.js — Yahoo Finance fundamentals for public companies
-    sentiment/route.js    — Adanos sentiment signals
-    macro/route.js        — Yahoo Finance + BLS macro indicators
-    snapshot/route.js     — AI time-bound intelligence snapshot (cached in KV)
-    big-cycle/route.js    — Big Cycle Decision Engine geoeconomic assessment
-    prediction-markets/route.js — POST: uses Groq (llama-3.1-8b-instant) to generate Polymarket tag strings for subject; browser-direct Gamma API fetch done client-side
-    thought-leadership/
-      route.js            — Public list of published thought leadership posts (incl. heroImageUrl)
-      admin/route.js      — Admin CRUD (requires x-admin-token header); schema incl. heroImageUrl
-      [id]/route.js       — Single published post fetch (full contentMarkdown for article view)
-    innovator-illumination/
-      route.js            — Public list of published innovator profiles
-      admin/route.js      — Admin CRUD; schema adds logoUrl, techSegment, solutionOverview
-      [id]/route.js       — Single innovator fetch
-    upload-image/route.js — Image upload (admin token required); saves to public/uploads/
+    analyze/route.js        — Groq SSE proxy, retry-on-ratelimit
+    research/route.js       — Tavily search proxy
+    health/route.js         — Groq + Cerebras health probes
+    models/route.js         — Model catalog
+    fundamentals/route.js   — Yahoo Finance fundamentals
+    sentiment/route.js      — Adanos sentiment signals
+    macro/route.js          — Macro indicators
+    snapshot/route.js       — AI time-bound intelligence snapshot (KV cached)
+    big-cycle/route.js      — Big Cycle geoeconomic engine
+    prediction-markets/route.js
+    thought-leadership/route.js + admin/route.js + [id]/route.js
+    innovator-illumination/route.js + admin/route.js + [id]/route.js
+    studio-updates/route.js + admin/route.js + [id]/route.js
+    upload-image/route.js
+  thought-leadership/[id]/  — Standalone shareable TL post page
+  innovator-illumination/[id]/ — Standalone shareable innovator profile page
 lib/
-  kv.js                 — Vercel KV wrapper; dev fallback uses file-backed JSON (.steep-data/kv.json) shared via globalThis to avoid Next.js module-isolation issues
-  bigCycle/engine.js    — Instrument attributes, capacity definitions, scoring logic, LLM prompts
-  quantumComputingExample.js — Pre-run example
-  appleExample.js       — Pre-run Apple example (with full fundamentals + thesis)
-  walmartExample.js     — Pre-run Walmart example (tariff/Big Cycle/Snapshot)
-scripts/
-  post-merge.sh         — Post-merge setup (npm install)
-start-dev.sh            — Replit startup script (starts Ollama legacy + Next.js)
-vercel.json             — Vercel function timeouts
+  kv.js                     — KV abstraction (Vercel KV or file-backed)
+  bigCycle/engine.js        — Big Cycle scoring + LLM prompts
+  quantumComputingExample.js / appleExample.js / walmartExample.js
+scripts/post-merge.sh
+start-dev.sh
 ```
 
-## UI Navigation
+## Architecture decisions
+- **Single-file SPA**: `app/page.jsx` is intentionally monolithic — all STEEP analysis state, reducers, agents, and tab components live together to avoid prop-drilling across a complex multi-agent state machine.
+- **KV fallback**: `lib/kv.js` uses `globalThis` to share one file-backed store across all Next.js API routes (which compile as isolated modules), avoiding per-route empty Maps.
+- **SSE streaming**: All LLM calls stream via `analyze/route.js` so the UI can show per-agent progress in real time.
+- **Admin auth**: A single `ADMIN_PUBLISH_TOKEN` env var gates all three admin endpoints (TL, II, Studio Updates) via `x-admin-token` header; the token is in-memory only (no localStorage).
+- **Standalone pages**: TL and II posts have standalone Next.js pages at `/thought-leadership/[id]` and `/innovator-illumination/[id]` with full OG metadata for social sharing.
 
-### Top Tab Bar (core + gated)
-- **Overview**: Posture badge, executive summary, Intelligence Snapshot panel, STEEP dimension cards, evidence accordion, cross-dimension insights, sentiment/macro strips
-- **Force Map (3D)**: Three.js globe, node click opens detail side panel
-- **Roadmap**: Near/mid/long-term milestones, triggers, risks & accelerants
-- **Investment Thesis** *(requires public company ticker)*: Fundamentals, AI-generated thesis, valuation snapshot
-- **Data Viz** *(unlocked after analysis)*: STEEP radar chart, opportunities vs risks bar chart, driver impact distribution, confidence bars, market KPI cards
-- **Big Cycle** *(unlocked after analysis)*: Geoeconomic instrument scoring, strategic utility classification, US capacity assessments, company positioning
+## Product
+- **Landing page**: Portfolio homepage with Toolkit / Insights / Studio sections
+- **Sidebar sections**: Toolkit (STEEP, RASCEF), Insights (Thought Leadership, Innovator Illumination), Studio (About)
+- **STEEP Analysis**: 6-agent analysis → Overview, Force Map (3D), Roadmap, Investment Thesis, Data Viz, Big Cycle, Prediction Markets tabs
+- **Thought Leadership**: Published intelligence briefs with admin CRUD; KV namespace `thoughtleadership:*`
+- **Innovator Illumination**: Company spotlight directory with admin CRUD; KV namespace `innovatorillumination:*`
+- **Studio Updates**: Admin-managed changelog/updates feed; KV namespace `studioupdates:*`
+- **About panel**: Studio mission, Taylor Grenawalt bio, Studio Updates feed; `app/components/AboutPanel.jsx`
 
-### Sidebar-Only Destinations (Intelligence section)
-- **Thought Leadership**: Always accessible; lists published GEO intelligence briefs; admin mode (in-memory token) unlocks full CRUD editor
-- **Innovator Illumination**: Always accessible; logo-card grid of technology solution providers; admin mode unlocks Add Innovator modal (2-step: auth → form with logoUrl, techSegment, solutionOverview, content, geo tags, hero image); KV namespace `innovatorillumination:*`
+## User preferences
+- Brand name: **STINT Studio** / "Applied Strategy & Intelligence"
+- No "powerful", "easy", "cutting-edge", "amazing", or demo/marketing language
+- Taylor Grenawalt bio text is verbatim — do not paraphrase or shorten
 
-### Sidebar Tools section
-- **STEEP Analysis**: Shortcut back to the home/idle landing screen
-- **RASCEF Generator**: AI prompt architect
+## Gotchas
+- Rate limit: Groq free tier 12k TPM on Llama 3.3 70B; `analyze/route.js` retries on 429 up to 4×
+- Dimension agents: 1,200 max_tokens; synthesis: 1,800 max_tokens; 3s pause before synthesis
+- `cleanApiKey()` in route files strips accidental `NAME=value` or quoted key formats
+- Print CSS uses `.print-hide` / `.print-article` classes defined in `globals.css`
 
-## How It Runs
-
-The Replit workflow runs `bash start-dev.sh` which:
-1. Starts Ollama in the background (legacy, unused — harmless)
-2. Starts Next.js on port 5000
-
-The AI backend is Groq (primary) or Cerebras, not Ollama.
-
-## Key Environment Variables
-
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `GROQ_API_KEY` | Yes (or Cerebras) | — | Groq API key (`gsk_...`) |
-| `CEREBRAS_API_KEY` | No | — | Cerebras Cloud API key — unlocks additional models |
-| `TAVILY_API_KEY` | No | — | Tavily search — enables fresh web evidence |
-| `STEEP_DEFAULT_MODEL` | No | `llama-3.3-70b-versatile` | Override default model |
-| `KV_REST_API_URL` | No (prod) | — | Vercel KV endpoint — snapshot caching |
-| `KV_REST_API_TOKEN` | No (prod) | — | Vercel KV token — snapshot caching |
-| `ADMIN_PUBLISH_TOKEN` | No | — | Thought Leadership admin token (x-admin-token header) |
-
-## Rate Limit Handling
-
-Groq free tier: 12,000 TPM on Llama 3.3 70B.
-- `analyze/route.js` retries on 429 up to 4 times, parsing retry delay from Groq's error message
-- 3-second pause before synthesis agent call
-- Dimension agents: 1,200 max_tokens; synthesis agent: 1,800 max_tokens
-
-## Security Notes
-
-- Next.js 14.2.x
-- GROQ_API_KEY / CEREBRAS_API_KEY are server-side only — never exposed to the browser
-- `cleanApiKey()` helper strips accidental `NAME=value` or quoted formats
-- Admin routes protected by `ADMIN_PUBLISH_TOKEN` env var; all admin methods check header
+## Pointers
+- KV schema: see `lib/kv.js` and the three `admin/route.js` files for field definitions
+- Big Cycle logic: `lib/bigCycle/engine.js`
+- Standalone page OG metadata: `app/thought-leadership/[id]/page.jsx`, `app/innovator-illumination/[id]/page.jsx`

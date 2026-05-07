@@ -1,8 +1,18 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'STEEP Analysis Platform',
-  description: 'AI-powered six-agent STEEP analysis using Groq cloud inference',
+  title: 'STINT Studio | Applied Strategy & Intelligence',
+  description: 'Practitioner instruments for structured intelligence, applied foresight, and organisational decision-making.',
+  openGraph: {
+    siteName: 'STINT Studio',
+    title: 'STINT Studio | Applied Strategy & Intelligence',
+    description: 'Practitioner instruments for structured intelligence, applied foresight, and organisational decision-making.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'STINT Studio | Applied Strategy & Intelligence',
+    description: 'Practitioner instruments for structured intelligence, applied foresight, and organisational decision-making.',
+  },
 };
 
 export const viewport = {

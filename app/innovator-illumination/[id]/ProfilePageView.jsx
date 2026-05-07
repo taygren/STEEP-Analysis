@@ -80,7 +80,7 @@ export default function ProfilePageView({ profile }) {
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm flex-shrink-0">
             <BackIcon />
-            <span className="font-semibold text-slate-300">STEEP Platform</span>
+            <span className="font-semibold text-slate-300">STINT Studio</span>
           </a>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={shareX} title="Share on X"
@@ -177,7 +177,7 @@ export default function ProfilePageView({ profile }) {
             </button>
           </div>
           <a href="/" className="mt-2 text-xs text-slate-600 hover:text-slate-400 transition-colors">
-            ← Back to STEEP Platform
+            ← Back to STINT Studio
           </a>
         </div>
       </main>

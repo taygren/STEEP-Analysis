@@ -85,7 +85,7 @@ export default function PostPageView({ post }) {
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm flex-shrink-0"
           >
             <BackIcon />
-            <span className="font-semibold text-slate-300">STEEP Platform</span>
+            <span className="font-semibold text-slate-300">STINT Studio</span>
           </a>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -145,7 +145,7 @@ export default function PostPageView({ post }) {
           <span>·</span>
           <span>{readingTime} min read</span>
           <span>·</span>
-          <span>STEEP Platform Intelligence Brief</span>
+          <span>STINT Studio Intelligence Brief</span>
         </div>
 
         <div className="border-t border-slate-800 pt-8 pb-12 print-article">
@@ -174,7 +174,7 @@ export default function PostPageView({ post }) {
             </button>
           </div>
           <a href="/" className="mt-2 text-xs text-slate-600 hover:text-slate-400 transition-colors">
-            ← Back to STEEP Platform
+            ← Back to STINT Studio
           </a>
         </div>
       </main>

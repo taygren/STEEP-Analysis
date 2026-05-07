@@ -17,20 +17,20 @@ function getBaseUrl() {
 export async function generateMetadata({ params }) {
   const post = await kvGet(`thoughtleadership:post:${params.id}`);
   if (!post || post.status !== 'published') {
-    return { title: 'Article Not Found | STEEP Platform' };
+    return { title: 'Article Not Found | STINT Studio' };
   }
   const base = getBaseUrl();
   const url  = `${base}/thought-leadership/${params.id}`;
   const desc = (post.dek || post.excerpt || '').slice(0, 200);
   return {
-    title: `${post.title} | STEEP Platform`,
+    title: `${post.title} | STINT Studio`,
     description: desc,
     openGraph: {
       title: post.title,
       description: desc,
       url,
       type: 'article',
-      siteName: 'STEEP Platform',
+      siteName: 'STINT Studio',
       publishedTime: post.publishedAt,
       ...(post.heroImageUrl ? { images: [{ url: post.heroImageUrl, width: 1200, height: 630, alt: post.title }] } : {}),
     },

@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'recharts';
 import { INSTRUMENT_ATTRIBUTES, GEOECONOMIC_CAPACITIES, STRATEGIC_UTILITY_CLASSES, computeSeverityScore, classifySeverity } from '../lib/bigCycle/engine';
+import AboutPanel from './components/AboutPanel';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -3853,7 +3854,7 @@ function generatePdfReport(state) {
 
   <!-- Footer -->
   <div style="border-top:1px solid #1e293b;padding-top:16px;margin-top:32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-    <p style="color:#334155;font-size:10px">STEEP Analysis Platform · Strategic Intelligence Engine</p>
+    <p style="color:#334155;font-size:10px">STINT Studio · Applied Strategy & Intelligence</p>
     <p style="color:#334155;font-size:10px">Confidential — Not for distribution</p>
   </div>
 </div>
@@ -6126,12 +6127,12 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         <div className="px-5 py-4 border-b border-slate-800">
           <div className="flex items-center gap-2.5 mb-1">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
-            <span className="font-bold text-white">STEEP Platform</span>
+            <span className="font-bold text-white">STINT Studio</span>
             <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             </button>
           </div>
-          <p className="text-slate-600 text-xs">Groq Cloud · Fast inference</p>
+          <p className="text-slate-600 text-xs">Applied Strategy & Intelligence</p>
         </div>
 
         {/* Groq panel */}
@@ -6206,36 +6207,9 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </nav>
         )}
 
-        {/* Intelligence — Thought Leadership + Innovator Illumination */}
+        {/* Toolkit — STEEP Analysis + RASCEF Generator */}
         <div className="px-3 py-3 border-t border-slate-800">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Intelligence</p>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-          >
-            <span className="text-base leading-none">✍</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Thought Leadership</span>
-              <span className="block text-slate-600 text-xs">Intelligence briefs</span>
-            </span>
-            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-          >
-            <span className="text-base leading-none">💡</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Innovator Illumination</span>
-              <span className="block text-slate-600 text-xs">Solution provider spotlights</span>
-            </span>
-            {activeTab === 'innovatorillumination' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
-          </button>
-        </div>
-
-        {/* Tools — standalone interactive tools */}
-        <div className="px-3 py-3 border-t border-slate-800">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Tools</p>
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Toolkit</p>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all text-slate-400 hover:text-white hover:bg-slate-800`}
@@ -6243,7 +6217,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <span className="text-base leading-none">📊</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">STEEP Analysis</span>
-              <span className="block text-slate-600 text-xs">Run a new analysis</span>
+              <span className="block text-slate-600 text-xs">Six-agent intelligence framework</span>
             </span>
           </button>
           <button
@@ -6253,13 +6227,52 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <span className="text-base leading-none">⚡</span>
             <span className="text-left leading-tight flex-1 min-w-0">
               <span className="block text-xs font-medium">RASCEF Generator</span>
-              <span className="block text-slate-600 text-xs">AI prompt architect</span>
+              <span className="block text-slate-600 text-xs">AI prompt engineering</span>
             </span>
-            {activeTab === 'rascef' ? (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
-            ) : (
-              <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-400 font-semibold flex-shrink-0">New</span>
-            )}
+            {activeTab === 'rascef' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
+          </button>
+        </div>
+
+        {/* Insights — Thought Leadership + Innovator Illumination */}
+        <div className="px-3 py-3 border-t border-slate-800">
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Insights</p>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">✍</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Thought Leadership</span>
+              <span className="block text-slate-600 text-xs">Intelligence briefs</span>
+            </span>
+            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
+          </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">💡</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Innovator Illumination</span>
+              <span className="block text-slate-600 text-xs">Technology spotlights</span>
+            </span>
+            {activeTab === 'innovatorillumination' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
+          </button>
+        </div>
+
+        {/* Studio — About */}
+        <div className="px-3 py-3 border-t border-slate-800">
+          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Studio</p>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'about' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">◎</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">About</span>
+              <span className="block text-slate-600 text-xs">Studio & Taylor Grenawalt</span>
+            </span>
+            {activeTab === 'about' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />}
           </button>
         </div>
 
@@ -6358,7 +6371,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
             <span className="text-white font-semibold text-sm truncate">
-              {subject ? subject : 'STEEP Platform'}
+              {subject ? subject : 'STINT Studio'}
             </span>
             {isComplete && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900 text-emerald-400 font-medium flex-shrink-0">Done</span>
@@ -6390,168 +6403,149 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* About — Studio, Taylor bio, Studio Updates */}
+        {activeTab === 'about' && (
+          <div className="h-full overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+            <AboutPanel />
+          </div>
+        )}
+
         {/* Idle */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && status === 'idle' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
-              {/* Hero */}
-              <div className="text-center mb-12">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-6 flex items-center justify-center text-3xl font-black text-white shadow-2xl">S</div>
-                <h1 className="text-2xl md:text-3xl font-black text-white mb-3">STEEP Analysis Platform</h1>
-                <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto mb-1">
-                  Powered by <span className="text-white font-semibold">Groq</span> — fast cloud inference, no GPU needed.
-                </p>
-                <p className="text-slate-500 text-sm leading-relaxed max-w-xl mx-auto">
-                  Enter any company, trend, or technology <span className="md:hidden">using the menu above</span><span className="hidden md:inline">in the sidebar</span> to run a six-agent intelligence analysis and generate a 3D force map, forecast roadmap, and full per-dimension evidence report.
-                </p>
-              </div>
-
-              {/* What is STEEP */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-8">
-                <h2 className="text-white font-bold text-base mb-2">What is STEEP analysis?</h2>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  STEEP is a structured strategic-intelligence framework used by analysts, executives, and policy makers to map the macro-environmental forces shaping an organisation, industry, or trend. By examining five distinct dimensions — Social, Technological, Economic, Environmental, and Political — it surfaces both the threats and opportunities that lie outside a subject's direct control, enabling better long-range planning and risk management.
+              {/* Studio header */}
+              <div className="mb-10">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0">S</div>
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mb-1">STINT.Studio</h1>
+                    <p className="text-slate-500 text-sm font-medium">Applied Strategy & Intelligence</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                  Practitioner instruments for structured intelligence, applied foresight, and organisational decision-making.
                 </p>
               </div>
 
-              {/* Dimension cards */}
-              <h2 className="text-white font-bold text-sm uppercase tracking-widest mb-4 opacity-50">The five dimensions + synthesis agent</h2>
-              <div className="grid grid-cols-1 gap-4 mb-8">
-
-                {/* Social */}
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#3B82F620', color: '#3B82F6', border: '2px solid #3B82F640' }}>S</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Social</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#3B82F620', color: '#3B82F6' }}>Agent 1</span>
+              {/* Toolkit section */}
+              <section className="mb-10">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Toolkit</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#2563eb18', color: '#60a5fa', border: '1.5px solid #2563eb25' }}>S</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">STEEP Analysis</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Six-agent intelligence framework</p>
+                      </div>
                     </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Examines human and societal forces that influence demand, talent, and public perception.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['Demographics & population', 'Cultural shifts', 'Consumer behaviour', 'Workforce trends', 'Public health', 'Education & skills'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Structured analysis across Social, Technological, Economic, Environmental, and Political dimensions. Produces a 3D force map, near/mid/long-term roadmap, and — for public companies — an AI-generated investment thesis with geoeconomic Big Cycle assessment.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['STEEP dimensions', '3D force map', 'Forecast roadmap', 'Investment thesis', 'Big Cycle', 'Prediction markets'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
                       ))}
                     </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: null })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-blue-300 border border-blue-900/60 bg-blue-950/30 hover:bg-blue-900/30 hover:text-blue-200 transition-colors"
+                    >
+                      Open STEEP Analysis →
+                    </button>
                   </div>
-                </div>
-
-                {/* Technological */}
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#8B5CF620', color: '#8B5CF6', border: '2px solid #8B5CF640' }}>T</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Technological</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#8B5CF620', color: '#8B5CF6' }}>Agent 2</span>
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>R</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">RASCEF Generator</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">AI prompt engineering framework</p>
+                      </div>
                     </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Maps emerging technologies, R&D momentum, and the pace of digital disruption affecting the subject.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['AI & automation', 'R&D breakthroughs', 'Digital infrastructure', 'Cybersecurity', 'IP landscape', 'Platform dynamics'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      A six-element prompt architecture — Role, Action, Situation, Context, Expectation, Format — that replaces vague AI instructions with precise, structured analytical direction. Produces deployable system prompts for any analytical task.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['Role', 'Action', 'Situation', 'Context', 'Expectation', 'Format'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
                       ))}
                     </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'rascef' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
+                    >
+                      Open RASCEF Generator →
+                    </button>
                   </div>
                 </div>
+              </section>
 
-                {/* Economic */}
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#10B98120', color: '#10B981', border: '2px solid #10B98140' }}>E</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Economic</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#10B98120', color: '#10B981' }}>Agent 3</span>
+              {/* Insights section */}
+              <section className="mb-10">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Insights</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0" style={{ background: '#0f766e18', color: '#2dd4bf', border: '1.5px solid #0f766e25' }}>TL</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Thought Leadership</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Intelligence briefs & analysis</p>
+                      </div>
                     </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Analyses macroeconomic conditions, market structures, and financial forces shaping viability and growth.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['Market conditions', 'Trade & tariffs', 'Investment flows', 'Inflation & rates', 'Supply chains', 'Competitive landscape'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
-                      ))}
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Structured intelligence briefs on geopolitics, technology adoption, macroeconomic conditions, and organisational strategy. Each brief draws on the same analytical rigour as the STEEP framework.
+                    </p>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
+                    >
+                      View Intelligence Briefs →
+                    </button>
+                  </div>
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0" style={{ background: '#0891b218', color: '#22d3ee', border: '1.5px solid #0891b225' }}>II</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Innovator Illumination</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Technology solution provider directory</p>
+                      </div>
                     </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Curated profiles of technology solution providers shaping enterprise digital transformation. Organised by segment, with solution overviews and geoeconomic context.
+                    </p>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-cyan-300 border border-cyan-900/60 bg-cyan-950/30 hover:bg-cyan-900/30 hover:text-cyan-200 transition-colors"
+                    >
+                      View Innovator Directory →
+                    </button>
                   </div>
                 </div>
+              </section>
 
-                {/* Environmental */}
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#14B8A620', color: '#14B8A6', border: '2px solid #14B8A640' }}>E</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Environmental</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#14B8A620', color: '#14B8A6' }}>Agent 4</span>
-                    </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Assesses climate risk, natural resource constraints, sustainability expectations, and ecological regulation.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['Climate risk', 'Energy transition', 'Resource scarcity', 'ESG pressure', 'Carbon regulation', 'Circular economy'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
-                      ))}
-                    </div>
-                  </div>
+              {/* Studio section */}
+              <section className="mb-10">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Studio</h2>
+                <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5">
+                  <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                    Applied Strategy & Intelligence is a personal portfolio of practitioner instruments for strategic analysis, applied foresight, and organisational decision-making. Built by Taylor Grenawalt — strategist, applied researcher, and framework designer.
+                  </p>
+                  <button
+                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' })}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    About the Studio →
+                  </button>
                 </div>
+              </section>
 
-                {/* Political */}
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex gap-5">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#F9731620', color: '#F97316', border: '2px solid #F9731640' }}>P</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Political</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#F9731620', color: '#F97316' }}>Agent 5</span>
-                    </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Evaluates government policy, regulatory direction, geopolitical instability, and legislative trends.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['Government policy', 'Regulation & compliance', 'Geopolitical risk', 'Elections & stability', 'International relations', 'Lobbying dynamics'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Synthesis */}
-                <div className="bg-slate-800 border border-slate-700/80 rounded-2xl p-5 flex gap-5" style={{ borderColor: '#6366f140' }}>
-                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ background: '#6366f120', color: '#818cf8', border: '2px solid #6366f140' }}>✦</div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-bold text-sm">Synthesis</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#6366f120', color: '#818cf8' }}>Agent 6</span>
-                    </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-2">Runs after all five dimension agents complete. Integrates findings into a unified executive report with an overall strategic posture, cross-dimension insights, and a forecast roadmap.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['Overall posture', 'Executive summary', 'Cross-dimension insights', 'Near-term milestones', 'Mid-term milestones', 'Long-term milestones'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-400">{t}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Output summary */}
-              <h2 className="text-white font-bold text-sm uppercase tracking-widest mb-4 opacity-50">What you get</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                  <div className="text-lg mb-2">📋</div>
-                  <p className="text-white font-semibold text-sm mb-1">Overview</p>
-                  <p className="text-slate-500 text-xs leading-relaxed">Strategic posture badge, executive summary, dimension driver cards, cross-dimension insights, and a full evidence accordion.</p>
-                </div>
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                  <div className="text-lg mb-2">🌐</div>
-                  <p className="text-white font-semibold text-sm mb-1">3D Force Map</p>
-                  <p className="text-slate-500 text-xs leading-relaxed">Interactive Three.js globe with force-directed driver nodes. Click any node for a full detail panel with confidence, impact, and evidence.</p>
-                </div>
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-                  <div className="text-lg mb-2">🗺️</div>
-                  <p className="text-white font-semibold text-sm mb-1">Forecast Roadmap</p>
-                  <p className="text-slate-500 text-xs leading-relaxed">Near / mid / long-term milestones with trigger points, risks, accelerants, and confidence ratings. Toggle Card or Timeline view.</p>
-                </div>
-              </div>
-
-              {/* Status / CTA */}
               {groqStatus === 'offline' && (
-                <div className="bg-red-950 border border-red-800 rounded-xl p-4">
+                <div className="bg-red-950 border border-red-800 rounded-xl p-4 mb-4">
                   <p className="text-red-300 font-semibold text-sm mb-1">Groq API key not found</p>
                   <p className="text-red-400 text-xs">Set <code className="font-mono bg-red-900 px-1 rounded">GROQ_API_KEY</code> in your environment variables and restart the app.</p>
                 </div>
-              )}
-              {groqStatus === 'online' && (
-                <p className="text-center text-slate-600 text-xs pb-4">Enter a subject in the sidebar to begin your analysis.</p>
               )}
 
             </div>
@@ -6559,7 +6553,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -6595,7 +6589,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
