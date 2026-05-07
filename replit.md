@@ -58,7 +58,7 @@ start-dev.sh
 
 ## Product
 - **Landing page**: Portfolio homepage with Toolkit / Insights / Studio sections
-- **Sidebar sections**: Toolkit (STEEP, RASCEF), Insights (Thought Leadership, Innovator Illumination), Studio (About)
+- **Sidebar sections**: Toolkit (STEEP, Big Cycle Engine, GeoEcon Instrument, Prompt Engineering Package), Insights (Thought Leadership, Innovator Illumination), Studio (About)
 - **STEEP Analysis**: 6-agent analysis → Overview, Force Map (3D), Roadmap, Investment Thesis, Data Viz, Big Cycle, Prediction Markets tabs
 - **Thought Leadership**: Published intelligence briefs with admin CRUD; KV namespace `thoughtleadership:*`
 - **Innovator Illumination**: Company spotlight directory with admin CRUD; KV namespace `innovatorillumination:*`
