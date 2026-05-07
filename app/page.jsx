@@ -6127,6 +6127,247 @@ const BCE_FLAG_STYLE = {
 const BCE_EXAMPLES = ['United States', 'China', 'Eurozone', 'Japan', 'United Kingdom', 'Emerging Markets'];
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Prompt Engineering Package static data ────────────────────────────────────
+const ADVERSARIAL_MODES = [
+  {
+    key: 'devils_advocate',
+    label: "Devil's Advocate",
+    icon: '⚔',
+    color: '#ef4444',
+    bg: '#ef444415',
+    border: '#ef444430',
+    bestFor: 'Any position or argument you plan to defend',
+    description: 'Constructs the strongest, most intellectually honest case against your position.',
+  },
+  {
+    key: 'pre_mortem',
+    label: 'Pre-Mortem',
+    icon: '⏱',
+    color: '#f97316',
+    bg: '#f9731615',
+    border: '#f9731630',
+    bestFor: 'Plans or decisions you are about to commit to',
+    description: 'Assumes it is 12 months from now and the plan has failed. Works backward to identify how and why.',
+  },
+  {
+    key: 'first_principles',
+    label: 'First Principles',
+    icon: '⬡',
+    color: '#3b82f6',
+    bg: '#3b82f615',
+    border: '#3b82f630',
+    bestFor: 'Beliefs or strategies built on inherited assumptions',
+    description: 'Strips away every assumption and analogy. Rebuilds the argument from what can be directly verified.',
+  },
+  {
+    key: 'steelman',
+    label: 'Steelman Opposition',
+    icon: '◉',
+    color: '#8b5cf6',
+    bg: '#8b5cf615',
+    border: '#8b5cf630',
+    bestFor: 'Before presenting or defending an argument',
+    description: 'Builds the strongest possible version of the opposing view — not the weak version you prefer to argue against.',
+  },
+  {
+    key: 'assumption_audit',
+    label: 'Assumption Audit',
+    icon: '◎',
+    color: '#eab308',
+    bg: '#eab30815',
+    border: '#eab30830',
+    bestFor: 'Early-stage thinking before significant resources are committed',
+    description: 'Surfaces every hidden assumption and scores each by how dangerous it would be if wrong.',
+  },
+  {
+    key: 'contrarian_investor',
+    label: 'Contrarian Investor',
+    icon: '◈',
+    color: '#10b981',
+    bg: '#10b98115',
+    border: '#10b98130',
+    bestFor: 'Market theses, strategic bets, competitive strategy',
+    description: 'Finds where conventional wisdom is wrong, what the market is missing, where the non-obvious truth is hiding.',
+  },
+];
+
+const PROMPTING_TECHNIQUES = [
+  {
+    key: 'zero_shot',
+    label: 'Zero-Shot Prompting',
+    difficulty: 'Beginner',
+    type: 'Foundational',
+    whatItIs: 'Ask the model to perform a task with no examples — just the instruction. Modern LLMs trained with instruction tuning can follow instructions on tasks they have never explicitly seen demonstrated.',
+    whenYes: ['Common, well-defined tasks: summarize, translate, classify, explain', 'Fast first drafts without setup overhead', 'Starting point before deciding if examples are needed'],
+    whenNo: ['Highly specific output formats the model does not default to'],
+    examplePrompt: 'Classify the sentiment of the following customer review as Positive, Neutral, or Negative.\n\nReview: "The onboarding took longer than expected, but once we were set up, the platform worked really well for our team."',
+    keyInsight: 'Adding "Think step by step" to a zero-shot prompt can dramatically improve results on reasoning tasks — this hybrid is called zero-shot CoT.',
+    source: 'Wei et al. (2021) — Finetuned Language Models Are Zero-Shot Learners',
+  },
+  {
+    key: 'few_shot',
+    label: 'Few-Shot Prompting',
+    difficulty: 'Beginner',
+    type: 'Foundational',
+    whatItIs: 'Provide a small number of worked examples within the prompt to show the model the desired input-output pattern. The model infers the task format from the examples and applies it to a new input.',
+    whenYes: ['Very specific output formats the model does not default to', 'Classification, extraction, or transformation tasks with clear patterns', 'When zero-shot results are inconsistent or off-style'],
+    whenNo: ['Complex multi-step reasoning — examples alone will not teach logic'],
+    examplePrompt: 'Extract the company name and deal size from each sales note. Format as: Company | Deal Size\n\nNote: "Spoke with Sarah at Acme Corp — $45K annual contract starting Q3."\nOutput: Acme Corp | $45K\n\nNote: "Follow-up with Meridian Health. Budget confirmed at $120,000 for enterprise tier."\nOutput: Meridian Health | $120,000\n\nNote: "Great call with Marcus at BlueWave Technologies. 3 seats at $8,500/year."\nOutput:',
+    keyInsight: 'Label quality matters more than quantity. 3–5 examples is the sweet spot — more than 8 rarely helps and wastes tokens.',
+    source: 'Brown et al. (2020) — Language Models are Few-Shot Learners (GPT-3)',
+  },
+  {
+    key: 'chain_of_thought',
+    label: 'Chain-of-Thought (CoT)',
+    difficulty: 'Intermediate',
+    type: 'Reasoning',
+    whatItIs: 'Prompt the model to produce intermediate reasoning steps before arriving at a final answer. Like showing your work on a math problem. Triggered with examples (few-shot CoT) or just "Let\'s think step by step" (zero-shot CoT).',
+    whenYes: ['Multi-step math, logic, or analytical problems', 'Strategic decisions involving trade-off reasoning', 'Any task where the answer depends on getting intermediate steps right'],
+    whenNo: ['Simple factual lookups or tasks where the reasoning process is not valuable'],
+    examplePrompt: 'A sales rep closes deals at 22%. She makes 15 calls/day, 5 days/week. Average deal size: $8,500.\n\nHow much revenue can she generate in a 4-week month? Think through this step by step before giving a final answer.',
+    keyInsight: 'The reasoning trace lets you catch errors mid-chain before they compound. CoT is most effective with larger models.',
+    source: 'Wei et al. (2022) — Chain-of-Thought Prompting Elicits Reasoning in Large Language Models',
+  },
+  {
+    key: 'meta_prompting',
+    label: 'Meta Prompting',
+    difficulty: 'Intermediate',
+    type: 'Reasoning',
+    whatItIs: 'Use the model to generate, evaluate, or improve prompts — rather than directly executing a task. Describe what you want to accomplish and ask the model to construct the optimal prompt.',
+    whenYes: ['You know the goal but do not know how to prompt for it effectively', 'Building reusable prompt templates across teams or clients', 'Refining or critiquing a prompt you have already written'],
+    whenNo: ['Simple tasks where you already know the right prompt structure'],
+    examplePrompt: 'I need to prompt an AI to generate a weekly executive summary from project status updates. Audience: C-suite, 5 minutes to read. Tone: direct and outcome-focused.\n\nWrite me the best possible prompt for this task. Include placeholders for the input data. Briefly explain why you structured it the way you did.',
+    keyInsight: 'Meta prompting scales prompting quality across teams without requiring everyone to become a prompting expert.',
+    source: 'Reynolds & McDonell (2021) — Prompt Programming for Large Language Models',
+  },
+  {
+    key: 'self_consistency',
+    label: 'Self-Consistency',
+    difficulty: 'Intermediate',
+    type: 'Reasoning',
+    whatItIs: 'Run the same prompt multiple times, generate diverse reasoning paths, and select the most consistent answer across runs. Works by sampling multiple outputs and taking the majority vote.',
+    whenYes: ['High-stakes reasoning where accuracy matters more than speed', 'Math or logic problems where errors are common in single runs', 'When you need to estimate model confidence on a claim'],
+    whenNo: ['Tasks with no objectively correct answer', 'Time-sensitive workflows where one answer is sufficient'],
+    examplePrompt: 'Answer the following question. Show your reasoning step by step.\n\nQuestion: A store sells 3 types of gift sets. Type A costs $25, Type B costs $40, Type C costs $60. If 40% of sales are Type A, 35% are Type B, and 25% are Type C, what is the average revenue per gift set sold?',
+    keyInsight: 'Self-consistency is most valuable when the model\'s first answer on complex problems is likely to be wrong. The majority vote across 3–5 runs can significantly improve accuracy.',
+    source: 'Wang et al. (2022) — Self-Consistency Improves Chain of Thought Reasoning in Language Models',
+  },
+  {
+    key: 'generate_knowledge',
+    label: 'Generate Knowledge Prompting',
+    difficulty: 'Intermediate',
+    type: 'Reasoning',
+    whatItIs: 'First prompt the model to generate relevant facts or background knowledge about a topic, then use that generated knowledge as context for answering the actual question. A two-stage approach.',
+    whenYes: ['Questions requiring domain knowledge the model may underweight', 'Fact-grounded analysis where shallow answers are common', 'Any task where surface-level responses are insufficient'],
+    whenNo: ['Simple lookups or tasks with a narrow, well-defined scope'],
+    examplePrompt: 'Stage 1: Generate 5 key facts about the relationship between interest rate increases and commercial real estate valuations.\n\nStage 2: Using the facts you just generated, explain whether now is a good or bad time for a pension fund to increase its CRE allocation. Be specific.',
+    keyInsight: 'The model\'s generated knowledge acts as a self-constructed context window. It consistently outperforms single-stage prompting on commonsense reasoning tasks.',
+    source: 'Liu et al. (2022) — Generated Knowledge Prompting for Commonsense Reasoning',
+  },
+  {
+    key: 'prompt_chaining',
+    label: 'Prompt Chaining',
+    difficulty: 'Advanced',
+    type: 'Workflow',
+    whatItIs: 'Break a complex task into a sequence of simpler sub-tasks where the output of each prompt becomes the input to the next. Build incrementally, verify at each step.',
+    whenYes: ['Complex deliverables that require multiple distinct stages', 'Tasks where early errors compound downstream', 'Workflows where intermediate outputs need review before proceeding'],
+    whenNo: ['Simple tasks that can be completed in a single prompt without quality loss'],
+    examplePrompt: 'Chain Step 1: Summarize this earnings call transcript in 5 bullet points, focusing only on forward guidance statements.\n\n[TRANSCRIPT]\n\n---\nChain Step 2 (use Step 1 output): Based on these forward guidance statements, identify the 3 largest gaps between what management said and what analysts were expecting. Rate each gap as Bullish, Bearish, or Neutral for the stock.',
+    keyInsight: 'The power of chaining is that each step is small enough to verify before proceeding. This turns a risky long prompt into a reviewable pipeline.',
+    source: 'Wu et al. (2022) — PromptChainer: Chaining Large Language Model Prompts through Visual Programming',
+  },
+  {
+    key: 'tree_of_thoughts',
+    label: 'Tree of Thoughts (ToT)',
+    difficulty: 'Advanced',
+    type: 'Reasoning',
+    whatItIs: 'Prompt the model to explore multiple reasoning branches simultaneously, evaluate which branches are most promising, and pursue the best paths — like a search tree rather than a linear chain.',
+    whenYes: ['Complex planning problems with many possible paths', 'Creative tasks where exploring diverse directions improves output', 'Strategic decisions requiring genuine exploration of alternatives'],
+    whenNo: ['Straightforward tasks or time-constrained single-pass workflows'],
+    examplePrompt: 'I need to enter a new market. Explore 3 distinct market entry strategies (licensing, acquisition, organic build). For each:\n1. State the core thesis\n2. Rate it on speed (1–5), cost (1–5), and control (1–5)\n3. Identify the single biggest risk\n\nAfter exploring all three, recommend which path is most appropriate for a $50M revenue B2B SaaS company with 3 years of runway.',
+    keyInsight: 'ToT turns single-path generation into structured exploration. It is especially powerful when you suspect the obvious answer is not the best one.',
+    source: 'Yao et al. (2023) — Tree of Thoughts: Deliberate Problem Solving with Large Language Models',
+  },
+  {
+    key: 'react',
+    label: 'ReAct (Reason + Act)',
+    difficulty: 'Advanced',
+    type: 'Agent',
+    whatItIs: 'Interleave reasoning (think step by step) with actions (search, calculate, retrieve) in an alternating loop. The model reasons about what to do, does it, observes the result, then reasons again.',
+    whenYes: ['Tasks requiring external information retrieval mid-reasoning', 'Multi-step workflows that depend on real-world data', 'Agent systems where the model must decide what tools to call'],
+    whenNo: ['Self-contained reasoning tasks with no external dependencies'],
+    examplePrompt: 'Task: What is the current market cap of the largest semiconductor company, and how does it compare to its 5-year average P/E ratio?\n\nThink through what information you need, what you would search for, what you would calculate, and how you would arrive at a final comparison. Walk through each Thought → Action → Observation step before giving your final answer.',
+    keyInsight: 'ReAct dramatically reduces hallucination on fact-dependent tasks by grounding reasoning in observations rather than memory alone.',
+    source: 'Yao et al. (2022) — ReAct: Synergizing Reasoning and Acting in Language Models',
+  },
+];
+
+const PROMPTING_PRINCIPLES = [
+  { n: 1, title: 'Be specific, not smart.', body: 'Precise instructions outperform clever ones. "Write a 150-word summary with one statistic per paragraph" beats "write a compelling summary."' },
+  { n: 2, title: 'Show, don\'t just tell.', body: 'One example of what you want is worth more than any description. Include examples whenever possible — this is the E in RASCEF.' },
+  { n: 3, title: 'Ask for reasoning first.', body: 'For complex tasks: "Think through this step by step before answering." Triggers chain-of-thought reasoning and reduces errors on multi-step problems.' },
+  { n: 4, title: 'Define what you don\'t want.', body: '"Do not use jargon. Do not assume budget constraints." Negative constraints prevent common failure modes before they happen.' },
+  { n: 5, title: 'Break complex tasks into steps.', body: 'A single long prompt often produces worse output than a structured multi-turn conversation. Build incrementally, verify at each step.' },
+  { n: 6, title: 'Use delimiters for long inputs.', body: 'Wrap pasted content: --- [document] ---. Prevents the AI from confusing your instructions with the content you\'re providing.' },
+  { n: 7, title: 'Assign expertise, not just tasks.', body: '"You are a senior financial analyst" outperforms "help me with finance." Role assignment calibrates depth, vocabulary, and analytical rigor.' },
+  { n: 8, title: 'Specify length and format explicitly.', body: 'The model will fill whatever space you leave. "Max 300 words. Three numbered sections." prevents over-generation and keeps output usable.' },
+  { n: 9, title: 'Iterate, don\'t restart.', body: 'Targeted refinement beats regeneration. "Keep everything else the same. Only revise the third paragraph — make it more specific." preserves what works.' },
+  { n: 10, title: 'Test your prompt on edge cases.', body: 'A prompt that works on one input may fail on another. Run it against your 2–3 hardest cases before treating it as production-ready.' },
+];
+
+const CHECKPOINT_TYPES = [
+  {
+    label: 'Pre-Prompt Alignment',
+    when: 'Before starting',
+    purpose: 'Confirm objective, audience, and output format',
+    prompt: 'Before you begin, confirm your understanding. In 2–3 sentences summarize: (1) what I\'m asking you to produce, (2) who it\'s for, and (3) what success looks like. Then ask any clarifying questions before proceeding.',
+    advanced: false,
+  },
+  {
+    label: 'Mid-Task Check-In',
+    when: 'After each phase',
+    purpose: 'Verify alignment before proceeding',
+    prompt: 'Pause here. Summarize what you\'ve produced so far and confirm it aligns with my original objective. Flag anything that feels unclear or off-target.',
+    advanced: false,
+  },
+  {
+    label: 'Output Quality Review',
+    when: 'After receiving output',
+    purpose: 'Validate against the real objective',
+    prompt: 'Review the output you just produced. Does it fully answer the original request? What\'s the weakest section, and how would you improve it if you rewrote it?',
+    advanced: false,
+  },
+  {
+    label: 'Targeted Refinement',
+    when: 'When improving output',
+    purpose: 'Sharpen specific sections without regenerating everything',
+    prompt: 'Keep everything else the same. Only revise [section/element]. Make it more [concise / specific / data-backed / executive-facing]. Do not change any other part of the output.',
+    advanced: false,
+  },
+  {
+    label: 'Step-Back Prompting',
+    when: 'Before tackling a specific question',
+    purpose: 'Ground the answer in first principles before getting specific',
+    prompt: 'Step back first. What are the core principles or frameworks that should govern [topic]? Once you\'ve established those, apply them to answer: [specific question].',
+    advanced: true,
+  },
+  {
+    label: 'Assumption Surfacing',
+    when: 'Before committing to a direction',
+    purpose: 'Make hidden model assumptions visible before they shape the output',
+    prompt: 'Before answering, list the 3 most important assumptions you\'re making about this task. Then answer — and note where each assumption influenced your response.',
+    advanced: true,
+  },
+  {
+    label: "Devil's Advocate Check",
+    when: 'After receiving a recommendation',
+    purpose: 'Stress-test the output before acting on it',
+    prompt: 'Now argue the opposite position as strongly as possible. What are the best 3 arguments against the recommendation you just made?',
+    advanced: true,
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
 function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
   const [step, setStep] = useState(preload ? 'result' : 'form');
   const [bceSubject, setBceSubject] = useState(preload?.subject ?? '');
@@ -6528,6 +6769,447 @@ function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
           <button onClick={resetBce} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">New analysis</button>
           <button onClick={() => generateBcePdfReport(bceResult)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-amber-300 border border-amber-800/50 bg-amber-950/30 hover:bg-amber-900/40 hover:text-amber-200 transition-colors">⬇ Export PDF</button>
         </div>
+
+      </div>
+    </div>
+  );
+}
+
+function PromptEngineeringPackageTool() {
+  const [pkgSection, setPkgSection] = useState('adversarial');
+
+  // ── Adversarial Buddy state ──
+  const [advMode, setAdvMode]       = useState(null);
+  const [advInput, setAdvInput]     = useState('');
+  const [advStep, setAdvStep]       = useState('form');
+  const [advText, setAdvText]       = useState('');
+  const [advError, setAdvError]     = useState('');
+  const [advCopied, setAdvCopied]   = useState(false);
+
+  // ── Task Brief Builder state ──
+  const [tbForm, setTbForm] = useState({ task: '', objective: '', audience: '', constraints: '', outputFormat: '', background: '' });
+  const [tbResult, setTbResult] = useState(null);
+  const [tbCopied, setTbCopied] = useState('');
+
+  // ── Techniques state ──
+  const [techOpen, setTechOpen] = useState({});
+
+  // ── Principles copy state ──
+  const [prinCopied, setPrinCopied] = useState('');
+
+  // ── Checkpoints copy state ──
+  const [ckCopied, setCkCopied] = useState('');
+
+  const copyText = (text, setter, key) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setter(key);
+    setTimeout(() => setter(''), 1800);
+  };
+
+  const runAdversarial = async () => {
+    if (!advMode || !advInput.trim()) return;
+    setAdvStep('running');
+    setAdvText('');
+    setAdvError('');
+    setAdvCopied(false);
+    try {
+      const res = await fetch('/api/adversarial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: advMode, userInput: advInput.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Request failed (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let accumulated = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.chunk) { accumulated += ev.chunk; setAdvText(accumulated); }
+            if (ev.done)  { setAdvStep('result'); }
+            if (ev.error) { throw new Error(ev.error); }
+          } catch (e) { if (e.message && !e.message.includes('JSON')) throw e; }
+        }
+      }
+      if (accumulated) setAdvStep('result');
+    } catch (err) {
+      setAdvError(err.message);
+      setAdvStep('form');
+    }
+  };
+
+  const resetAdversarial = () => { setAdvStep('form'); setAdvText(''); setAdvError(''); setAdvCopied(false); };
+
+  const generateTaskBrief = () => {
+    const f = tbForm;
+    const brief = [
+      'TASK BRIEF',
+      '─'.repeat(41),
+      `Task:          ${f.task}`,
+      `Objective:     ${f.objective}`,
+      `Audience:      ${f.audience}`,
+      `Constraints:   ${f.constraints}`,
+      `Output format: ${f.outputFormat}`,
+      f.background ? `Background:    ${f.background}` : null,
+      '',
+      '─'.repeat(41),
+      'PROMPT',
+      '─'.repeat(41),
+      `You are a specialist in [domain].`,
+      '',
+      `Task: ${f.task}`,
+      `Objective: ${f.objective}`,
+      `Audience: ${f.audience}`,
+      f.background ? `Background: ${f.background}` : null,
+      `Constraints: ${f.constraints}`,
+      `Output format: ${f.outputFormat}`,
+    ].filter(l => l !== null).join('\n');
+    setTbResult(brief);
+  };
+
+  const modeObj = ADVERSARIAL_MODES.find(m => m.key === advMode);
+
+  const PKG_TABS = [
+    { key: 'adversarial', label: 'Adversarial Buddy' },
+    { key: 'taskbrief',   label: 'Task Brief Builder' },
+    { key: 'techniques',  label: 'Techniques' },
+    { key: 'principles',  label: 'Principles' },
+    { key: 'checkpoints', label: 'Checkpoints' },
+  ];
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 px-4 pt-5 pb-0 md:px-8 md:pt-7">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>P</div>
+          <div>
+            <h1 className="text-lg font-black text-white leading-tight">Prompt Engineering Package</h1>
+            <p className="text-slate-500 text-xs">Structured techniques, adversarial challenge modes, and planning tools</p>
+          </div>
+        </div>
+        {/* Section tab bar */}
+        <div className="flex gap-1 overflow-x-auto pb-px" style={{ scrollbarWidth: 'none' }}>
+          {PKG_TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setPkgSection(t.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${pkgSection === t.key ? 'bg-violet-950/70 text-violet-300 border border-violet-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-slate-800/60'}`}
+            >{t.label}</button>
+          ))}
+        </div>
+        <div className="mt-3 border-b border-slate-800" />
+      </div>
+
+      {/* Section content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+
+        {/* ── Adversarial Buddy ── */}
+        {pkgSection === 'adversarial' && (
+          <div className="px-4 py-5 md:px-8">
+            <div className="max-w-3xl mx-auto">
+              {advStep === 'result' ? (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    {modeObj && (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: modeObj.bg, color: modeObj.color, border: `1px solid ${modeObj.border}` }}>
+                        {modeObj.icon} {modeObj.label}
+                      </span>
+                    )}
+                    <button onClick={resetAdversarial} className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">Run another challenge</button>
+                  </div>
+                  <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-3">
+                    <pre className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap font-sans">{advText}</pre>
+                  </div>
+                  <button
+                    onClick={() => copyText(advText, setAdvCopied, 'result')}
+                    className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                    style={advCopied ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
+                  >{advCopied ? '✓ Copied' : 'Copy response'}</button>
+                </>
+              ) : advStep === 'running' ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-lg font-black text-white animate-pulse" style={{ background: modeObj ? `linear-gradient(135deg,${modeObj.color}80,${modeObj.color}40)` : 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
+                      {modeObj?.icon ?? '⚙'}
+                    </div>
+                    <p className="text-white font-semibold text-sm mb-1">Challenging your thinking…</p>
+                    <p className="text-slate-500 text-xs">{modeObj?.label}</p>
+                    {advText && (
+                      <div className="mt-6 max-w-lg text-left bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+                        <pre className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-sans">{advText}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-slate-400 text-xs leading-relaxed mb-5">
+                    Select a challenge mode, paste your thinking or plan, and run the adversarial challenge. Each mode uses a structured system prompt designed to stress-test your reasoning.
+                  </p>
+                  {/* Mode selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-5">
+                    {ADVERSARIAL_MODES.map(m => (
+                      <button
+                        key={m.key}
+                        onClick={() => setAdvMode(m.key)}
+                        className={`text-left p-3.5 rounded-xl border transition-all ${advMode === m.key ? '' : 'bg-slate-800/40 border-slate-700 hover:border-slate-600'}`}
+                        style={advMode === m.key ? { background: m.bg, borderColor: m.border } : {}}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-base leading-none" style={advMode === m.key ? { color: m.color } : { color: '#64748b' }}>{m.icon}</span>
+                          <span className="text-xs font-semibold" style={advMode === m.key ? { color: m.color } : { color: '#e2e8f0' }}>{m.label}</span>
+                        </div>
+                        <p className="text-slate-500 text-xs leading-snug">{m.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {advMode && modeObj && (
+                    <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl px-4 py-2.5 mb-4 flex items-start gap-2">
+                      <span className="text-xs flex-shrink-0 mt-0.5" style={{ color: modeObj.color }}>→</span>
+                      <p className="text-slate-400 text-xs leading-relaxed"><span className="font-medium text-slate-300">Best for:</span> {modeObj.bestFor}</p>
+                    </div>
+                  )}
+                  {/* Input */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Your thinking, plan, or argument</label>
+                    <textarea
+                      rows={7}
+                      value={advInput}
+                      onChange={e => setAdvInput(e.target.value)}
+                      placeholder="Paste your position, plan, hypothesis, or strategic thinking here. The more specific you are, the sharper the challenge."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-violet-500/60 focus:outline-none transition-colors resize-none leading-relaxed"
+                    />
+                  </div>
+                  {advError && <div className="mb-4 bg-red-950/50 border border-red-800 rounded-xl p-3"><p className="text-red-300 text-xs">{advError}</p></div>}
+                  <button
+                    onClick={runAdversarial}
+                    disabled={!advMode || !advInput.trim()}
+                    className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: advMode ? `linear-gradient(135deg,${modeObj?.color ?? '#7c3aed'},${modeObj?.color ?? '#4f46e5'}99)` : 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}
+                  >Run Adversarial Challenge</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Task Brief Builder ── */}
+        {pkgSection === 'taskbrief' && (
+          <div className="px-4 py-5 md:px-8">
+            <div className="max-w-2xl mx-auto">
+              {tbResult ? (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-white font-semibold text-sm">Task Brief</span>
+                    <button onClick={() => setTbResult(null)} className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">Build another</button>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-3 font-mono">
+                    <pre className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">{tbResult}</pre>
+                  </div>
+                  <button
+                    onClick={() => copyText(tbResult, setTbCopied, 'brief')}
+                    className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                    style={tbCopied === 'brief' ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
+                  >{tbCopied === 'brief' ? '✓ Copied' : 'Copy task brief'}</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-slate-400 text-xs leading-relaxed mb-5">
+                    Plan before you prompt. Fill in the five fields below — this is the five-step pre-prompt planning methodology from the Prompting Toolkit. The generator assembles your inputs into a structured task brief and a ready-to-paste AI prompt.
+                  </p>
+                  <div className="space-y-4 mb-5">
+                    {[
+                      { key: 'task',         label: 'Task',          placeholder: 'What do you want produced? Be specific — not "write something about X" but the exact deliverable.', required: true },
+                      { key: 'objective',    label: 'Objective',     placeholder: 'Why does this matter? What action, decision, or belief should the output enable?', required: true },
+                      { key: 'audience',     label: 'Audience',      placeholder: 'Who will read or use this? Their role, technical depth, and expectations shape tone, vocabulary, and length.', required: true },
+                      { key: 'constraints',  label: 'Constraints',   placeholder: 'Non-negotiables: word count, format, tone, topics to avoid, brand guidelines.', required: true },
+                      { key: 'outputFormat', label: 'Output Format', placeholder: 'Describe exactly what the deliverable looks like: a draft, an analysis, a table, a numbered plan?', required: true },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                          {f.label} {f.required && <span className="text-violet-400 normal-case tracking-normal font-normal">required</span>}
+                        </label>
+                        <input
+                          type="text"
+                          value={tbForm[f.key]}
+                          onChange={e => setTbForm(p => ({ ...p, [f.key]: e.target.value }))}
+                          placeholder={f.placeholder}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:border-violet-500/60 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    ))}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Background <span className="normal-case tracking-normal font-normal text-slate-600">optional</span></label>
+                      <textarea
+                        rows={3}
+                        value={tbForm.background}
+                        onChange={e => setTbForm(p => ({ ...p, background: e.target.value }))}
+                        placeholder="Relevant context the AI needs to know — situation, constraints, prior decisions, data points."
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:border-violet-500/60 focus:outline-none transition-colors resize-none"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={generateTaskBrief}
+                    disabled={!tbForm.task.trim() || !tbForm.objective.trim() || !tbForm.audience.trim() || !tbForm.constraints.trim() || !tbForm.outputFormat.trim()}
+                    className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}
+                  >Generate Task Brief</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Techniques ── */}
+        {pkgSection === 'techniques' && (
+          <div className="px-4 py-5 md:px-8">
+            <div className="max-w-4xl mx-auto">
+              <p className="text-slate-400 text-xs leading-relaxed mb-5">Nine research-backed prompting techniques from the DAIR Prompt Engineering Guide. Each includes when to use it, a copy-ready example prompt, and the source paper.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {PROMPTING_TECHNIQUES.map(t => {
+                  const isOpen = !!techOpen[t.key];
+                  const diffColor = t.difficulty === 'Beginner' ? { c: '#10b981', b: '#10b98115' } : t.difficulty === 'Intermediate' ? { c: '#f59e0b', b: '#f59e0b15' } : { c: '#ef4444', b: '#ef444415' };
+                  const typeColor = t.type === 'Foundational' ? { c: '#3b82f6', b: '#3b82f615' } : t.type === 'Reasoning' ? { c: '#8b5cf6', b: '#8b5cf615' } : t.type === 'Workflow' ? { c: '#06b6d4', b: '#06b6d415' } : { c: '#f97316', b: '#f9731615' };
+                  return (
+                    <div key={t.key} className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-white font-bold text-sm leading-snug">{t.label}</h3>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            <span className="text-xs px-2 py-0.5 rounded-md font-medium" style={{ background: diffColor.b, color: diffColor.c }}>{t.difficulty}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-md font-medium" style={{ background: typeColor.b, color: typeColor.c }}>{t.type}</span>
+                          </div>
+                        </div>
+                        <p className="text-slate-400 text-xs leading-relaxed mb-3">{t.whatItIs}</p>
+                        <div className="space-y-1 mb-3">
+                          {t.whenYes.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-green-400 text-xs flex-shrink-0 mt-0.5">✓</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
+                          {t.whenNo.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-red-400 text-xs flex-shrink-0 mt-0.5">✗</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
+                        </div>
+                        <button
+                          onClick={() => setTechOpen(p => ({ ...p, [t.key]: !isOpen }))}
+                          className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                        >{isOpen ? 'Hide example ↑' : 'Show example prompt ↓'}</button>
+                      </div>
+                      {isOpen && (
+                        <div className="border-t border-slate-700 bg-slate-900/50 p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-slate-600 uppercase tracking-wider">Example prompt</p>
+                            <button
+                              onClick={() => copyText(t.examplePrompt, (v) => setTechOpen(p => ({ ...p, [`${t.key}_copied`]: v })), 'yes')}
+                              className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
+                              style={techOpen[`${t.key}_copied`] ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
+                            >{techOpen[`${t.key}_copied`] ? '✓' : 'Copy'}</button>
+                          </div>
+                          <pre className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-mono mb-3">{t.examplePrompt}</pre>
+                          <div className="border-t border-slate-800 pt-3">
+                            <p className="text-xs text-amber-400/80 leading-relaxed mb-1"><span className="font-semibold">Key insight:</span> {t.keyInsight}</p>
+                            <p className="text-xs text-slate-600 italic">{t.source}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Principles ── */}
+        {pkgSection === 'principles' && (
+          <div className="px-4 py-5 md:px-8">
+            <div className="max-w-2xl mx-auto">
+              <p className="text-slate-400 text-xs leading-relaxed mb-5">Ten research-backed principles that apply across any task, framework, or tool. Copy any principle for use in a system prompt or team documentation.</p>
+              <div className="space-y-2">
+                {PROMPTING_PRINCIPLES.map(p => (
+                  <div key={p.n} className="bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black text-violet-300 flex-shrink-0 mt-0.5" style={{ background: '#7c3aed20', border: '1px solid #7c3aed30' }}>{p.n}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-semibold mb-0.5">{p.title}</p>
+                      <p className="text-slate-400 text-xs leading-relaxed">{p.body}</p>
+                    </div>
+                    <button
+                      onClick={() => copyText(`${p.n}. ${p.title} ${p.body}`, setPrinCopied, String(p.n))}
+                      className="text-xs px-2.5 py-1 rounded-lg border flex-shrink-0 transition-colors"
+                      style={prinCopied === String(p.n) ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#64748b', borderColor: '#334155' }}
+                    >{prinCopied === String(p.n) ? '✓' : 'Copy'}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Checkpoints ── */}
+        {pkgSection === 'checkpoints' && (
+          <div className="px-4 py-5 md:px-8">
+            <div className="max-w-2xl mx-auto">
+              <p className="text-slate-400 text-xs leading-relaxed mb-5">Deliberate pause-and-verify moments in your prompting workflow. Reduce wasted iterations, catch drift early, and keep outputs anchored to your real objective.</p>
+              <div className="mb-6">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Four Checkpoint Types</h2>
+                <div className="bg-slate-800/40 border border-slate-700 rounded-xl overflow-hidden mb-4">
+                  <div className="grid grid-cols-3 text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-2 border-b border-slate-700 bg-slate-900/40">
+                    <span>Checkpoint</span><span>When</span><span>Purpose</span>
+                  </div>
+                  {CHECKPOINT_TYPES.filter(c => !c.advanced).map((c, i) => (
+                    <div key={i} className={`grid grid-cols-3 text-xs px-4 py-2.5 items-start gap-2 ${i < 3 ? 'border-b border-slate-800' : ''}`}>
+                      <span className="text-white font-medium">{c.label}</span>
+                      <span className="text-slate-400">{c.when}</span>
+                      <span className="text-slate-500">{c.purpose}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2.5">
+                  {CHECKPOINT_TYPES.filter(c => !c.advanced).map((c, i) => (
+                    <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-white text-xs font-semibold">{c.label}</p>
+                        <button
+                          onClick={() => copyText(c.prompt, setCkCopied, c.label)}
+                          className="text-xs px-2.5 py-1 rounded-lg border flex-shrink-0 transition-colors"
+                          style={ckCopied === c.label ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#64748b', borderColor: '#334155' }}
+                        >{ckCopied === c.label ? '✓ Copied' : 'Copy prompt'}</button>
+                      </div>
+                      <p className="text-slate-400 text-xs leading-relaxed font-mono bg-slate-900/50 rounded-lg px-3 py-2">{c.prompt}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Advanced Checkpoint Patterns</h2>
+                <div className="space-y-2.5">
+                  {CHECKPOINT_TYPES.filter(c => c.advanced).map((c, i) => (
+                    <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-white text-xs font-semibold">{c.label}</p>
+                        <button
+                          onClick={() => copyText(c.prompt, setCkCopied, c.label)}
+                          className="text-xs px-2.5 py-1 rounded-lg border flex-shrink-0 transition-colors"
+                          style={ckCopied === c.label ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#64748b', borderColor: '#334155' }}
+                        >{ckCopied === c.label ? '✓ Copied' : 'Copy prompt'}</button>
+                      </div>
+                      <p className="text-slate-500 text-xs mb-2">{c.purpose}</p>
+                      <p className="text-slate-400 text-xs leading-relaxed font-mono bg-slate-900/50 rounded-lg px-3 py-2">{c.prompt}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
@@ -7283,6 +7965,17 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </span>
             {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'promptpkg' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+          >
+            <span className="text-base leading-none">◧</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Prompt Engineering</span>
+              <span className="block text-slate-600 text-xs">Techniques & adversarial modes</span>
+            </span>
+            {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
+          </button>
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
@@ -7509,6 +8202,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* Prompt Engineering Package — techniques, adversarial modes, task brief builder */}
+        {activeTab === 'promptpkg' && (
+          <div className="h-full overflow-hidden">
+            <PromptEngineeringPackageTool />
+          </div>
+        )}
+
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
@@ -7622,6 +8322,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
                     >
                       Open Instrument Assessment →
+                    </button>
+                  </div>
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>P</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Prompt Engineering Package</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Techniques, adversarial modes, and planning tools</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Nine research-backed prompting techniques, six adversarial challenge modes powered by Groq, a structured task brief builder, ten core principles, and copy-ready checkpoint prompts — assembled from the AI Prompting Toolkit.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['Adversarial Buddy', 'Task Brief Builder', 'Techniques', 'Principles', 'Checkpoints'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
+                    >
+                      Open Prompt Engineering Package →
                     </button>
                   </div>
                 </div>
