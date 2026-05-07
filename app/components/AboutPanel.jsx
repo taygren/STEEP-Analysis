@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import StandaloneMarkdown from './StandaloneMarkdown';
 
 const BIO_PARAGRAPHS = [
   "Taylor Grenawalt is a strategist, applied researcher, and framework designer with a career built at the intersection of intelligence, innovation, and organizational decision-making. He currently serves as Director of Research & Insights at Vation Ventures, a growth and innovation consulting firm where he leads market, technology, and enterprise research, synthesizing quantitative and qualitative analysis with strategic foresight to help organizations navigate digital transformation, competitive differentiation, and AI adoption.",
@@ -35,10 +36,13 @@ export default function AboutPanel() {
 
   useEffect(() => { fetchUpdates(); }, []);
 
-  const fetchUpdates = async () => {
+  const fetchUpdates = async (tok) => {
     setLoadingUpdates(true);
     try {
-      const res = await fetch('/api/studio-updates');
+      const effectiveTok = tok !== undefined ? tok : adminToken;
+      const url  = effectiveTok ? '/api/studio-updates/admin' : '/api/studio-updates';
+      const opts = effectiveTok ? { headers: { 'x-admin-token': effectiveTok } } : {};
+      const res  = await fetch(url, opts);
       const data = await res.json();
       setUpdates(data.updates || []);
     } catch { /* silent */ } finally {
@@ -50,13 +54,15 @@ export default function AboutPanel() {
     if (!adminInput.trim()) return;
     setAdminChecking(true); setAdminErr('');
     try {
+      const tok = adminInput.trim();
       const res = await fetch('/api/studio-updates/admin', {
-        headers: { 'x-admin-token': adminInput.trim() },
+        headers: { 'x-admin-token': tok },
       });
       if (res.ok) {
-        setAdminToken(adminInput.trim());
+        setAdminToken(tok);
         setShowAdminLogin(false);
         setAdminInput('');
+        await fetchUpdates(tok);
       } else {
         setAdminErr('Invalid token.');
       }
@@ -241,7 +247,7 @@ export default function AboutPanel() {
                     )}
                   </div>
                   {u.title && <h3 className="text-white font-semibold text-sm mb-2">{u.title}</h3>}
-                  <p className="text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">{u.body}</p>
+                  <div className="prose-update text-sm leading-relaxed"><StandaloneMarkdown md={u.body || ''} /></div>
                 </div>
               ))}
             </div>

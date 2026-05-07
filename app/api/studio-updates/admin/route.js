@@ -4,6 +4,7 @@
  *
  * GET    /api/studio-updates/admin  — list all (drafts + published)
  * POST   /api/studio-updates/admin  — create or update (body: update JSON; include id to update)
+ * PUT    /api/studio-updates/admin  — toggle publish status (body: { id, status })
  * DELETE /api/studio-updates/admin  — delete (body: { id })
  */
 
@@ -78,6 +79,41 @@ export async function POST(req) {
     await kvZAdd(ALL_KEY, new Date(update.updatedAt).getTime(), id);
 
     if (update.status === 'published') {
+      const dateScore = new Date(update.date + 'T12:00:00').getTime();
+      await kvZAdd(INDEX_KEY, dateScore, id);
+    } else {
+      await kvZRem(INDEX_KEY, id);
+    }
+
+    return Response.json({ found: true, update });
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  const check = authCheck(req);
+  if (check !== 'ok') return authResponse(check);
+
+  try {
+    const { id, status } = await req.json();
+    if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+
+    const existing = await kvGet(`studioupdates:post:${id}`);
+    if (!existing) return Response.json({ error: 'Update not found' }, { status: 404 });
+
+    const now = new Date().toISOString();
+    const update = {
+      ...existing,
+      status,
+      updatedAt:   now,
+      publishedAt: status === 'published' ? (existing.publishedAt || now) : existing.publishedAt,
+    };
+
+    await kvSet(`studioupdates:post:${id}`, update);
+    await kvZAdd(ALL_KEY, new Date(update.updatedAt).getTime(), id);
+
+    if (status === 'published') {
       const dateScore = new Date(update.date + 'T12:00:00').getTime();
       await kvZAdd(INDEX_KEY, dateScore, id);
     } else {
