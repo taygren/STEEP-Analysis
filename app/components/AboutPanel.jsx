@@ -128,7 +128,7 @@ export default function AboutPanel() {
       {/* Header */}
       <div className="mb-7">
         <div className="flex items-center gap-4 mb-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center text-xl font-black text-white flex-shrink-0 shadow-lg">S</div>
+          <img src="/stint-logo.png" alt="STINT Studio" className="h-11 w-auto object-contain flex-shrink-0 mix-blend-screen" />
           <div>
             <h1 className="text-2xl font-black text-white leading-tight">STINT Studio</h1>
             <p className="text-slate-500 text-xs font-medium mt-0.5">Applied Strategy & Intelligence</p>

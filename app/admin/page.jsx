@@ -155,7 +155,7 @@ function LoginScreen({ onLogin }) {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-base font-black text-white">S</div>
+            <img src="/stint-logo.png" alt="STINT Studio" className="h-10 w-auto object-contain mix-blend-screen" />
           </a>
           <h1 className="text-white font-bold text-xl mb-1">Admin Portal</h1>
           <p className="text-slate-500 text-sm">Thought Leadership · STEEP Platform</p>
@@ -1315,7 +1315,7 @@ function PostList({ token, posts, loading, onNew, onEdit, onRefresh, onLogout, o
       <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-black text-white">S</div>
+            <img src="/stint-logo.png" alt="STINT Studio" className="h-7 w-auto object-contain flex-shrink-0 mix-blend-screen" />
             <span className="font-bold text-white text-sm">Thought Leadership</span>
           </div>
           <a href="/" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">← Platform</a>

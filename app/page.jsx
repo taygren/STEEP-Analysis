@@ -7070,7 +7070,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
               className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-800 flex items-center justify-center text-xs font-black text-white flex-shrink-0 violet-glow-sm">S</div>
+              <img src="/stint-logo.png" alt="STINT Studio" className="h-7 w-auto object-contain flex-shrink-0 mix-blend-screen" />
               <span className="font-bold text-white">STINT Studio</span>
             </button>
             <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
@@ -7319,7 +7319,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-500 to-purple-800 flex items-center justify-center text-xs font-black text-white flex-shrink-0">S</div>
+            <img src="/stint-logo.png" alt="STINT Studio" className="h-5 w-auto object-contain flex-shrink-0 mix-blend-screen" />
             <span className="text-white font-semibold text-sm truncate">
               {subject ? subject : 'STINT Studio'}
             </span>
@@ -7382,7 +7382,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               {/* Studio header */}
               <div className="mb-10">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-900 flex items-center justify-center text-2xl font-black text-white shadow-xl flex-shrink-0 violet-glow">S</div>
+                  <img src="/stint-logo.png" alt="STINT Studio" className="h-14 w-auto object-contain flex-shrink-0 mix-blend-screen" />
                   <div>
                     <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mb-1">STINT.Studio</h1>
                     <p className="text-slate-500 text-sm font-medium">Applied Strategy & Intelligence</p>
@@ -7562,7 +7562,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
               {/* Hero */}
               <div className="text-center mb-10">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 mx-auto mb-5 flex items-center justify-center text-2xl font-black text-white shadow-2xl">S</div>
+                <img src="/stint-logo.png" alt="STINT Studio" className="h-14 w-auto object-contain mx-auto mb-5 mix-blend-screen" />
                 <h1 className="text-2xl md:text-3xl font-black text-white mb-3">STEEP Analysis</h1>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
                   Six-agent structured intelligence across Social, Technological, Economic, Environmental, and Political dimensions. Enter a subject in the sidebar to begin, or pick one below.
@@ -7666,7 +7666,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
                 <div className="w-20 h-20 rounded-full border-4 border-slate-800 animate-spin" style={{ borderTopColor: '#8B5CF6', borderRightColor: '#a78bfa', animationDuration: '1.5s' }} />
-                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">S</div>
+                <div className="absolute inset-0 flex items-center justify-center"><img src="/stint-logo.png" alt="" className="h-5 w-auto object-contain mix-blend-screen" /></div>
               </div>
               <h2 className="text-xl font-bold text-white mb-2">
                 {status === 'classifying' ? 'Classifying Subject' : status === 'researching' ? 'Running Dimension Agents' : 'Synthesizing Intelligence'}
