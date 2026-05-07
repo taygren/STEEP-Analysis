@@ -77,7 +77,7 @@ export default function ProfilePageView({ profile }) {
 
       {/* ── Top nav (hidden on print) ── */}
       <nav className="print-hide sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60">
-        <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm flex-shrink-0">
             <BackIcon />
             <span className="font-semibold text-slate-300">STINT Studio</span>
@@ -105,7 +105,7 @@ export default function ProfilePageView({ profile }) {
       </nav>
 
       {/* ── Profile ── */}
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
 
         {profile.heroImageUrl && (
           <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl" style={{ maxHeight: 280 }}>

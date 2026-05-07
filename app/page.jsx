@@ -7433,10 +7433,10 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 overflow-y-auto min-w-0">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
-        {/* Mobile header bar */}
-        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden">
+        {/* Mobile header bar — flex-shrink-0 so it always sits at top of the flex column */}
+        <div className="flex-shrink-0 z-30 flex items-center gap-3 px-4 py-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-violet-950/40 transition-colors flex-shrink-0"
@@ -7457,6 +7457,9 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             )}
           </div>
         </div>
+
+        {/* Content area — takes all remaining height; panels use h-full overflow-y-auto to scroll within this correctly-sized box */}
+        <div className="flex-1 min-h-0 overflow-hidden">
 
         {/* Thought Leadership — accessible at any time from sidebar */}
         {activeTab === 'thoughtleadership' && (
@@ -7508,7 +7511,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
-          <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+          <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
               {/* Studio header */}
@@ -7689,7 +7692,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Idle — STEEP Overview */}
         {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && status === 'idle' && (
-          <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+          <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
               {/* Hero */}
@@ -7830,7 +7833,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Results */}
         {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isComplete && (
-          <div className="min-h-full flex flex-col">
+          <div className="h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-violet-500/10 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key })}
@@ -7857,6 +7860,8 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </div>
           </div>
         )}
+
+        </div>{/* end content area */}
       </main>
     </div>
   );
