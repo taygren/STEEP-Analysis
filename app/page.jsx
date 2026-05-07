@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { QUANTUM_COMPUTING_EXAMPLE } from '../lib/quantumComputingExample';
 import { APPLE_EXAMPLE } from '../lib/appleExample';
 import { WALMART_EXAMPLE } from '../lib/walmartExample';
+import { BCE_EXAMPLE } from '../lib/bigCycleExample';
+import { GI_EXAMPLE } from '../lib/geoEconExample';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer,
@@ -383,6 +385,8 @@ const initialState = {
   predictionTags: [],            // Keyword aliases used for the Polymarket fetch
   predictionFetchedAt: null,     // ISO timestamp of last successful fetch
   predictionLowConfidence: false,// true when no high-confidence matches found
+  bcePreload: null,         // pre-loaded BCE example result; consumed on mount by BigCycleEngineTool
+  giPreload: null,          // pre-loaded GeoEcon example result; consumed on mount by GeoInstrumentTool
   status: 'idle',           // idle | classifying | researching | synthesizing | complete | error
   agentStatuses: blankStats(),
   steepData: blankDims(),
@@ -417,6 +421,12 @@ function reducer(state, action) {
     case 'SET_BIG_CYCLE_STATUS':return { ...state, bigCycleStatus: action.payload };
     case 'SET_PREDICTION_MARKETS': return { ...state, predictionMarkets: action.data, predictionStatus: 'complete', predictionFetchedAt: action.fetchedAt ?? new Date().toISOString(), predictionLowConfidence: action.lowConfidence ?? false };
     case 'SET_PREDICTION_STATUS':  return { ...state, predictionStatus: action.payload };
+    case 'LOAD_BCE_EXAMPLE': return { ...state, bcePreload: action.payload, activeTab: 'bigcycleengine' };
+    case 'LOAD_GI_EXAMPLE':  return { ...state, giPreload: action.payload, activeTab: 'geoinstrument' };
+    case 'CLEAR_PRELOAD':
+      if (action.key === 'bce') return { ...state, bcePreload: null };
+      if (action.key === 'gi')  return { ...state, giPreload: null };
+      return state;
     case 'SET_PREDICTION_TAGS':    return { ...state, predictionTags: action.payload };
     case 'SET_AGENT_STATUS':  return { ...state, agentStatuses: { ...state.agentStatuses, [action.dimension]: action.status } };
     case 'SET_STEEP_DATA':    return { ...state, steepData: { ...state.steepData, [action.dimension]: action.data } };
@@ -3874,6 +3884,92 @@ function generatePdfReport(state) {
   win.document.close();
 }
 
+// ── Big Cycle Engine PDF Report ───────────────────────────────────
+function generateBcePdfReport(bceResult) {
+  if (!bceResult) return;
+  const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const { synthesis: syn, layers } = bceResult;
+  const { layer1, layer2, layer3, layer4 } = layers || {};
+  const stgData = [
+    { n: 1, label: 'New Order / Rising', c: '#10b981', p: 'Aggressive long' },
+    { n: 2, label: 'Building Power', c: '#3b82f6', p: 'Growth' },
+    { n: 3, label: 'Peak Power', c: '#06b6d4', p: 'Balanced / selective' },
+    { n: 4, label: 'Overextension', c: '#eab308', p: 'Defensive rotation begins' },
+    { n: 5, label: 'Decline', c: '#f97316', p: 'Wealth preservation priority' },
+    { n: 6, label: 'Crisis / Reset', c: '#ef4444', p: 'Maximum defensive posture' },
+  ];
+  const stg = stgData.find(s => s.n === syn?.empire_stage) || stgData[2];
+  const forceNames = { debt: 'Debt / Money', internal_order: 'Internal Order', external_order: 'External Order', nature: 'Nature / Climate', technology: 'Technology' };
+  const forceWeights = { debt: 30, internal_order: 25, external_order: 20, technology: 15, nature: 10 };
+  const recColors = { LONG: '#10b981', SHORT: '#ef4444', HOLD: '#64748b', AVOID: '#ef4444', REDUCE: '#f97316', INCREASE: '#10b981' };
+  const alloc = syn?.allocation_summary?.length ? syn.allocation_summary : (layer4?.allocation_matrix || []);
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Big Cycle — ${esc(bceResult.subject)}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#07070e;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 32px;max-width:900px;margin:0 auto;font-size:13px;line-height:1.6}h1{font-size:26px;font-weight:900;color:#fff;margin-bottom:4px}h2{font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}.label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:4px}.card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:16px;break-inside:avoid}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.pill{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}.row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #0f172a}.row:last-child{border-bottom:none}.bar-track{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-top:4px}
+@media print{body{background:#fff!important;color:#1e293b!important}.no-print{display:none!important}.card{background:#f8fafc!important;border-color:#e2e8f0!important}h2,h1{color:#1e293b!important}.label{color:#475569!important}.row{border-color:#e2e8f0!important}}</style></head><body>
+<div class="no-print" style="position:fixed;top:16px;right:16px;z-index:99;display:flex;gap:8px;"><button onclick="window.print()" style="background:linear-gradient(135deg,#d97706,#ea580c);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Save / Print PDF</button><button onclick="window.close()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;">✕ Close</button></div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+  <div><p class="label">Big Cycle Intelligence Report</p><h1>${esc(bceResult.subject)}</h1><p style="color:#64748b;font-size:12px;margin-top:6px">Empire Stage ${syn?.empire_stage ?? '?'} — ${esc(stg.label)}</p></div>
+  <div style="text-align:right"><p class="label">Generated</p><p style="color:#94a3b8;font-size:11px;font-weight:600">${new Date(bceResult.generatedAt || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>${syn?.confidence ? `<p style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">${esc(syn.confidence)} confidence · ${syn.agent_agreement ?? '?'}/4 agents agree</p>` : ''}</div>
+</div>
+${syn?.active_flags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${syn.active_flags.map(f => `<span class="pill" style="background:#ef444420;color:#ef4444">⚑ ${esc(f.replace(/_/g, ' '))}</span>`).join('')}</div>` : ''}
+<div class="grid2">
+  <div class="card" style="border-color:${stg.c}30;background:${stg.c}0d;"><p class="label">Empire Stage</p><p style="font-size:28px;font-weight:900;color:${stg.c};margin:6px 0">${syn?.empire_stage ?? '?'}</p><p style="font-weight:700;color:#fff;margin-bottom:12px">${esc(stg.label)}</p><div class="row"><span style="color:#64748b">Investment posture</span><span style="font-weight:600">${esc(stg.p)}</span></div><div class="row"><span style="color:#64748b">Composite score</span><span style="font-weight:600">${layer1?.composite_score != null ? Number(layer1.composite_score).toFixed(1) : '—'} / 10</span></div><div class="row"><span style="color:#64748b">Power trajectory</span><span style="font-weight:600;text-transform:capitalize">${esc(layer1?.power_trajectory ?? '—')}</span></div><div class="row"><span style="color:#64748b">Printing probability</span><span style="font-weight:600">${syn?.printing_probability ?? layer2?.printing_probability ?? '—'}%</span></div></div>
+  <div class="card"><h2>Executive Summary</h2><p style="color:#94a3b8;font-size:12px;line-height:1.8">${esc(syn?.executive_summary || layer1?.stage_rationale || '—')}</p></div>
+</div>
+${layer1?.force_scores ? `<div class="card"><h2>Five Forces</h2>${Object.entries(layer1.force_scores).map(([k, s]) => { const sc = parseFloat(s) || 0; const col = sc >= 7 ? '#ef4444' : sc >= 5 ? '#f97316' : sc >= 3 ? '#f59e0b' : '#10b981'; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#e2e8f0">${esc(forceNames[k] || k)} <span style="color:#64748b;font-size:10px">${forceWeights[k] || 0}%</span></span><span style="font-weight:700;color:${col}">${sc.toFixed(1)}</span></div><div class="bar-track"><div style="width:${(sc / 10 * 100).toFixed(0)}%;height:100%;background:${col};border-radius:3px"></div></div>${layer1.force_rationales?.[k] ? `<p style="color:#64748b;font-size:11px;margin-top:4px;line-height:1.5">${esc(layer1.force_rationales[k])}</p>` : ''}</div>`; }).join('')}</div>` : ''}
+${layer2 ? `<div class="grid2"><div class="card"><h2>Debt Sustainability</h2><span class="pill" style="background:${layer2.debt_status === 'UNSUSTAINABLE' || layer2.debt_status === 'PONZI_FINANCE' ? '#ef444420' : '#f59e0b20'};color:${layer2.debt_status === 'UNSUSTAINABLE' || layer2.debt_status === 'PONZI_FINANCE' ? '#ef4444' : '#f59e0b'};margin-bottom:12px;display:inline-block">${esc((layer2.debt_status || '').replace(/_/g, ' '))}</span><div class="row"><span style="color:#64748b">MP Stage</span><span style="font-weight:600">${esc(layer2.mp_stage || '—')}</span></div><div class="row"><span style="color:#64748b">i − g differential</span><span style="font-weight:600">${layer2.i_minus_g != null ? Number(layer2.i_minus_g).toFixed(1) : '—'}</span></div><div class="row"><span style="color:#64748b">Printing probability</span><span style="font-weight:600">${layer2.printing_probability ?? '—'}%</span></div>${layer2.debt_rationale ? `<p style="color:#64748b;font-size:11px;margin-top:10px;line-height:1.6">${esc(layer2.debt_rationale)}</p>` : ''}</div><div class="card"><h2>Bubble Detection</h2><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="font-size:24px;font-weight:900;color:${layer2.bubble_alert ? '#f97316' : '#94a3b8'}">${layer2.bubble_score ?? 0}/7</span><span class="pill" style="background:#f9731620;color:#f97316">${esc(layer2.bubble_severity || 'NONE')}</span></div>${(layer2.bubble_conditions_met || []).map(c => `<div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:#f97316;flex-shrink:0">•</span><p style="color:#94a3b8;font-size:11px;line-height:1.5">${esc(c)}</p></div>`).join('')}</div></div>` : ''}
+${layer3 ? `<div class="card"><h2>Scenario</h2><div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px"><span class="pill" style="background:#f9731620;color:#f97316">${esc(layer3.scenario_label || (layer3.scenario_type || '').replace(/_/g, ' '))}</span><span style="color:#94a3b8;font-size:12px;text-transform:capitalize">${esc(layer3.phase)} phase</span><span style="color:#64748b;font-size:12px">Analogy: <strong style="color:#e2e8f0">${esc(layer3.analogy_label || '')}</strong></span></div>${layer3.mechanism ? `<p style="color:#94a3b8;font-size:12px;line-height:1.7;margin-bottom:12px">${esc(layer3.mechanism)}</p>` : ''}${layer3.warning_signals?.length ? `<p class="label" style="margin-top:8px;margin-bottom:6px">Warning signals</p>${layer3.warning_signals.map(w => `<div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:#eab308;flex-shrink:0">⚠</span><p style="color:#94a3b8;font-size:11px;line-height:1.5">${esc(w)}</p></div>`).join('')}` : ''}</div>` : ''}
+${syn?.primary_action || layer4?.primary_action ? `<div class="card" style="border-color:#d9770635;background:#d9770608;"><p class="label" style="color:#f97316;margin-bottom:6px">The Spider's Move</p><p style="font-weight:700;color:#fff;font-size:14px;line-height:1.6">${esc(syn?.primary_action || layer4?.primary_action || '')}</p></div>` : ''}
+${alloc.length ? `<div class="card"><h2>Allocation Matrix</h2>${alloc.map(item => { const c = recColors[item.recommendation] || '#94a3b8'; return `<div style="background:#0f172a;border-radius:8px;padding:10px 12px;margin-bottom:8px;break-inside:avoid"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-weight:600;color:#fff;flex:1">${esc(item.asset_class)}</span><span class="pill" style="background:${c}20;color:${c}">${esc(item.recommendation)}</span><span style="font-size:11px;color:${item.conviction === 'HIGH' ? '#10b981' : '#f59e0b'}">${esc(item.conviction || '')}</span></div>${item.rationale ? `<p style="color:#64748b;font-size:11px;line-height:1.5">${esc(item.rationale)}</p>` : ''}</div>`; }).join('')}</div>` : ''}
+<p style="color:#334155;font-size:10px;text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #1e293b">STINT Studio — Applied Strategy &amp; Intelligence — Big Cycle Engine · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+</body></html>`;
+  const win = window.open('', '_blank', 'width=920,height=720');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this site to export PDF.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ── GeoEcon Instrument PDF Report ────────────────────────────────
+function generateGiPdfReport(giResult) {
+  if (!giResult) return;
+  const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const { synthesis: syn, agents } = giResult;
+  const { agent5a, agent5b, agent5c, agent5d } = agents || {};
+  const sevTier = syn?.unified_severity_tier || agent5a?.severity_tier || 'MODERATE';
+  const sevScore = syn?.unified_severity ?? agent5a?.severity_score ?? 0;
+  const sevColors = { CRITICAL: '#ef4444', HIGH: '#f97316', MODERATE: '#f59e0b', LOW: '#10b981', MINIMAL: '#64748b' };
+  const sevColor = sevColors[sevTier] || '#f59e0b';
+  const utilLabels = { coercive_leverage: 'Coercive Leverage', structural_dependency: 'Structural Dependency', alliance_management: 'Alliance Management', strategic_deterrence: 'Strategic Deterrence', domestic_protection: 'Domestic Protection', retaliation_escalation: 'Retaliation / Escalation' };
+  const utilColors = { coercive_leverage: '#ef4444', structural_dependency: '#f97316', alliance_management: '#3b82f6', strategic_deterrence: '#8b5cf6', domestic_protection: '#10b981', retaliation_escalation: '#f59e0b' };
+  const utilCls = agent5c?.strategic_utility_class;
+  const utilColor = utilColors[utilCls] || '#94a3b8';
+  const attrKeys = [{ key: 'precision', label: 'Precision', w: 20 }, { key: 'impact', label: 'Impact', w: 30 }, { key: 'circumvention', label: 'Circumvention Resistance', w: 20 }, { key: 'visibility', label: 'Visibility', w: 15 }, { key: 'speed', label: 'Speed of Effect', w: 15 }];
+  const sigColors = { BUY: '#10b981', SELL: '#ef4444', HEDGE: '#f59e0b', MONITOR: '#64748b' };
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>GeoEcon Assessment — ${esc(giResult.instrument)}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#07070e;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 32px;max-width:900px;margin:0 auto;font-size:13px;line-height:1.6}h1{font-size:22px;font-weight:900;color:#fff;margin-bottom:4px}h2{font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}.label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:4px}.card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:20px;margin-bottom:16px;break-inside:avoid}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}.pill{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}.row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #0f172a}.row:last-child{border-bottom:none}.bar-track{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-top:4px}
+@media print{body{background:#fff!important;color:#1e293b!important}.no-print{display:none!important}.card{background:#f8fafc!important;border-color:#e2e8f0!important}h2,h1{color:#1e293b!important}}</style></head><body>
+<div class="no-print" style="position:fixed;top:16px;right:16px;z-index:99;display:flex;gap:8px;"><button onclick="window.print()" style="background:linear-gradient(135deg,#0d9488,#059669);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">⬇ Save / Print PDF</button><button onclick="window.close()" style="background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;">✕ Close</button></div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+  <div><p class="label">GeoEconomic Instrument Assessment</p><h1>${esc(giResult.instrument)}</h1><p style="color:#64748b;font-size:12px;margin-top:6px">${esc(giResult.sender)} → ${esc(giResult.target)}</p></div>
+  <div style="text-align:right"><p class="label">Generated</p><p style="color:#94a3b8;font-size:11px;font-weight:600">${new Date(giResult.generatedAt || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>${syn?.convergence_confidence ? `<p style="font-size:11px;color:#10b981;font-weight:700;margin-top:4px">${esc(syn.convergence_confidence)} confidence</p>` : ''}</div>
+</div>
+${syn?.active_flags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${syn.active_flags.map(f => `<span class="pill" style="background:#ef444420;color:#ef4444">⚑ ${esc(f.replace(/_/g, ' '))}</span>`).join('')}</div>` : ''}
+<div class="grid2">
+  <div class="card" style="border-color:${sevColor}30;background:${sevColor}0d;"><p class="label" style="color:${sevColor}aa">Severity Score</p><div style="display:flex;align-items:flex-end;gap:12px;margin:8px 0 12px"><span style="font-size:36px;font-weight:900;color:${sevColor}">${Number(sevScore).toFixed(1)}</span><span class="pill" style="background:${sevColor}20;color:${sevColor};border:1px solid ${sevColor}40">${esc(sevTier)}</span></div>${agent5a?.score_rationale ? `<p style="color:#94a3b8;font-size:12px;line-height:1.7">${esc(agent5a.score_rationale)}</p>` : ''}</div>
+  <div class="card" style="border-color:${utilColor}30;background:${utilColor}0d;"><p class="label" style="color:${utilColor}aa">Strategic Utility</p><p style="font-weight:700;color:#fff;font-size:14px;margin:8px 0 12px">${esc(utilLabels[utilCls] || utilCls || '—')}</p><div class="row"><span style="color:#64748b">Time horizon</span><span style="font-weight:600;text-transform:capitalize">${esc((agent5c?.time_horizon || '—').replace(/_/g, ' '))}</span></div><div class="row"><span style="color:#64748b">Escalation probability</span><span style="font-weight:600">${agent5c?.escalation_probability ?? '—'}%</span></div><div class="row"><span style="color:#64748b">Classification</span><span style="font-weight:600;text-transform:capitalize">${esc(agent5c?.structural_vs_transient ?? '—')}</span></div>${agent5c?.class_rationale ? `<p style="color:#94a3b8;font-size:11px;margin-top:10px;line-height:1.6">${esc(agent5c.class_rationale)}</p>` : ''}</div>
+</div>
+${agent5a?.attribute_scores ? `<div class="card"><h2>Attribute Breakdown</h2>${attrKeys.map(attr => { const sc = parseFloat(agent5a.attribute_scores[attr.key]) || 0; const col = sc >= 7 ? '#ef4444' : sc >= 5 ? '#f97316' : sc >= 3 ? '#f59e0b' : '#10b981'; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#e2e8f0">${esc(attr.label)} <span style="color:#64748b;font-size:10px">${attr.w}%</span>${attr.key === agent5a.dominant_attribute ? `<span style="background:#0d948820;color:#2dd4bf;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:6px">dominant</span>` : attr.key === agent5a.lowest_attribute ? `<span style="background:#33415520;color:#64748b;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:6px">lowest</span>` : ''}</span><span style="font-weight:700;color:${col}">${sc.toFixed(1)}</span></div><div class="bar-track"><div style="width:${(sc / 10 * 100).toFixed(0)}%;height:100%;background:${col};border-radius:3px"></div></div></div>`; }).join('')}</div>` : ''}
+${agent5b ? `<div class="card"><h2>Bilateral Leverage</h2><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><span style="font-weight:700;color:#fff">Leverage holder:</span><span class="pill" style="background:${agent5b.leverage_holder === 'sender' ? '#3b82f620' : '#f9731620'};color:${agent5b.leverage_holder === 'sender' ? '#3b82f6' : '#f97316'}">${esc(agent5b.leverage_holder === 'sender' ? giResult.sender : agent5b.leverage_holder === 'target' ? giResult.target : 'Balanced')}</span></div><div class="grid2" style="margin-bottom:12px"><div style="background:#1e3a5f30;border:1px solid #3b82f630;border-radius:10px;padding:12px"><p style="color:#3b82f6;font-size:11px;font-weight:700;margin-bottom:6px">Sender: ${esc(giResult.sender)} — ${agent5b.sender_capacity?.score ?? '—'}/10</p>${agent5b.sender_capacity?.dominant_advantage ? `<p style="color:#94a3b8;font-size:11px;margin-bottom:4px"><em>Key advantage:</em> ${esc(agent5b.sender_capacity.dominant_advantage)}</p>` : ''}${agent5b.sender_capacity?.rationale ? `<p style="color:#64748b;font-size:11px;line-height:1.5">${esc(agent5b.sender_capacity.rationale)}</p>` : ''}</div><div style="background:#7c1d1320;border:1px solid #f9731630;border-radius:10px;padding:12px"><p style="color:#f97316;font-size:11px;font-weight:700;margin-bottom:6px">Target: ${esc(giResult.target)} — <span class="pill" style="background:#ef444420;color:#ef4444;font-size:10px">${esc(agent5b.target_capacity?.vulnerability_level || '?')} vulnerability</span></p>${agent5b.target_capacity?.rationale ? `<p style="color:#64748b;font-size:11px;line-height:1.5">${esc(agent5b.target_capacity.rationale)}</p>` : ''}</div></div>${agent5b.chokepoints_identified?.length ? `<p class="label" style="margin-bottom:6px">Chokepoints identified</p><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${agent5b.chokepoints_identified.map(cp => `<span class="pill" style="background:#33415550;color:#cbd5e1">${esc(cp)}</span>`).join('')}</div>` : ''}${agent5b.retaliation_vectors?.length ? `<p class="label" style="margin-bottom:6px">Retaliation vectors — <span style="background:${agent5b.retaliation_capacity === 'HIGH' ? '#ef444420' : '#f59e0b20'};color:${agent5b.retaliation_capacity === 'HIGH' ? '#ef4444' : '#f59e0b'};border-radius:10px;padding:2px 8px;font-size:10px">${esc(agent5b.retaliation_capacity)}</span></p>${agent5b.retaliation_vectors.map(rv => `<div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:#f97316;flex-shrink:0">•</span><p style="color:#94a3b8;font-size:11px;line-height:1.5">${esc(rv)}</p></div>`).join('')}` : ''}</div>` : ''}
+${agent5d ? `<div class="card"><h2>Investment Signals</h2><div class="grid3" style="margin-bottom:16px">${[{ key: 'first_order_shocks', label: 'First-Order Shocks', c: '#ef4444' }, { key: 'second_order_shocks', label: 'Second-Order Shocks', c: '#f59e0b' }, { key: 'beneficiaries', label: 'Beneficiaries', c: '#10b981' }].map(({ key, label, c }) => { const items = agent5d[key] || []; const isShock = key !== 'beneficiaries'; return `<div><p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${c};margin-bottom:8px">${esc(label)}</p>${items.map(item => `<div style="background:#0f172a;border-radius:8px;padding:8px;margin-bottom:6px;break-inside:avoid"><p style="font-weight:600;color:#e2e8f0;font-size:11px;margin-bottom:3px">${esc(isShock ? item.sector : item.name)}</p><p style="color:#64748b;font-size:11px;line-height:1.5">${esc(isShock ? item.rationale : item.thesis)}</p></div>`).join('')}</div>`; }).join('')}</div>${agent5d.portfolio_signals?.length ? `<p class="label" style="margin-bottom:8px">Portfolio Signals</p>${agent5d.portfolio_signals.map(sig => { const sc = sigColors[sig.type] || '#94a3b8'; return `<div style="background:#0f172a;border-radius:8px;padding:10px 12px;margin-bottom:8px;break-inside:avoid"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-weight:600;color:#fff;flex:1;font-size:12px">${esc(sig.signal)}</span><span class="pill" style="background:${sc}20;color:${sc}">${esc(sig.type)}</span><span style="font-size:11px;color:${sig.conviction === 'HIGH' ? '#10b981' : '#f59e0b'}">${esc(sig.conviction)}</span></div>${sig.rationale ? `<p style="color:#64748b;font-size:11px;line-height:1.5">${esc(sig.rationale)}</p>` : ''}</div>`; }).join('')}` : ''}${agent5d.hedging_recommendations?.length ? `<p class="label" style="margin-top:12px;margin-bottom:6px">Hedging Recommendations</p><div style="display:flex;flex-wrap:wrap;gap:6px">${agent5d.hedging_recommendations.map(h => `<span class="pill" style="background:#33415550;color:#cbd5e1">${esc(h)}</span>`).join('')}</div>` : ''}</div>` : ''}
+${syn?.strategic_summary || syn?.key_risks?.length ? `<div class="card"><h2>Strategic Assessment</h2>${syn.strategic_summary ? `<p style="color:#94a3b8;font-size:12px;line-height:1.7;margin-bottom:12px">${esc(syn.strategic_summary)}</p>` : ''}${syn.key_risks?.length ? `<p class="label" style="margin-bottom:6px">Key risks</p>${syn.key_risks.map(r => `<div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:#ef4444;flex-shrink:0">⚑</span><p style="color:#94a3b8;font-size:11px;line-height:1.5">${esc(r)}</p></div>`).join('')}` : ''}</div>` : ''}
+<p style="color:#334155;font-size:10px;text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #1e293b">STINT Studio — Applied Strategy &amp; Intelligence — GeoEconomic Instrument Assessment · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+</body></html>`;
+  const win = window.open('', '_blank', 'width=920,height=720');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this site to export PDF.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
 // ── InnovatorIlluminationPanel ────────────────────────────────────
 function InnovatorIlluminationPanel() {
   const [posts, setPosts]               = useState([]);
@@ -5550,13 +5646,15 @@ const GEO_EXAMPLES = [
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GeoInstrumentTool() {
-  const [giStep, setGiStep] = useState('form');
-  const [giForm, setGiForm] = useState({ instrument: '', sender: '', target: '', context: '' });
+function GeoInstrumentTool({ preload = null, onPreloadConsumed }) {
+  const [giStep, setGiStep] = useState(preload ? 'result' : 'form');
+  const [giForm, setGiForm] = useState(preload ? { instrument: preload.instrument, sender: preload.sender, target: preload.target, context: '' } : { instrument: '', sender: '', target: '', context: '' });
   const [giErrors, setGiErrors] = useState({});
   const [giError, setGiError] = useState('');
   const [giAgents, setGiAgents] = useState({ agent5a: 'pending', agent5b: 'pending', agent5c: 'pending', convergence: 'pending', agent5d: 'pending' });
-  const [giResult, setGiResult] = useState(null);
+  const [giResult, setGiResult] = useState(preload ?? null);
+
+  useEffect(() => { if (preload) onPreloadConsumed?.(); }, []);
 
   const setGiField = (k, v) => { setGiForm(f => ({ ...f, [k]: v })); if (giErrors[k]) setGiErrors(e => ({ ...e, [k]: '' })); };
 
@@ -5983,8 +6081,9 @@ function GeoInstrumentTool() {
           </div>
         )}
 
-        <div className="text-center pb-4">
+        <div className="flex items-center justify-center gap-3 pb-4">
           <button onClick={resetGi} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">New assessment</button>
+          <button onClick={() => generateGiPdfReport(giResult)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-teal-300 border border-teal-800/50 bg-teal-950/30 hover:bg-teal-900/40 hover:text-teal-200 transition-colors">⬇ Export PDF</button>
         </div>
 
       </div>
@@ -6028,12 +6127,14 @@ const BCE_FLAG_STYLE = {
 const BCE_EXAMPLES = ['United States', 'China', 'Eurozone', 'Japan', 'United Kingdom', 'Emerging Markets'];
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BigCycleEngineTool() {
-  const [step, setStep] = useState('form');
-  const [bceSubject, setBceSubject] = useState('');
+function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
+  const [step, setStep] = useState(preload ? 'result' : 'form');
+  const [bceSubject, setBceSubject] = useState(preload?.subject ?? '');
   const [bceError, setBceError] = useState('');
   const [bceAgents, setBceAgents] = useState({ agent1: 'pending', agent2: 'pending', agent3: 'pending', agent4: 'pending', supervisor: 'pending' });
-  const [bceResult, setBceResult] = useState(null);
+  const [bceResult, setBceResult] = useState(preload ?? null);
+
+  useEffect(() => { if (preload) onPreloadConsumed?.(); }, []);
 
   const runBce = async () => {
     if (!bceSubject.trim()) return;
@@ -6423,8 +6524,9 @@ function BigCycleEngineTool() {
           </div>
         )}
 
-        <div className="text-center pb-4">
+        <div className="flex items-center justify-center gap-3 pb-4">
           <button onClick={resetBce} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">New analysis</button>
+          <button onClick={() => generateBcePdfReport(bceResult)} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-amber-300 border border-amber-800/50 bg-amber-950/30 hover:bg-amber-900/40 hover:text-amber-200 transition-colors">⬇ Export PDF</button>
         </div>
 
       </div>
@@ -7229,6 +7331,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Examples */}
         <div className="px-3 py-3 border-t border-violet-500/10">
           <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
+          <p className="text-xs text-slate-700 px-2 mb-1 uppercase tracking-widest font-semibold">STEEP Analysis</p>
           <button
             onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE }); closeSidebar(); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
@@ -7267,6 +7370,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             {status === 'complete' && subject === WALMART_EXAMPLE.subject && (
               <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
             )}
+          </button>
+          <p className="text-xs text-slate-700 px-2 mt-3 mb-1 uppercase tracking-widest font-semibold">Instruments</p>
+          <button
+            onClick={() => { dispatch({ type: 'LOAD_BCE_EXAMPLE', payload: BCE_EXAMPLE }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'bigcycleengine' ? 'bg-amber-950/40 text-white font-medium border border-amber-700/30' : 'text-slate-400 hover:text-white hover:bg-amber-950/20 border border-transparent'}`}
+          >
+            <span className="text-base leading-none">⊕</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">United States</span>
+              <span className="block text-slate-600 text-xs">Big Cycle Engine example</span>
+            </span>
+            {activeTab === 'bigcycleengine' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
+          </button>
+          <button
+            onClick={() => { dispatch({ type: 'LOAD_GI_EXAMPLE', payload: GI_EXAMPLE }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'geoinstrument' ? 'bg-teal-950/40 text-white font-medium border border-teal-700/30' : 'text-slate-400 hover:text-white hover:bg-teal-950/20 border border-transparent'}`}
+          >
+            <span className="text-base leading-none">◈</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">US Semis → China</span>
+              <span className="block text-slate-600 text-xs">GeoEcon Instrument example</span>
+            </span>
+            {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
         </div>
 
@@ -7363,14 +7489,20 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Big Cycle Engine — standalone Dalio pipeline tool */}
         {activeTab === 'bigcycleengine' && (
           <div className="h-full overflow-y-auto">
-            <BigCycleEngineTool />
+            <BigCycleEngineTool
+              preload={state.bcePreload}
+              onPreloadConsumed={() => dispatch({ type: 'CLEAR_PRELOAD', key: 'bce' })}
+            />
           </div>
         )}
 
         {/* GeoEconomic Instrument Assessment — Farrell & Newman framework */}
         {activeTab === 'geoinstrument' && (
           <div className="h-full overflow-y-auto">
-            <GeoInstrumentTool />
+            <GeoInstrumentTool
+              preload={state.giPreload}
+              onPreloadConsumed={() => dispatch({ type: 'CLEAR_PRELOAD', key: 'gi' })}
+            />
           </div>
         )}
 
