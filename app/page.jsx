@@ -6138,6 +6138,7 @@ const ADVERSARIAL_MODES = [
     border: '#ef444430',
     bestFor: 'Any position or argument you plan to defend',
     description: 'Constructs the strongest, most intellectually honest case against your position.',
+    systemPrompt: `You are a rigorous Devil's Advocate. Your job is NOT to be contrarian for its own sake — your job is to construct the single strongest, most intellectually honest case AGAINST the position or plan presented.\n\nRules:\n- Identify the 3 most significant flaws, risks, or counterarguments\n- For each, explain WHY it is a serious problem — not just that it exists\n- Find the assumption the person is most attached to and challenge it directly\n- If there is a competing worldview or framework that undermines this thinking, name it\n- End with: "The hardest question you need to answer is: [one sharp question]"\n\nDo not soften your critique. Do not offer a balanced view. Your entire job is to stress-test this thinking.`,
   },
   {
     key: 'pre_mortem',
@@ -6148,6 +6149,7 @@ const ADVERSARIAL_MODES = [
     border: '#f9731630',
     bestFor: 'Plans or decisions you are about to commit to',
     description: 'Assumes it is 12 months from now and the plan has failed. Works backward to identify how and why.',
+    systemPrompt: `You are running a Pre-Mortem analysis. Assume it is 12 months from now and the plan or idea presented has failed — not marginally, but significantly.\n\nYour job:\n1. Write a brief "failure narrative" — a 3–4 sentence story of how the failure unfolded\n2. Identify the top 3 root causes that led to failure (be specific — name the mechanism, not just the category)\n3. Identify which assumptions in the original plan were most dangerously optimistic\n4. Identify what early warning signs were probably ignored along the way\n5. Name the one thing that, if fixed NOW, would most change the outcome\n\nBe concrete and specific. Vague risks are useless. Name the actual failure mode, not just "execution risk."`,
   },
   {
     key: 'first_principles',
@@ -6158,6 +6160,7 @@ const ADVERSARIAL_MODES = [
     border: '#3b82f630',
     bestFor: 'Beliefs or strategies built on inherited assumptions',
     description: 'Strips away every assumption and analogy. Rebuilds the argument from what can be directly verified.',
+    systemPrompt: `You are a First Principles analyst. Your job is to challenge every assumption in the thinking presented and determine what is actually true when you strip away convention, analogy, and inherited belief.\n\nProcess:\n1. List every assumption embedded in this thinking — explicit and implicit (aim for at least 5)\n2. For each assumption, ask: "Is this actually true, or do we just believe it because everyone does?"\n3. Identify which assumptions are load-bearing — if they are wrong, the whole argument collapses\n4. Rebuild from scratch: "If we only accepted what we can directly verify, what would this look like?"\n5. Name any analogies or comparisons being used and explain why they may be misleading\n\nThe goal is to separate what is known from what is assumed. Be direct about which foundations are solid and which are borrowed from convention.`,
   },
   {
     key: 'steelman',
@@ -6168,6 +6171,7 @@ const ADVERSARIAL_MODES = [
     border: '#8b5cf630',
     bestFor: 'Before presenting or defending an argument',
     description: 'Builds the strongest possible version of the opposing view — not the weak version you prefer to argue against.',
+    systemPrompt: `You are a Steelman Builder. Your job is to construct the strongest, most intelligent, most charitable version of the position or approach that OPPOSES what is being presented.\n\nThis is NOT about attacking the person's idea. It is about giving them the best possible opposing argument to engage with — so they can either strengthen their position or recognize when they are wrong.\n\nStructure:\n1. State the steelmanned opposing position in its strongest form (2–3 sentences)\n2. Give the 3 best arguments FOR that opposing position\n3. Identify what evidence or data would most support the opposing view\n4. Name a credible, intelligent person or school of thought that would hold this opposing view and why\n5. Ask: "If the opposing view is right, what would you expect to see in the world that you currently don't see?"\n\nBe generous to the opposition. The goal is to make the person's own thinking stronger by forcing them to engage with the best version of what challenges it.`,
   },
   {
     key: 'assumption_audit',
@@ -6178,6 +6182,7 @@ const ADVERSARIAL_MODES = [
     border: '#eab30830',
     bestFor: 'Early-stage thinking before significant resources are committed',
     description: 'Surfaces every hidden assumption and scores each by how dangerous it would be if wrong.',
+    systemPrompt: `You are an Assumption Auditor. Your job is to surface every assumption — explicit, implicit, and hidden — embedded in the thinking or plan presented, and assess the risk of each being wrong.\n\nProcess:\n1. List every assumption you can identify (aim for 8–12). Categorize each as:\n   - Factual (assumes something is true about the world)\n   - Behavioral (assumes people will act a certain way)\n   - Market (assumes conditions or timing)\n   - Organizational (assumes internal capability or alignment)\n   - Logical (assumes one thing leads to another)\n\n2. For each assumption, score it:\n   - Confidence: How likely is this assumption to be correct? (High / Medium / Low)\n   - Impact if wrong: How bad is it if this assumption fails? (High / Medium / Low)\n\n3. Identify the 3 "critical path" assumptions — the ones that are both uncertain AND high-impact if wrong\n\n4. For each critical path assumption, suggest: "Here is how you could test or validate this before committing further."\n\nBe exhaustive. The assumptions people don't know they're making are the most dangerous ones.`,
   },
   {
     key: 'contrarian_investor',
@@ -6188,6 +6193,7 @@ const ADVERSARIAL_MODES = [
     border: '#10b98130',
     bestFor: 'Market theses, strategic bets, competitive strategy',
     description: 'Finds where conventional wisdom is wrong, what the market is missing, where the non-obvious truth is hiding.',
+    systemPrompt: `You are a contrarian investor and strategic thinker. Your job is to find where conventional wisdom is wrong, where the crowd is missing something, and where the non-obvious truth is hiding.\n\nApply this lens to the thinking or plan presented:\n\n1. What is the consensus view on this topic, and what is everyone assuming? State it plainly.\n\n2. Where is the consensus most likely wrong? What do most people get backwards?\n\n3. What is the "second-order" effect that almost nobody is thinking about?\n   (First-order: obvious consequence. Second-order: what happens as a result of that consequence.)\n\n4. If this idea is right in an unexpected way — not the obvious way — what would that look like?\n\n5. What would have to be true for the seemingly crazy alternative view to be correct?\n\n6. "The market is pricing in [X]. But the real bet here is actually [Y]."\n\nBe genuinely contrarian — not just negative. Contrarian thinking finds the non-obvious truth, which can be optimistic OR pessimistic.`,
   },
 ];
 
@@ -6198,9 +6204,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Beginner',
     type: 'Foundational',
     whatItIs: 'Ask the model to perform a task with no examples — just the instruction. Modern LLMs trained with instruction tuning can follow instructions on tasks they have never explicitly seen demonstrated.',
-    whenYes: ['Common, well-defined tasks: summarize, translate, classify, explain', 'Fast first drafts without setup overhead', 'Starting point before deciding if examples are needed'],
-    whenNo: ['Highly specific output formats the model does not default to'],
+    whenToUse: {
+      yes: ['Common, well-defined tasks: summarize, translate, classify, explain', 'Fast first drafts without setup overhead', 'Starting point before deciding if examples are needed'],
+      no: ['Highly specific output formats the model does not default to'],
+    },
     examplePrompt: 'Classify the sentiment of the following customer review as Positive, Neutral, or Negative.\n\nReview: "The onboarding took longer than expected, but once we were set up, the platform worked really well for our team."',
+    expectedOutput: 'Sentiment: Neutral\n\nThe reviewer acknowledges a slow start (negative signal) but reports the platform worked well once configured (positive signal). The net assessment is neutral — neither a strong endorsement nor a rejection.',
     keyInsight: 'Adding "Think step by step" to a zero-shot prompt can dramatically improve results on reasoning tasks — this hybrid is called zero-shot CoT.',
     source: 'Wei et al. (2021) — Finetuned Language Models Are Zero-Shot Learners',
   },
@@ -6210,9 +6219,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Beginner',
     type: 'Foundational',
     whatItIs: 'Provide a small number of worked examples within the prompt to show the model the desired input-output pattern. The model infers the task format from the examples and applies it to a new input.',
-    whenYes: ['Very specific output formats the model does not default to', 'Classification, extraction, or transformation tasks with clear patterns', 'When zero-shot results are inconsistent or off-style'],
-    whenNo: ['Complex multi-step reasoning — examples alone will not teach logic'],
+    whenToUse: {
+      yes: ['Very specific output formats the model does not default to', 'Classification, extraction, or transformation tasks with clear patterns', 'When zero-shot results are inconsistent or off-style'],
+      no: ['Complex multi-step reasoning — examples alone will not teach logic'],
+    },
     examplePrompt: 'Extract the company name and deal size from each sales note. Format as: Company | Deal Size\n\nNote: "Spoke with Sarah at Acme Corp — $45K annual contract starting Q3."\nOutput: Acme Corp | $45K\n\nNote: "Follow-up with Meridian Health. Budget confirmed at $120,000 for enterprise tier."\nOutput: Meridian Health | $120,000\n\nNote: "Great call with Marcus at BlueWave Technologies. 3 seats at $8,500/year."\nOutput:',
+    expectedOutput: 'BlueWave Technologies | $8,500/year',
     keyInsight: 'Label quality matters more than quantity. 3–5 examples is the sweet spot — more than 8 rarely helps and wastes tokens.',
     source: 'Brown et al. (2020) — Language Models are Few-Shot Learners (GPT-3)',
   },
@@ -6222,9 +6234,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Intermediate',
     type: 'Reasoning',
     whatItIs: 'Prompt the model to produce intermediate reasoning steps before arriving at a final answer. Like showing your work on a math problem. Triggered with examples (few-shot CoT) or just "Let\'s think step by step" (zero-shot CoT).',
-    whenYes: ['Multi-step math, logic, or analytical problems', 'Strategic decisions involving trade-off reasoning', 'Any task where the answer depends on getting intermediate steps right'],
-    whenNo: ['Simple factual lookups or tasks where the reasoning process is not valuable'],
+    whenToUse: {
+      yes: ['Multi-step math, logic, or analytical problems', 'Strategic decisions involving trade-off reasoning', 'Any task where the answer depends on getting intermediate steps right'],
+      no: ['Simple factual lookups or tasks where the reasoning process is not valuable'],
+    },
     examplePrompt: 'A sales rep closes deals at 22%. She makes 15 calls/day, 5 days/week. Average deal size: $8,500.\n\nHow much revenue can she generate in a 4-week month? Think through this step by step before giving a final answer.',
+    expectedOutput: 'Step 1: Calls per month → 15 calls/day × 5 days × 4 weeks = 300 calls\nStep 2: Deals closed → 300 × 22% = 66 deals\nStep 3: Revenue → 66 × $8,500 = $561,000\n\nShe can generate $561,000 in a 4-week month.',
     keyInsight: 'The reasoning trace lets you catch errors mid-chain before they compound. CoT is most effective with larger models.',
     source: 'Wei et al. (2022) — Chain-of-Thought Prompting Elicits Reasoning in Large Language Models',
   },
@@ -6234,9 +6249,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Intermediate',
     type: 'Reasoning',
     whatItIs: 'Use the model to generate, evaluate, or improve prompts — rather than directly executing a task. Describe what you want to accomplish and ask the model to construct the optimal prompt.',
-    whenYes: ['You know the goal but do not know how to prompt for it effectively', 'Building reusable prompt templates across teams or clients', 'Refining or critiquing a prompt you have already written'],
-    whenNo: ['Simple tasks where you already know the right prompt structure'],
+    whenToUse: {
+      yes: ['You know the goal but do not know how to prompt for it effectively', 'Building reusable prompt templates across teams or clients', 'Refining or critiquing a prompt you have already written'],
+      no: ['Simple tasks where you already know the right prompt structure'],
+    },
     examplePrompt: 'I need to prompt an AI to generate a weekly executive summary from project status updates. Audience: C-suite, 5 minutes to read. Tone: direct and outcome-focused.\n\nWrite me the best possible prompt for this task. Include placeholders for the input data. Briefly explain why you structured it the way you did.',
+    expectedOutput: 'Prompt:\n\nYou are a senior executive communications specialist. Your task is to generate a concise weekly executive summary from the project status updates provided below.\n\nRules: maximum 250 words · lead with outcomes, not activities · flag one risk and one decision needed · no jargon\n\n[STATUS UPDATES]\n\nRationale: The role assignment calibrates depth and vocabulary. The word limit and output rules prevent over-generation. Leading with outcomes matches C-suite reading patterns.',
     keyInsight: 'Meta prompting scales prompting quality across teams without requiring everyone to become a prompting expert.',
     source: 'Reynolds & McDonell (2021) — Prompt Programming for Large Language Models',
   },
@@ -6246,9 +6264,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Intermediate',
     type: 'Reasoning',
     whatItIs: 'Run the same prompt multiple times, generate diverse reasoning paths, and select the most consistent answer across runs. Works by sampling multiple outputs and taking the majority vote.',
-    whenYes: ['High-stakes reasoning where accuracy matters more than speed', 'Math or logic problems where errors are common in single runs', 'When you need to estimate model confidence on a claim'],
-    whenNo: ['Tasks with no objectively correct answer', 'Time-sensitive workflows where one answer is sufficient'],
+    whenToUse: {
+      yes: ['High-stakes reasoning where accuracy matters more than speed', 'Math or logic problems where errors are common in single runs', 'When you need to estimate model confidence on a claim'],
+      no: ['Tasks with no objectively correct answer', 'Time-sensitive workflows where one answer is sufficient'],
+    },
     examplePrompt: 'Answer the following question. Show your reasoning step by step.\n\nQuestion: A store sells 3 types of gift sets. Type A costs $25, Type B costs $40, Type C costs $60. If 40% of sales are Type A, 35% are Type B, and 25% are Type C, what is the average revenue per gift set sold?',
+    expectedOutput: 'Run 1: ($25×0.40) + ($40×0.35) + ($60×0.25) = $10 + $14 + $15 = $39.00\nRun 2: Weighted average = $39.00\nRun 3: $39.00\n\nMajority answer: $39.00 average revenue per gift set',
     keyInsight: 'Self-consistency is most valuable when the model\'s first answer on complex problems is likely to be wrong. The majority vote across 3–5 runs can significantly improve accuracy.',
     source: 'Wang et al. (2022) — Self-Consistency Improves Chain of Thought Reasoning in Language Models',
   },
@@ -6258,9 +6279,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Intermediate',
     type: 'Reasoning',
     whatItIs: 'First prompt the model to generate relevant facts or background knowledge about a topic, then use that generated knowledge as context for answering the actual question. A two-stage approach.',
-    whenYes: ['Questions requiring domain knowledge the model may underweight', 'Fact-grounded analysis where shallow answers are common', 'Any task where surface-level responses are insufficient'],
-    whenNo: ['Simple lookups or tasks with a narrow, well-defined scope'],
+    whenToUse: {
+      yes: ['Questions requiring domain knowledge the model may underweight', 'Fact-grounded analysis where shallow answers are common', 'Any task where surface-level responses are insufficient'],
+      no: ['Simple lookups or tasks with a narrow, well-defined scope'],
+    },
     examplePrompt: 'Stage 1: Generate 5 key facts about the relationship between interest rate increases and commercial real estate valuations.\n\nStage 2: Using the facts you just generated, explain whether now is a good or bad time for a pension fund to increase its CRE allocation. Be specific.',
+    expectedOutput: 'Stage 1 facts:\n1. Rising rates increase cap rates, compressing valuations.\n2. Office and retail face structural demand headwinds beyond rate effects.\n3. Industrial and data center CRE remain supply-constrained.\n4. Debt refinancing risk is acute for properties originated pre-2022.\n5. Distressed opportunities are emerging but require active management.\n\nStage 2: For a pension fund with long-duration liabilities, current conditions are mixed. Industrial and alternatives offer upside; broad CRE allocation carries refinancing and mark-to-market risk.',
     keyInsight: 'The model\'s generated knowledge acts as a self-constructed context window. It consistently outperforms single-stage prompting on commonsense reasoning tasks.',
     source: 'Liu et al. (2022) — Generated Knowledge Prompting for Commonsense Reasoning',
   },
@@ -6270,9 +6294,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Advanced',
     type: 'Workflow',
     whatItIs: 'Break a complex task into a sequence of simpler sub-tasks where the output of each prompt becomes the input to the next. Build incrementally, verify at each step.',
-    whenYes: ['Complex deliverables that require multiple distinct stages', 'Tasks where early errors compound downstream', 'Workflows where intermediate outputs need review before proceeding'],
-    whenNo: ['Simple tasks that can be completed in a single prompt without quality loss'],
+    whenToUse: {
+      yes: ['Complex deliverables that require multiple distinct stages', 'Tasks where early errors compound downstream', 'Workflows where intermediate outputs need review before proceeding'],
+      no: ['Simple tasks that can be completed in a single prompt without quality loss'],
+    },
     examplePrompt: 'Chain Step 1: Summarize this earnings call transcript in 5 bullet points, focusing only on forward guidance statements.\n\n[TRANSCRIPT]\n\n---\nChain Step 2 (use Step 1 output): Based on these forward guidance statements, identify the 3 largest gaps between what management said and what analysts were expecting. Rate each gap as Bullish, Bearish, or Neutral for the stock.',
+    expectedOutput: 'Step 1 output:\n• Management reaffirmed 12–14% revenue growth guidance\n• Q4 margin expansion target raised from 200bps to 250bps\n• $500M buyback authorized\n• Two new enterprise verticals announced for H2\n• Hiring freeze in non-revenue functions through year-end\n\nStep 2 output:\n1. Margin target raise vs. analyst model of 180bps — Bullish\n2. Hiring freeze not in any analyst forecast — Bearish\n3. Vertical launches 2 quarters earlier than consensus — Bullish',
     keyInsight: 'The power of chaining is that each step is small enough to verify before proceeding. This turns a risky long prompt into a reviewable pipeline.',
     source: 'Wu et al. (2022) — PromptChainer: Chaining Large Language Model Prompts through Visual Programming',
   },
@@ -6282,9 +6309,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Advanced',
     type: 'Reasoning',
     whatItIs: 'Prompt the model to explore multiple reasoning branches simultaneously, evaluate which branches are most promising, and pursue the best paths — like a search tree rather than a linear chain.',
-    whenYes: ['Complex planning problems with many possible paths', 'Creative tasks where exploring diverse directions improves output', 'Strategic decisions requiring genuine exploration of alternatives'],
-    whenNo: ['Straightforward tasks or time-constrained single-pass workflows'],
+    whenToUse: {
+      yes: ['Complex planning problems with many possible paths', 'Creative tasks where exploring diverse directions improves output', 'Strategic decisions requiring genuine exploration of alternatives'],
+      no: ['Straightforward tasks or time-constrained single-pass workflows'],
+    },
     examplePrompt: 'I need to enter a new market. Explore 3 distinct market entry strategies (licensing, acquisition, organic build). For each:\n1. State the core thesis\n2. Rate it on speed (1–5), cost (1–5), and control (1–5)\n3. Identify the single biggest risk\n\nAfter exploring all three, recommend which path is most appropriate for a $50M revenue B2B SaaS company with 3 years of runway.',
+    expectedOutput: 'Licensing: Speed 5, Cost 5, Control 2. Fastest path to revenue. Risk: partner misalignment dilutes brand.\n\nAcquisition: Speed 3, Cost 1, Control 4. Buys capability and market share. Risk: integration execution at $50M scale.\n\nOrganic build: Speed 1, Cost 3, Control 5. Maximum compounding. Risk: 18–24 month revenue gap.\n\nRecommendation: Licensing. Capital preservation and speed outweigh control given 3-year runway constraint.',
     keyInsight: 'ToT turns single-path generation into structured exploration. It is especially powerful when you suspect the obvious answer is not the best one.',
     source: 'Yao et al. (2023) — Tree of Thoughts: Deliberate Problem Solving with Large Language Models',
   },
@@ -6294,9 +6324,12 @@ const PROMPTING_TECHNIQUES = [
     difficulty: 'Advanced',
     type: 'Agent',
     whatItIs: 'Interleave reasoning (think step by step) with actions (search, calculate, retrieve) in an alternating loop. The model reasons about what to do, does it, observes the result, then reasons again.',
-    whenYes: ['Tasks requiring external information retrieval mid-reasoning', 'Multi-step workflows that depend on real-world data', 'Agent systems where the model must decide what tools to call'],
-    whenNo: ['Self-contained reasoning tasks with no external dependencies'],
+    whenToUse: {
+      yes: ['Tasks requiring external information retrieval mid-reasoning', 'Multi-step workflows that depend on real-world data', 'Agent systems where the model must decide what tools to call'],
+      no: ['Self-contained reasoning tasks with no external dependencies'],
+    },
     examplePrompt: 'Task: What is the current market cap of the largest semiconductor company, and how does it compare to its 5-year average P/E ratio?\n\nThink through what information you need, what you would search for, what you would calculate, and how you would arrive at a final comparison. Walk through each Thought → Action → Observation step before giving your final answer.',
+    expectedOutput: 'Thought: I need market cap and P/E data for the largest semiconductor company — likely NVIDIA.\nAction: Search "NVIDIA market cap current"\nObservation: ~$2.4T as of late 2024.\nThought: Now I need 5-year average P/E.\nAction: Search "NVIDIA P/E ratio 5-year average"\nObservation: 5-year average ~55×; current ~65×.\nConclusion: NVIDIA trades at ~18% premium to its 5-year average P/E despite 8× market cap growth over the same period.',
     keyInsight: 'ReAct dramatically reduces hallucination on fact-dependent tasks by grounding reasoning in observations rather than memory alone.',
     source: 'Yao et al. (2022) — ReAct: Synergizing Reasoning and Acting in Language Models',
   },
@@ -6788,7 +6821,8 @@ function PromptEngineeringPackageTool() {
 
   // ── Task Brief Builder state ──
   const [tbForm, setTbForm] = useState({ task: '', objective: '', audience: '', constraints: '', outputFormat: '', background: '' });
-  const [tbResult, setTbResult] = useState(null);
+  const [tbBrief, setTbBrief] = useState(null);
+  const [tbPrompt, setTbPrompt] = useState(null);
   const [tbCopied, setTbCopied] = useState('');
 
   // ── Techniques state ──
@@ -7971,7 +8005,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           >
             <span className="text-base leading-none">◧</span>
             <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Prompt Engineering</span>
+              <span className="block text-xs font-medium">Prompt Engineering Package</span>
               <span className="block text-slate-600 text-xs">Techniques & adversarial modes</span>
             </span>
             {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
