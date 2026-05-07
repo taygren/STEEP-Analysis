@@ -5492,6 +5492,506 @@ const RASCEF_ELEMENTS = [
   { key: 'F', label: 'Format',  color: '#F97316', desc: 'Output structure, length, formality, and standing elements to include.' },
 ];
 
+// ── GeoEconomic Instrument Assessment static data ────────────────────────────
+const GEO_ATTRIBUTES = [
+  { key: 'precision',     label: 'Precision',                weight: 20 },
+  { key: 'impact',        label: 'Impact',                   weight: 30 },
+  { key: 'circumvention', label: 'Circumvention Resistance', weight: 20 },
+  { key: 'visibility',    label: 'Visibility',               weight: 15 },
+  { key: 'speed',         label: 'Speed of Effect',          weight: 15 },
+];
+const GEO_UTILITY = {
+  coercive_leverage:      { label: 'Coercive Leverage',        c: '#ef4444', b: '#ef444415' },
+  structural_dependency:  { label: 'Structural Dependency',    c: '#f97316', b: '#f9731615' },
+  alliance_management:    { label: 'Alliance Management',      c: '#3b82f6', b: '#3b82f615' },
+  strategic_deterrence:   { label: 'Strategic Deterrence',     c: '#8b5cf6', b: '#8b5cf615' },
+  domestic_protection:    { label: 'Domestic Protection',      c: '#10b981', b: '#10b98115' },
+  retaliation_escalation: { label: 'Retaliation / Escalation', c: '#f59e0b', b: '#f59e0b15' },
+};
+const GEO_SEV = {
+  CRITICAL: { c: '#ef4444', b: '#ef444415' },
+  HIGH:     { c: '#f97316', b: '#f9731615' },
+  MODERATE: { c: '#f59e0b', b: '#f59e0b15' },
+  LOW:      { c: '#10b981', b: '#10b98115' },
+  MINIMAL:  { c: '#64748b', b: '#64748b15' },
+};
+const GEO_FLAG = {
+  HIGH_SEVERITY:        { c: '#ef4444', b: '#ef444415' },
+  RETALIATION_RISK:     { c: '#f97316', b: '#f9731615' },
+  CIRCUMVENTION_LIKELY: { c: '#f59e0b', b: '#f59e0b15' },
+  WAR_ECONOMY_TRIGGER:  { c: '#ef4444', b: '#ef444415' },
+};
+const GEO_SIG = {
+  BUY:     { c: '#10b981', b: '#10b98115' },
+  SELL:    { c: '#ef4444', b: '#ef444415' },
+  HEDGE:   { c: '#f59e0b', b: '#f59e0b15' },
+  MONITOR: { c: '#64748b', b: '#64748b15' },
+};
+const GEO_DIR = {
+  POSITIVE: { c: '#10b981', label: '▲' },
+  NEGATIVE: { c: '#ef4444', label: '▼' },
+  NEUTRAL:  { c: '#64748b', label: '→' },
+};
+const GEO_MAG = { HIGH: 'font-bold', MODERATE: 'font-medium', LOW: 'font-normal' };
+const GEO_CONV_C = { HIGH: '#10b981', MODERATE: '#f59e0b', LOW: '#94a3b8' };
+const GEO_PIPELINE_PARALLEL = ['agent5a', 'agent5b', 'agent5c'];
+const GEO_PIPELINE_DEFS = [
+  { key: 'agent5a',     label: 'Agent 5A — Attribute Scorer',             sub: 'Five attributes · Severity score', parallel: true },
+  { key: 'agent5b',     label: 'Agent 5B — Capacity Assessor',            sub: 'Bilateral leverage · Chokepoints',  parallel: true },
+  { key: 'agent5c',     label: 'Agent 5C — Strategic Utility Classifier', sub: 'Utility class · Escalation risk',   parallel: true },
+  { key: 'convergence', label: 'Convergence Supervisor',                  sub: 'Risk synthesis · Active flags',     parallel: false },
+  { key: 'agent5d',     label: 'Agent 5D — Investment Translation',       sub: 'Market signals · Portfolio signals', parallel: false },
+];
+const GEO_EXAMPLES = [
+  { instrument: 'Semiconductor export controls',    sender: 'United States',       target: 'China' },
+  { instrument: 'SWIFT financial sanctions',         sender: 'United States / EU',  target: 'Russia' },
+  { instrument: 'Rare earth export quotas',          sender: 'China',               target: 'United States' },
+  { instrument: 'Steel tariffs Section 232',         sender: 'United States',       target: 'European Union' },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+function GeoInstrumentTool() {
+  const [giStep, setGiStep] = useState('form');
+  const [giForm, setGiForm] = useState({ instrument: '', sender: '', target: '', context: '' });
+  const [giErrors, setGiErrors] = useState({});
+  const [giError, setGiError] = useState('');
+  const [giAgents, setGiAgents] = useState({ agent5a: 'pending', agent5b: 'pending', agent5c: 'pending', convergence: 'pending', agent5d: 'pending' });
+  const [giResult, setGiResult] = useState(null);
+
+  const setGiField = (k, v) => { setGiForm(f => ({ ...f, [k]: v })); if (giErrors[k]) setGiErrors(e => ({ ...e, [k]: '' })); };
+
+  const validateGi = () => {
+    const e = {};
+    if (!giForm.instrument.trim()) e.instrument = 'Instrument name is required.';
+    if (!giForm.sender.trim())     e.sender = 'Sender is required.';
+    if (!giForm.target.trim())     e.target = 'Target is required.';
+    return e;
+  };
+
+  const runGi = async () => {
+    const errs = validateGi();
+    if (Object.keys(errs).length) { setGiErrors(errs); return; }
+    setGiStep('running');
+    setGiError('');
+    setGiErrors({});
+    setGiAgents({ agent5a: 'running', agent5b: 'running', agent5c: 'running', convergence: 'pending', agent5d: 'pending' });
+    setGiResult(null);
+    try {
+      const res = await fetch('/api/geoinstrument', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instrument: giForm.instrument.trim(), sender: giForm.sender.trim(), target: giForm.target.trim(), context: giForm.context.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Request failed (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let ev;
+          try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+          if (ev.event === 'agent_start') {
+            setGiAgents(s => ({ ...s, [ev.agent]: 'running' }));
+          } else if (ev.event === 'agent_complete') {
+            setGiAgents(s => ({ ...s, [ev.agent]: 'complete' }));
+          } else if (ev.event === 'complete') {
+            setGiResult(ev.result);
+            setGiAgents({ agent5a: 'complete', agent5b: 'complete', agent5c: 'complete', convergence: 'complete', agent5d: 'complete' });
+            setGiStep('result');
+          } else if (ev.event === 'error') {
+            throw new Error(ev.message);
+          }
+        }
+      }
+    } catch (err) {
+      setGiError(err.message);
+      setGiStep('form');
+    }
+  };
+
+  const resetGi = () => {
+    setGiStep('form');
+    setGiResult(null);
+    setGiError('');
+    setGiErrors({});
+    setGiAgents({ agent5a: 'pending', agent5b: 'pending', agent5c: 'pending', convergence: 'pending', agent5d: 'pending' });
+  };
+
+  const canRun = giForm.instrument.trim() && giForm.sender.trim() && giForm.target.trim();
+
+  if (giStep === 'form') return (
+    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl">◈</div>
+          <h1 className="text-2xl font-black text-white mb-2">GeoEconomic Instrument Assessment</h1>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-md mx-auto">
+            Five-agent pipeline based on the Farrell & Newman Triangular Framework. Score a geoeconomic instrument across five attributes, assess bilateral leverage, classify strategic utility, and translate the risk profile into investment signals.
+          </p>
+        </div>
+        <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 mb-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Instrument <span className="text-red-400">*</span></label>
+              <input type="text" value={giForm.instrument} onChange={e => setGiField('instrument', e.target.value)}
+                placeholder="e.g. Semiconductor export controls, SWIFT sanctions, Steel tariffs"
+                className={`w-full bg-slate-900 border rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-colors ${giErrors.instrument ? 'border-red-700 focus:border-red-500' : 'border-slate-700 focus:border-teal-500/60'}`} />
+              {giErrors.instrument && <p className="text-red-400 text-xs mt-1">{giErrors.instrument}</p>}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Sender <span className="text-red-400">*</span></label>
+                <input type="text" value={giForm.sender} onChange={e => setGiField('sender', e.target.value)}
+                  placeholder="e.g. United States, EU, China"
+                  className={`w-full bg-slate-900 border rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-colors ${giErrors.sender ? 'border-red-700 focus:border-red-500' : 'border-slate-700 focus:border-teal-500/60'}`} />
+                {giErrors.sender && <p className="text-red-400 text-xs mt-1">{giErrors.sender}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Target <span className="text-red-400">*</span></label>
+                <input type="text" value={giForm.target} onChange={e => setGiField('target', e.target.value)}
+                  placeholder="e.g. China, Russia, sector"
+                  className={`w-full bg-slate-900 border rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-colors ${giErrors.target ? 'border-red-700 focus:border-red-500' : 'border-slate-700 focus:border-teal-500/60'}`} />
+                {giErrors.target && <p className="text-red-400 text-xs mt-1">{giErrors.target}</p>}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Context <span className="text-slate-600 font-normal normal-case">(optional)</span></label>
+              <textarea value={giForm.context} onChange={e => setGiField('context', e.target.value)} rows={2}
+                placeholder="Any relevant context — policy timeline, sectoral focus, investor perspective…"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-teal-500/60 focus:outline-none transition-colors resize-none" />
+            </div>
+          </div>
+          <div className="mt-4 mb-4">
+            <p className="text-xs text-slate-600 mb-2">Quick-fill examples</p>
+            <div className="flex flex-wrap gap-1.5">
+              {GEO_EXAMPLES.map((ex, i) => (
+                <button key={i} onClick={() => { setGiField('instrument', ex.instrument); setGiField('sender', ex.sender); setGiField('target', ex.target); }}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">
+                  {ex.instrument}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={runGi} disabled={!canRun}
+            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(135deg,#0d9488,#059669)' }}>
+            Run Assessment
+          </button>
+          {giError && <div className="mt-4 bg-red-950/50 border border-red-800 rounded-xl p-3"><p className="text-red-300 text-xs">{giError}</p></div>}
+        </div>
+        <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">Pipeline</h2>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {GEO_PIPELINE_DEFS.filter(a => a.parallel).map(a => (
+              <div key={a.key} className="bg-slate-800/60 rounded-xl p-2.5 text-center">
+                <p className="text-teal-400 text-xs font-semibold">{a.key.replace('agent', 'Agent ').toUpperCase()}</p>
+                <p className="text-slate-500 text-xs mt-0.5 leading-tight">{a.sub}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center mb-2"><div className="w-px h-4 bg-slate-700" /></div>
+          {GEO_PIPELINE_DEFS.filter(a => !a.parallel).map(a => (
+            <div key={a.key} className="bg-slate-800/60 rounded-xl p-2.5 mb-2 text-center last:mb-0">
+              <p className="text-slate-300 text-xs font-medium">{a.label.split(' — ')[0]}</p>
+              <p className="text-slate-500 text-xs">{a.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (giStep === 'running') {
+    const parallelComplete = GEO_PIPELINE_PARALLEL.filter(k => giAgents[k] === 'complete').length;
+    return (
+      <div className="h-full flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl animate-pulse">◈</div>
+            <h2 className="text-white font-bold text-lg">Running Assessment</h2>
+            <p className="text-slate-400 text-sm mt-1 truncate max-w-xs mx-auto">{giForm.instrument}</p>
+            <p className="text-slate-600 text-xs mt-0.5">{giForm.sender} → {giForm.target}</p>
+          </div>
+          {/* Parallel tier */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {GEO_PIPELINE_DEFS.filter(a => a.parallel).map(a => {
+              const st = giAgents[a.key];
+              return (
+                <div key={a.key} className={`rounded-xl border p-2.5 transition-all ${st === 'complete' ? 'bg-green-950/25 border-green-900/40' : st === 'running' ? 'bg-teal-950/25 border-teal-800/50' : 'bg-slate-800/30 border-slate-800'}`}>
+                  <div className={`w-5 h-5 rounded-full mx-auto mb-1.5 flex items-center justify-center text-xs ${st === 'complete' ? 'bg-green-500/20 text-green-400' : st === 'running' ? 'bg-teal-500/20 text-teal-400' : 'bg-slate-700 text-slate-600'}`}>
+                    {st === 'complete' ? '✓' : st === 'running' ? '◌' : '○'}
+                  </div>
+                  <p className={`text-xs font-semibold text-center ${st === 'running' ? 'text-teal-300' : st === 'complete' ? 'text-green-300' : 'text-slate-600'}`}>{a.key.replace('agent', 'Agent ').toUpperCase()}</p>
+                  <p className="text-slate-600 text-xs text-center leading-tight mt-0.5">{a.sub.split(' · ')[0]}</p>
+                </div>
+              );
+            })}
+          </div>
+          {parallelComplete === 3 && <div className="flex justify-center mb-2"><div className="w-px h-4 bg-slate-700" /></div>}
+          {/* Sequential tier */}
+          <div className="space-y-2">
+            {GEO_PIPELINE_DEFS.filter(a => !a.parallel).map(a => {
+              const st = giAgents[a.key];
+              if (st === 'pending' && parallelComplete < 3) return null;
+              return (
+                <div key={a.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${st === 'complete' ? 'bg-green-950/25 border-green-900/40' : st === 'running' ? 'bg-teal-950/25 border-teal-800/50' : 'bg-slate-800/30 border-slate-800'}`}>
+                  <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${st === 'complete' ? 'bg-green-500/20 text-green-400' : st === 'running' ? 'bg-teal-500/20 text-teal-400' : 'bg-slate-700 text-slate-600'}`}>
+                    {st === 'complete' ? '✓' : st === 'running' ? '◌' : '○'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-medium ${st === 'running' ? 'text-teal-300' : st === 'complete' ? 'text-green-300' : 'text-slate-500'}`}>{a.label}</p>
+                    <p className="text-slate-600 text-xs truncate">{a.sub}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!giResult) return null;
+  const { synthesis: syn, agents } = giResult;
+  const { agent5a, agent5b, agent5c, agent5d } = agents || {};
+  const sevTier  = syn?.unified_severity_tier || agent5a?.severity_tier || 'MODERATE';
+  const sevScore = syn?.unified_severity ?? agent5a?.severity_score ?? 0;
+  const sevStyle = GEO_SEV[sevTier] || GEO_SEV.MODERATE;
+  const utilCls  = agent5c?.strategic_utility_class;
+  const utilDef  = GEO_UTILITY[utilCls] || { label: utilCls, c: '#94a3b8', b: '#94a3b815' };
+  const confColor = GEO_CONV_C[syn?.convergence_confidence] || '#94a3b8';
+
+  return (
+    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-4xl mx-auto">
+
+        {/* Header */}
+        <div className="flex flex-wrap items-start gap-3 mb-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#0d9488,#059669)' }}>◈</div>
+              <h1 className="text-lg font-black text-white truncate">{giResult.instrument}</h1>
+            </div>
+            <p className="text-slate-500 text-xs pl-10">{giResult.sender} → {giResult.target} · {new Date(giResult.generatedAt).toLocaleDateString()}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {syn?.convergence_confidence && <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: confColor + '20', color: confColor }}>{syn.convergence_confidence} confidence</span>}
+            <button onClick={resetGi} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">New assessment</button>
+          </div>
+        </div>
+
+        {/* Active flags */}
+        {syn?.active_flags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {syn.active_flags.map(f => {
+              const fs = GEO_FLAG[f] || { c: '#94a3b8', b: '#94a3b815' };
+              return <span key={f} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: fs.b, color: fs.c }}>⚑ {f.replace(/_/g, ' ')}</span>;
+            })}
+          </div>
+        )}
+
+        {/* Severity + Strategic Utility */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="rounded-2xl p-5" style={{ background: sevStyle.b, border: `1px solid ${sevStyle.c}30` }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: sevStyle.c + 'aa' }}>Severity Score</p>
+            <div className="flex items-end gap-3 mb-4">
+              <span className="text-4xl font-black tabular-nums" style={{ color: sevStyle.c }}>{Number(sevScore).toFixed(1)}</span>
+              <div>
+                <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{ background: sevStyle.b, color: sevStyle.c, border: `1px solid ${sevStyle.c}40` }}>{sevTier}</span>
+                <p className="text-slate-500 text-xs mt-1">out of 10</p>
+              </div>
+            </div>
+            {agent5a?.score_rationale && <p className="text-slate-400 text-xs leading-relaxed">{agent5a.score_rationale}</p>}
+          </div>
+          <div className="rounded-2xl p-5" style={{ background: utilDef.b, border: `1px solid ${utilDef.c}30` }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: utilDef.c + 'aa' }}>Strategic Utility</p>
+            <p className="text-white font-bold text-sm mb-3">{utilDef.label}</p>
+            <div className="space-y-1.5 mb-3">
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Time horizon</span><span className="text-slate-300 font-medium capitalize">{(agent5c?.time_horizon || '—').replace(/_/g, ' ')}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Escalation probability</span><span className="text-slate-300 font-medium">{agent5c?.escalation_probability ?? '—'}%</span></div>
+              <div className="flex justify-between text-xs"><span className="text-slate-500">Classification</span><span className="text-slate-300 font-medium capitalize">{agent5c?.structural_vs_transient ?? '—'}</span></div>
+            </div>
+            {agent5c?.class_rationale && <p className="text-slate-400 text-xs leading-relaxed">{agent5c.class_rationale}</p>}
+          </div>
+        </div>
+
+        {/* Attribute Breakdown */}
+        {agent5a?.attribute_scores && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <h2 className="text-white font-bold text-sm mb-4">Attribute Breakdown</h2>
+            <div className="space-y-3">
+              {GEO_ATTRIBUTES.map(attr => {
+                const score  = parseFloat(agent5a.attribute_scores[attr.key]) || 0;
+                const isDom  = attr.key === agent5a.dominant_attribute;
+                const isLow  = attr.key === agent5a.lowest_attribute;
+                const col    = score >= 7 ? '#ef4444' : score >= 5 ? '#f97316' : score >= 3 ? '#f59e0b' : '#10b981';
+                return (
+                  <div key={attr.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-slate-300">{attr.label}</span>
+                        {isDom && <span className="text-xs px-1.5 py-0.5 rounded bg-teal-900/40 text-teal-400 font-medium">dominant</span>}
+                        {isLow && <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-500 font-medium">lowest</span>}
+                        <span className="text-xs text-slate-600">{attr.weight}%</span>
+                      </div>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: col }}>{score.toFixed(1)}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(score / 10) * 100}%`, background: col }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Bilateral Leverage */}
+        {agent5b && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-bold text-sm">Bilateral Leverage</h2>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${agent5b.leverage_holder === 'sender' ? 'bg-blue-900/30 text-blue-400' : agent5b.leverage_holder === 'target' ? 'bg-orange-900/30 text-orange-400' : 'bg-slate-700 text-slate-400'}`}>
+                {agent5b.leverage_holder === 'sender' ? giResult.sender : agent5b.leverage_holder === 'target' ? giResult.target : 'Balanced'} holds leverage
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-blue-300 text-xs font-semibold">Sender: {giResult.sender}</p>
+                  <span className="text-xs font-bold text-blue-300">{agent5b.sender_capacity?.score ?? '—'}/10</span>
+                </div>
+                {agent5b.sender_capacity?.dominant_advantage && <p className="text-slate-400 text-xs mb-1.5"><span className="text-slate-500">Key advantage: </span>{agent5b.sender_capacity.dominant_advantage}</p>}
+                {agent5b.sender_capacity?.rationale && <p className="text-slate-500 text-xs leading-relaxed">{agent5b.sender_capacity.rationale}</p>}
+              </div>
+              <div className="bg-orange-950/20 border border-orange-900/30 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-orange-300 text-xs font-semibold">Target: {giResult.target}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded font-semibold ${agent5b.target_capacity?.vulnerability_level === 'HIGH' ? 'bg-red-900/30 text-red-400' : agent5b.target_capacity?.vulnerability_level === 'MODERATE' ? 'bg-orange-900/30 text-orange-400' : 'bg-green-900/30 text-green-400'}`}>{agent5b.target_capacity?.vulnerability_level || '?'} vulnerability</span>
+                </div>
+                {agent5b.target_capacity?.rationale && <p className="text-slate-500 text-xs leading-relaxed">{agent5b.target_capacity.rationale}</p>}
+              </div>
+            </div>
+            {agent5b.chokepoints_identified?.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Chokepoints identified</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {agent5b.chokepoints_identified.map((cp, i) => <span key={i} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">{cp}</span>)}
+                </div>
+              </div>
+            )}
+            {agent5b.retaliation_vectors?.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Retaliation vectors <span className={`ml-1 px-1.5 py-0.5 rounded ${agent5b.retaliation_capacity === 'HIGH' ? 'bg-red-900/30 text-red-400' : agent5b.retaliation_capacity === 'MODERATE' ? 'bg-orange-900/30 text-orange-400' : 'bg-green-900/30 text-green-400'}`}>{agent5b.retaliation_capacity}</span></p>
+                <div className="space-y-1">
+                  {agent5b.retaliation_vectors.map((rv, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-orange-400 text-xs flex-shrink-0">•</span><p className="text-slate-400 text-xs leading-relaxed">{rv}</p></div>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Investment Signals */}
+        {agent5d && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <h2 className="text-white font-bold text-sm mb-4">Investment Signals</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {[
+                { key: 'first_order_shocks',  label: 'First-Order Shocks',  color: '#ef4444' },
+                { key: 'second_order_shocks', label: 'Second-Order Shocks', color: '#f59e0b' },
+                { key: 'beneficiaries',       label: 'Beneficiaries',       color: '#10b981' },
+              ].map(({ key, label, color }) => {
+                const items = agent5d[key] || [];
+                return (
+                  <div key={key}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color }}>{label}</p>
+                    <div className="space-y-2">
+                      {items.map((item, i) => {
+                        const isShock = key !== 'beneficiaries';
+                        const dir = isShock ? GEO_DIR[item.direction] : null;
+                        return (
+                          <div key={i} className="bg-slate-900/50 rounded-xl p-2.5">
+                            <div className="flex items-start gap-1.5 mb-1">
+                              {dir && <span className="text-xs font-bold flex-shrink-0" style={{ color: dir.c }}>{dir.label}</span>}
+                              <p className="text-slate-200 text-xs font-medium leading-snug">{isShock ? item.sector : item.name}</p>
+                              {isShock && item.magnitude && <span className="text-slate-600 text-xs flex-shrink-0 ml-auto">{item.magnitude}</span>}
+                            </div>
+                            <p className="text-slate-500 text-xs leading-relaxed">{isShock ? item.rationale : item.thesis}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Portfolio Signals */}
+            {agent5d.portfolio_signals?.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-3">Portfolio Signals</p>
+                <div className="space-y-2">
+                  {agent5d.portfolio_signals.map((sig, i) => {
+                    const ss = GEO_SIG[sig.type] || { c: '#94a3b8', b: '#94a3b815' };
+                    return (
+                      <div key={i} className="bg-slate-900/40 rounded-xl p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white text-xs font-medium flex-1 min-w-0">{sig.signal}</span>
+                          <span className="text-xs px-2 py-0.5 rounded font-semibold flex-shrink-0" style={{ background: ss.b, color: ss.c }}>{sig.type}</span>
+                          <span className="text-xs flex-shrink-0" style={{ color: GEO_CONV_C[sig.conviction] || '#94a3b8' }}>{sig.conviction}</span>
+                        </div>
+                        {sig.rationale && <p className="text-slate-500 text-xs leading-relaxed">{sig.rationale}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Hedging Recommendations */}
+            {agent5d.hedging_recommendations?.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Hedging Recommendations</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {agent5d.hedging_recommendations.map((h, i) => <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-slate-700 text-slate-300">{h}</span>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Strategic Summary */}
+        {(syn?.strategic_summary || syn?.key_risks?.length > 0) && (
+          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6">
+            <h2 className="text-white font-bold text-sm mb-3">Strategic Assessment</h2>
+            {syn.strategic_summary && <p className="text-slate-400 text-xs leading-relaxed mb-4">{syn.strategic_summary}</p>}
+            {syn.key_risks?.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Key risks</p>
+                <div className="space-y-1">
+                  {syn.key_risks.map((r, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-red-400 text-xs flex-shrink-0 mt-0.5">⚑</span><p className="text-slate-400 text-xs leading-relaxed">{r}</p></div>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="text-center pb-4">
+          <button onClick={resetGi} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">New assessment</button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ── Big Cycle Engine static data ─────────────────────────────────────────────
 const EMPIRE_STAGES_DATA = [
   { n: 1, label: 'New Order / Rising',  c: '#10b981', b: '#10b98112', p: 'Aggressive long' },
@@ -6670,6 +7170,17 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </span>
             {activeTab === 'bigcycleengine' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
           </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geoinstrument' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <span className="text-base leading-none">◈</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">GeoEcon Instrument</span>
+              <span className="block text-slate-600 text-xs">Farrell & Newman framework</span>
+            </span>
+            {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
+          </button>
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
@@ -6856,6 +7367,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* GeoEconomic Instrument Assessment — Farrell & Newman framework */}
+        {activeTab === 'geoinstrument' && (
+          <div className="h-full overflow-y-auto">
+            <GeoInstrumentTool />
+          </div>
+        )}
+
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
@@ -6948,6 +7466,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       Open Big Cycle Engine →
                     </button>
                   </div>
+                  <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#0d948818', color: '#2dd4bf', border: '1.5px solid #0d948825' }}>◈</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">GeoEcon Instrument Assessment</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Farrell & Newman geoeconomic instrument framework</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Five-agent pipeline that scores a geoeconomic instrument on precision, impact, circumvention resistance, visibility, and speed — then assesses bilateral leverage, classifies strategic utility, and translates the risk profile into portfolio signals.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['Severity Score', 'Bilateral Leverage', 'Strategic Utility', 'Investment Signals', 'Escalation Risk'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
+                    >
+                      Open Instrument Assessment →
+                    </button>
+                  </div>
                 </div>
               </section>
 
@@ -7015,7 +7556,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && status === 'idle' && (
           <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -7120,7 +7661,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -7156,7 +7697,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'rascef' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isComplete && (
           <div className="min-h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-slate-800 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
