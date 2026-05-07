@@ -6887,7 +6887,7 @@ function PromptEngineeringPackageTool() {
 
   const generateTaskBrief = () => {
     const f = tbForm;
-    const brief = [
+    const briefText = [
       'TASK BRIEF',
       '─'.repeat(41),
       `Task:          ${f.task}`,
@@ -6896,10 +6896,8 @@ function PromptEngineeringPackageTool() {
       `Constraints:   ${f.constraints}`,
       `Output format: ${f.outputFormat}`,
       f.background ? `Background:    ${f.background}` : null,
-      '',
-      '─'.repeat(41),
-      'PROMPT',
-      '─'.repeat(41),
+    ].filter(l => l !== null).join('\n');
+    const promptText = [
       `You are a specialist in [domain].`,
       '',
       `Task: ${f.task}`,
@@ -6909,7 +6907,8 @@ function PromptEngineeringPackageTool() {
       `Constraints: ${f.constraints}`,
       `Output format: ${f.outputFormat}`,
     ].filter(l => l !== null).join('\n');
-    setTbResult(brief);
+    setTbBrief(briefText);
+    setTbPrompt(promptText);
   };
 
   const modeObj = ADVERSARIAL_MODES.find(m => m.key === advMode);
@@ -7043,20 +7042,34 @@ function PromptEngineeringPackageTool() {
         {pkgSection === 'taskbrief' && (
           <div className="px-4 py-5 md:px-8">
             <div className="max-w-2xl mx-auto">
-              {tbResult ? (
+              {tbBrief ? (
                 <>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-white font-semibold text-sm">Task Brief</span>
-                    <button onClick={() => setTbResult(null)} className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">Build another</button>
+                    <button onClick={() => { setTbBrief(null); setTbPrompt(null); setTbCopied(''); }} className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 transition-colors">Build another</button>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-2 font-mono">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-slate-600 uppercase tracking-wider">Task Brief</p>
+                      <button
+                        onClick={() => copyText(tbBrief, setTbCopied, 'brief')}
+                        className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
+                        style={tbCopied === 'brief' ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
+                      >{tbCopied === 'brief' ? '✓ Copied' : 'Copy brief'}</button>
+                    </div>
+                    <pre className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">{tbBrief}</pre>
                   </div>
                   <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-3 font-mono">
-                    <pre className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">{tbResult}</pre>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-slate-600 uppercase tracking-wider">AI-Ready Prompt</p>
+                      <button
+                        onClick={() => copyText(tbPrompt, setTbCopied, 'prompt')}
+                        className="text-xs px-2.5 py-1 rounded-lg border transition-colors"
+                        style={tbCopied === 'prompt' ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
+                      >{tbCopied === 'prompt' ? '✓ Copied' : 'Copy prompt'}</button>
+                    </div>
+                    <pre className="text-slate-200 text-xs leading-relaxed whitespace-pre-wrap">{tbPrompt}</pre>
                   </div>
-                  <button
-                    onClick={() => copyText(tbResult, setTbCopied, 'brief')}
-                    className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
-                    style={tbCopied === 'brief' ? { background: '#10b98115', color: '#10b981', borderColor: '#10b98130' } : { background: '#1e293b', color: '#94a3b8', borderColor: '#334155' }}
-                  >{tbCopied === 'brief' ? '✓ Copied' : 'Copy task brief'}</button>
                 </>
               ) : (
                 <>
@@ -7129,8 +7142,8 @@ function PromptEngineeringPackageTool() {
                         </div>
                         <p className="text-slate-400 text-xs leading-relaxed mb-3">{t.whatItIs}</p>
                         <div className="space-y-1 mb-3">
-                          {t.whenYes.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-green-400 text-xs flex-shrink-0 mt-0.5">✓</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
-                          {t.whenNo.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-red-400 text-xs flex-shrink-0 mt-0.5">✗</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
+                          {t.whenToUse.yes.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-green-400 text-xs flex-shrink-0 mt-0.5">✓</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
+                          {t.whenToUse.no.map((w, i) => <div key={i} className="flex items-start gap-1.5"><span className="text-red-400 text-xs flex-shrink-0 mt-0.5">✗</span><p className="text-slate-500 text-xs leading-snug">{w}</p></div>)}
                         </div>
                         <button
                           onClick={() => setTechOpen(p => ({ ...p, [t.key]: !isOpen }))}
