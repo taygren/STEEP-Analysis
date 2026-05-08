@@ -5704,6 +5704,7 @@ function GeoInstrumentTool({ preload = null, onPreloadConsumed, onResult }) {
           } else if (ev.event === 'complete') {
             setGiResult(ev.result);
             onResult?.(ev.result);
+            try { localStorage.setItem('stint-gi-context', JSON.stringify(ev.result)); } catch {}
             setGiAgents({ agent5a: 'complete', agent5b: 'complete', agent5c: 'complete', convergence: 'complete', agent5d: 'complete' });
             setGiStep('result');
           } else if (ev.event === 'error') {
@@ -6408,7 +6409,7 @@ const GT_DOMAIN = {
   B: { label: 'Bargaining',   bg: '#d9770618', color: '#fbbf24', border: '#d9770640' },
   C: { label: 'Competition',  bg: '#dc262618', color: '#f87171', border: '#dc262640' },
   D: { label: 'Signaling',    bg: '#0d948818', color: '#2dd4bf', border: '#0d948840' },
-  E: { label: 'Geoeconomics', bg: '#082f4918', color: '#38bdf8', border: '#082f4940' },
+  E: { label: 'GeoEcon', bg: '#7c2d1218', color: '#fb923c', border: '#7c2d1240' },
 };
 const GT_DIFF = {
   Entry:        { bg: '#10b98118', color: '#34d399' },
@@ -6432,6 +6433,11 @@ const GT_AI_LABELS = {
   poker_ai:              { name: 'Calibrated Bluffer',     desc: 'Called with strong hands and bluffed weak hands at the equilibrium frequency.' },
   skeptical_dm:          { name: 'Skeptical Decision-Maker', desc: 'Weighed your recommendation against the prior probability of alignment. Followed credible advice, discounted suspect advice.' },
   separating_employer:   { name: 'Sophisticated Employer', desc: 'Offered high wages to credentialed applicants and low wages to uncredentialed ones, consistent with a separating equilibrium.' },
+  sovereign_rational:    { name: 'Sovereign Rational Actor', desc: 'Calibrated aggressiveness to the bilateral leverage ratio. Engaged diplomatically when outmatched; escalated when holding structural advantage.' },
+  escalate_respond:      { name: 'Escalation Mirror',       desc: 'Matched your previous round posture. Cooperated initially, then responded to each escalation in kind.' },
+  mercantilist:          { name: 'Mercantilist Defector',   desc: 'Defected from multilateral arrangements to capture bilateral surplus, treating every round as an independent trade-gain opportunity.' },
+  debt_hawk:             { name: 'Debt Hawk',               desc: 'Held firm on restructuring terms, accepting concessions only when the offered haircut cleared the crisis threshold.' },
+  devalue_trigger:       { name: 'Devalue Trigger',         desc: 'Maintained the peg under pressure, then devalued sharply when your restraint signaled an exploitable opportunity.' },
 };
 const GT_STORAGE_KEY = 'stint-gametheory-state';
 const GT_SCENARIOS = [
@@ -6560,57 +6566,134 @@ const GT_SCENARIOS = [
     realWorldAnchor:"Analyst recommendations from firms with investment banking conflicts, internal advisors pushing preferred strategies, and regulatory capture all produce babbling: messages that convey less than their apparent content.",
     insight:"I learned that credible communication requires aligned interests. When incentives diverge, words lose information, and the receiver knows it.",
     scoreLogic:()=>'coop' },
-  { id:'e1', title:'The Tariff Standoff', domain:'E', difficulty:'Intermediate',
-    premise:"Two economic powers face a bilateral trade dispute. Each can escalate with tariffs or hold back. Escalating when the rival holds back captures market advantage. Both escalating triggers a trade war that costs both sides. Neither party observes the other's posture before committing.",
-    mechanic:"One-shot simultaneous choice. No coordination mechanism exists.",
-    interfaceType:'binary', options:['Hold Back','Escalate'],
-    matrix:{ rows:['Hold Back','Escalate'], cols:['Hold Back','Escalate'], cells:[[[3,3],[0,5]],[[5,0],[-1,-1]]], unit:'pts' },
-    aiStrategies:['mixed_hawk','random'],
-    ne:'Mixed strategy: each escalates with probability proportional to gain over conflict cost',
-    concept:'Hawk-Dove in Trade Policy, Escalation Dynamics',
-    conceptDef:"The Tariff Standoff is a Hawk-Dove game applied to trade. Escalation wins against restraint but is mutually costly when both powers escalate simultaneously. No pure-strategy Nash Equilibrium exists where one side always dominates. The unique mixed-strategy NE has each power randomizing based on the ratio of potential gains to total conflict cost. Mutual restraint is efficient but not individually stable.",
-    realWorldAnchor:"US-China semiconductor export controls, EU retaliatory tariffs on US steel, and SWIFT exclusion decisions all fit this structure. Calibrated escalation thresholds matter more than geopolitical narrative in determining outcomes.",
-    insight:"I learned that trade conflicts are not zero-sum. Mutual escalation destroys value for both sides, yet escalating is individually rational unless both parties credibly commit to restraint. The mixed-strategy equilibrium explains why real trade disputes neither collapse into full war nor resolve cleanly.",
-    neRow:0, neCol:0, scoreLogic:(ph,ah)=>(ph===0&&ah===0)?'coop':(ph===1&&ah===1)?'sub':'ne',
-    contextBanner:(bce,gi)=>{
+  { id:'e1', title:'The Sanctions Game', domain:'E', difficulty:'Intermediate',
+    premise:"Two economic powers face a bilateral confrontation. Each simultaneously chooses to impose sanctions or to engage diplomatically. The structural leverage between the parties shapes how credible each threat is, but neither side observes the other's posture before committing.",
+    mechanic:"One-shot simultaneous choice. No coordination mechanism exists. If the GeoEcon Instrument has been run, the bilateral leverage ratio adjusts the opponent's strategic calculus.",
+    interfaceType:'binary', options:['Sanction','Engage'],
+    ctxSource:'gi',
+    matrix:{ rows:['Sanction','Engage'], cols:['Sanction','Engage'], cells:[[[-1,-1],[5,0]],[[0,5],[3,3]]], unit:'pts' },
+    aiStrategies:['sovereign_rational','random'],
+    ne:'Mixed strategy: sanctioning probability scales with leverage asymmetry',
+    concept:'Coercive Bargaining, Outside Option Theory',
+    conceptDef:"The Sanctions Game is a coordination-with-conflict structure. No pure-strategy Nash Equilibrium exists: each side's best response depends on the rival's choice, which cannot be observed before commitment. The mixed-strategy NE is parameterized by the relative cost of mutual sanctions and the size of coercive gains. A party with superior outside options (bilateral leverage) can credibly threaten sanctions at lower cost, shifting the equilibrium toward their preferred outcome. The key insight: leverage advantages are not decisive on their own -- they must be legible to the adversary to shift behavior.",
+    realWorldAnchor:"US-China semiconductor controls, SWIFT exclusions, and OFAC designations all involve a simultaneous choice between escalatory and diplomatic postures before observing the target's response. The leverage ratio -- export dependencies, reserve holdings, alternative market access -- determines how much the threat alone shifts behavior without requiring execution.",
+    insight:"I learned that sanctions threats work best when the target believes the cost to the sender is low relative to the cost imposed. Actual imposition signals credibility but also reveals that persuasion has failed. The leverage ratio is the prior on how that equilibrium probability is distributed.",
+    neRow:1, neCol:1,
+    scoreLogic:(ph,ah)=>ph===1?(ah===1?'coop':'sub'):'ne',
+    contextBanner:(ctx)=>{
+      const gi=ctx?.gi;
       if (!gi?.synthesis) return null;
       const sev=gi.synthesis.unified_severity_tier||'';
       const holder=gi.agents?.agent5b?.leverage_holder||'unknown';
-      return { title:`GeoInstrument Context: ${gi.instrument||''}`, text:`Severity tier: ${sev}. Leverage holder: ${holder}. This scenario reflects the escalation structure of your recent instrument assessment.` };
+      const lr=gi.agents?.agent5b?.leverage_ratio??gi.synthesis?.leverage_ratio??'?';
+      return { title:`GeoInstrument Context: ${gi.instrument||'prior assessment'}`, text:`Severity tier: ${sev}. Leverage holder: ${holder}. Leverage ratio: ${lr}. The AI opponent's sanctioning probability has been calibrated to this leverage structure.` };
     }
   },
-  { id:'e2', title:'Debt Restructuring Standoff', domain:'E', difficulty:'Advanced',
-    premise:"A creditor power holds leverage over a debt-distressed nation. You set the concession level -- what percentage of the outstanding debt to forgive. The debtor has a minimum acceptable haircut below which they will pursue alternative financing, triggering a default and costing you any recovery.",
-    mechanic:"Slider: debt haircut offered (0-100%). The debtor's minimum acceptable threshold is hidden from you.",
-    interfaceType:'slider', sliderMin:0, sliderMax:100, sliderDefault:40, sliderLabel:'debt haircut offered (%)',
-    aiStrategies:['fair_threshold'],
-    ne:'Offer at the debtor reservation point (minimum acceptable haircut)',
-    concept:'Creditor-Debtor Bargaining, Debt Overhang',
-    conceptDef:"Debt restructuring is an ultimatum game where the creditor proposes and the debtor accepts or defaults. The creditor's theoretically optimal strategy is to offer exactly the debtor's reservation point. In practice, creditors over-hold because they cannot observe the debtor's true distress threshold, triggering costly defaults that destroy value for both parties. Debt overhang occurs when outstanding claims are so large that the debtor cannot credibly commit to repayment, suppressing investment and growth regardless of the formal terms.",
-    realWorldAnchor:"IMF structural adjustment programs, China's Belt and Road debt negotiations, and European sovereign debt restructuring (Greece 2015) all exhibit this structure. The creditor with the best information about the debtor's BATNA wins; the debtor with the most credible exit option -- alternative lenders, domestic political constraints -- extracts the most relief.",
-    insight:"I learned that creditor leverage is bounded by the debtor's outside options. Overreach triggers default, which destroys value for both parties. The strategic core of debt diplomacy is identifying -- not ignoring -- the counterpart's true walk-away point.",
-    contextBanner:(bce,gi)=>{
-      if (!bce?.layers?.layer2) return null;
-      const l2=bce.layers.layer2;
-      return { title:`Big Cycle Context: ${bce.subject||''}`, text:`Debt status: ${(l2.debt_status||'').replace(/_/g,' ')}. Printing probability: ${l2.printing_probability??'?'}%. This negotiation maps onto the debt sustainability conditions from your Big Cycle analysis.` };
+  { id:'e2', title:'The Arms Race', domain:'E', difficulty:'Advanced',
+    premise:"Two rival powers allocate defense budgets over three planning cycles. Higher spending provides relative security advantage but is costly. In later imperial cycles, spending carries higher debt-service burden -- mutual arms competition extracts more from both economies without improving relative security.",
+    mechanic:"Three rounds. Each round set your defense spending allocation (0-80%). The AI mirrors and slightly adjusts its spending each round. If the Big Cycle Engine has been run, the empire stage adjusts the cost multiplier for all spending.",
+    interfaceType:'multiround', roundInterface:'slider', rounds:3,
+    sliderMin:0, sliderMax:80, sliderDefault:25, sliderLabel:'defense allocation (%)',
+    ctxSource:'bce',
+    options:[], matrix:null, aiStrategies:['escalate_respond'],
+    ne:'Symmetric spending at the level where marginal security return equals marginal cost',
+    concept:'Security Dilemma, Action-Reaction Spiral',
+    conceptDef:"An arms race is a continuous-action security dilemma where the Nash Equilibrium is mutual overspending relative to the cooperative outcome. Each party's dominant response is to increase spending whenever the rival increases, creating an action-reaction spiral. The cooperative outcome -- mutual restraint -- is Pareto-superior but individually unstable. In later imperial cycles, the cost multiplier rises because debt servicing competes with security spending, narrowing sustainable equilibria and raising the likelihood of fiscal crisis rather than military resolution.",
+    realWorldAnchor:"US-Soviet military spending during the Cold War, China-US naval competition, and Gulf state defense procurement all follow action-reaction dynamics. The empire stage variable maps onto Dalio's observation that late-cycle empires continue military spending even as debt servicing crowds out investment, accelerating relative decline.",
+    insight:"I learned that arms races are not won by spending more -- they are lost by spending more than the economic base can sustain. The security dilemma is not solved by capability; it is managed by making restraint credible. Mutual transparency about cost structures, not intentions, is the actual lever.",
+    contextBanner:(ctx)=>{
+      const bce=ctx?.bce;
+      if (!bce?.synthesis) return null;
+      const st=bce.synthesis.empire_stage??bce.layers?.layer1?.empire_stage??'?';
+      const num=Number(st)||3;
+      const mult=Math.min(2.0,Math.max(0.6,0.8+num*0.15)).toFixed(2);
+      return { title:`Big Cycle Context: ${bce.subject||'prior analysis'}`, text:`Empire Stage ${st}. Spending cost multiplier: ${mult}x. Late-cycle debt burden increases the real cost of each unit of defense allocation in this scenario.` };
     }
   },
-  { id:'e3', title:'Sanctions Coalition', domain:'E', difficulty:'Advanced',
-    premise:"A multilateral sanctions regime requires participation from multiple powers to be effective. Each round you decide whether to join the coalition or defect to capture bilateral trade gains with the target. Coalition membership is costly, but a coalition without critical mass fails entirely -- and your costs are wasted.",
-    mechanic:"Three rounds. Each round choose Join or Defect. Effective coalitions require both parties to participate. The AI's strategy is revealed only at debrief.",
-    interfaceType:'multiround', roundInterface:'binary', rounds:3,
-    options:['Join Coalition','Defect'],
-    matrix:null, aiStrategies:['titfortat','alwaysdefect','coordinate'],
-    ne:'Defect (dominant strategy in one-shot version)',
-    concept:'Coalition Formation, Critical Mass Problems',
-    conceptDef:"In a one-shot coalition game, defection dominates: you capture trade gains regardless of others' choices, while the coalition bears costs. With repetition and a tit-for-tat enforcement structure, cooperation can be sustained when the shadow of future retaliation is sufficiently large. Critical mass problems emerge when coalitions require a minimum number of participants to achieve effectiveness -- a single major defection can unravel the entire regime because remaining members reassess their own participation calculus.",
-    realWorldAnchor:"Russia sanctions coordination (2022), Iran JCPOA membership dynamics, OPEC+ production agreements, and WTO compliance enforcement all exhibit critical mass coalition structure. One major defector shifts the cost-benefit calculus for all remaining members.",
-    insight:"I learned that effective coalitions require each member to believe the others will stay. Credible tit-for-tat commitments -- not declarations of solidarity -- sustain cooperation that one-shot logic destroys. The defection incentive is always present; it is only suppressed by credible future punishment.",
-    contextBanner:(bce,gi)=>{
+  { id:'e3', title:'The Currency War', domain:'E', difficulty:'Intermediate',
+    premise:"Two trade rivals each manage their currency peg. Devaluing captures export competitiveness, but if both devalue, neither gains and both suffer inflationary and trade disruption costs. Holding the peg is mutually optimal but individually fragile.",
+    mechanic:"One-shot simultaneous choice. Neither party observes the other's currency decision before committing. If the GeoEcon Instrument has been run, bilateral leverage shapes the probability the opponent devalues first.",
+    interfaceType:'binary', options:['Devalue','Hold Peg'],
+    ctxSource:'gi',
+    matrix:{ rows:['Devalue','Hold Peg'], cols:['Devalue','Hold Peg'], cells:[[[-2,-2],[4,-3]],[[-3,4],[2,2]]], unit:'pts' },
+    aiStrategies:['devalue_trigger','random'],
+    ne:'(Devalue, Devalue): devaluation is the dominant strategy',
+    concept:'Competitive Devaluation, Beggar-Thy-Neighbor Policy',
+    conceptDef:"Currency competition is a Prisoner's Dilemma applied to exchange rates. Devaluation weakly dominates holding the peg: it performs better against a holder and better against a devaluer. The Nash Equilibrium is mutual devaluation, which produces a net loss for both relative to mutual peg-maintenance. The term 'beggar-thy-neighbor' reflects the one-sided gain in the asymmetric case. Enforcement of peg coordination requires a credible multilateral mechanism -- such as Bretton Woods or a currency board -- that removes the defection option or imposes sufficient punishment.",
+    realWorldAnchor:"China's renminbi management, US-China currency manipulation disputes (2019), and competitive devaluations in emerging markets during dollar-tightening cycles all follow this structure. The G7/G20 framework attempts to sustain cooperative currency management by making devaluation internationally costly via reputational and diplomatic channels.",
+    insight:"I learned that currency cooperation is fragile because the temptation to devalue is always present. Both sides prefer mutual peg maintenance, but neither side can trust the other to hold without an external enforcement mechanism. Leverage asymmetry shifts who devalues first, not whether someone does.",
+    neRow:0, neCol:0,
+    scoreLogic:(ph,ah)=>ph===1?(ah===1?'coop':'sub'):'ne',
+    contextBanner:(ctx)=>{
+      const gi=ctx?.gi;
       if (!gi?.agents?.agent5b) return null;
       const b=gi.agents.agent5b;
-      const cps=b.chokepoints_identified?.length?` Chokepoints: ${b.chokepoints_identified.slice(0,2).join(', ')}.`:'';
-      return { title:`GeoInstrument Context: ${gi.instrument||''}`, text:`Retaliation capacity: ${b.retaliation_capacity||'unknown'}.${cps} This coalition scenario is informed by the leverage structure of your instrument assessment.` };
+      const lr=b.sender_capacity?.score??b.leverage_ratio??'?';
+      return { title:`GeoInstrument Context: ${gi.instrument||'prior assessment'}`, text:`Bilateral leverage ratio: ${lr}. Target circumvention capacity: ${b.target_capacity?.circumvention_score??'?'}. High circumvention capacity increases the probability the opponent devalues preemptively rather than holding the peg.` };
+    }
+  },
+  { id:'e4', title:'Trade Coalition', domain:'E', difficulty:'Entry',
+    premise:"A multilateral trade framework requires both major powers to participate in order to function. Each independently decides whether to join or defect. Defecting captures bilateral surplus outside the framework. If both defect, both lose the cooperative gains -- but defection still dominates individually.",
+    mechanic:"One-shot simultaneous choice. Coalition benefits depend on both parties joining. If the GeoEcon Instrument has been run, the severity tier indicates how mercantilist the opponent's recent behavior has been.",
+    interfaceType:'binary', options:['Join','Defect'],
+    ctxSource:'gi',
+    matrix:{ rows:['Join','Defect'], cols:['Join','Defect'], cells:[[[3,3],[0,4]],[[4,0],[1,1]]], unit:'pts' },
+    aiStrategies:['mercantilist','coordinate','random'],
+    ne:'(Defect, Defect): defection is the dominant strategy',
+    concept:"Trade Prisoner's Dilemma, Coalition Fragility",
+    conceptDef:"Trade coalition membership is a Prisoner's Dilemma. Defecting -- capturing bilateral surplus outside the framework -- weakly dominates joining regardless of the rival's choice. The Nash Equilibrium is mutual defection at (1,1), which is strictly worse than mutual cooperation at (3,3). Sustaining coalition membership requires either a repeated-game structure (tit-for-tat enforcement, shadow of the future) or an external mechanism that raises the cost of defection. In one-shot interactions, defection is individually rational and collectively destructive.",
+    realWorldAnchor:"WTO compliance dynamics, TPP/CPTPP membership decisions, and OPEC+ production cut adherence all follow this structure. A mercantilist actor treats every trade round as an independent extraction opportunity, undermining framework stability. Effective trade architecture must alter the payoff structure, not rely on goodwill.",
+    insight:"I learned that trade cooperation is not about goodwill -- it is about changing the payoff structure so defection is no longer dominant. The coalition fragility problem is structural, not dispositional. The institutional solution is to raise the cost of defection until the game no longer resembles a Prisoner's Dilemma.",
+    neRow:1, neCol:1,
+    scoreLogic:(ph,ah)=>ph===0?(ah===0?'coop':'sub'):'ne',
+    contextBanner:(ctx)=>{
+      const gi=ctx?.gi;
+      if (!gi?.synthesis) return null;
+      const sev=gi.synthesis.unified_severity_tier||'';
+      const cls=gi.synthesis.strategic_utility_class||'';
+      return { title:`GeoInstrument Context: ${gi.instrument||'prior assessment'}`, text:`Severity: ${sev}. Strategic utility class: ${cls}. A high-severity coercive instrument signals elevated defection probability in this trade game.` };
+    }
+  },
+  { id:'e5', title:'Sovereign Debt Negotiation', domain:'E', difficulty:'Advanced',
+    premise:"You are the creditor in a sovereign debt restructuring. You propose a haircut -- the percentage of face value forgiven. The debtor government has a minimum acceptable haircut below which they will pursue alternative financing or default, leaving you with nothing. The debtor's walk-away point is not disclosed.",
+    mechanic:"Slider: debt haircut offered (0-80%). The debtor's minimum acceptable threshold is hidden. If the Big Cycle Engine has been run, the debt sustainability classification narrows or widens the debtor's likely reservation range.",
+    interfaceType:'slider', sliderMin:0, sliderMax:80, sliderDefault:40, sliderLabel:'haircut offered (%)',
+    ctxSource:'bce',
+    aiStrategies:['debt_hawk','fair_threshold'],
+    ne:'Offer at the debtor reservation point (minimum acceptable haircut)',
+    concept:'Creditor-Debtor Bargaining, Debt Overhang',
+    conceptDef:"Sovereign debt restructuring is an ultimatum game where the creditor proposes and the debtor accepts or walks away. The theoretically optimal creditor strategy is to offer exactly the debtor's reservation value. In practice, creditors over-hold because they cannot observe the debtor's true distress threshold, producing costly deadlocks. Debt overhang describes a condition where the outstanding debt stock is so large that the debtor cannot credibly commit to repayment, suppressing investment regardless of formal terms. The creditor's BATNA -- recovery rates, secondary market prices, alternative claims -- determines actual leverage.",
+    realWorldAnchor:"IMF structural adjustment conditionality, China's Belt and Road renegotiations (Zambia, Sri Lanka), and Greek sovereign debt negotiations (2015) all exhibit this structure. Creditors that underestimate the debtor's outside options trigger strategic defaults that destroy value for both parties.",
+    insight:"I learned that creditor leverage is bounded by the debtor's exit options, not by the nominal debt stock. Overreach triggers default, which destroys value for both parties. The strategic core of debt diplomacy is estimating the counterpart's walk-away point -- not ignoring it.",
+    contextBanner:(ctx)=>{
+      const bce=ctx?.bce;
+      if (!bce?.layers?.layer2) return null;
+      const l2=bce.layers.layer2;
+      const ds=(l2.debt_status||'').replace(/_/g,' ');
+      const pp=l2.printing_probability??'?';
+      return { title:`Big Cycle Context: ${bce.subject||'prior analysis'}`, text:`Debt status: ${ds}. Printing probability: ${pp}%. The debtor's minimum acceptable haircut has been parameterized from this debt sustainability classification.` };
+    }
+  },
+  { id:'e6', title:'The Escalation Ladder', domain:'E', difficulty:'Advanced',
+    premise:"Two powers manage a four-round confrontation. Each round, each can de-escalate (reduce tension and costs) or escalate (apply additional pressure). Unilateral de-escalation is exploitable. Sustained mutual escalation triggers a war-economy threshold, imposing severe costs on both parties in the final round.",
+    mechanic:"Four rounds. Each round choose to De-escalate or Escalate. The AI mirrors your previous posture. If the Big Cycle Engine has been run, a later empire stage lowers the war-economy threshold -- less escalation is required to trigger the final-round penalty.",
+    interfaceType:'multiround', roundInterface:'binary', rounds:4,
+    options:['De-escalate','Escalate'],
+    ctxSource:'bce',
+    matrix:null, aiStrategies:['escalate_respond','random'],
+    ne:'De-escalation after credible threat demonstration (brinkmanship equilibrium)',
+    concept:'Brinkmanship, Escalation Dynamics',
+    conceptDef:"An escalation ladder is a sequential game where each step upward raises the probability of a war-economy outcome that is bad for both sides. The Nash Equilibrium -- given rational actors -- involves escalating to a credible threshold as a threat, then de-escalating before the threshold is reached. The strategic danger is that miscalculation, domestic political constraints, or reputation concerns push escalation beyond the rational stopping point. Brinkmanship theory predicts that the side with the lower war-economy tolerance should de-escalate first; the side that can credibly threaten to cross the threshold extracts concessions.",
+    realWorldAnchor:"Cuban Missile Crisis escalation management, Taiwan Strait exercises, and Gaza ceasefire dynamics all involve explicit escalation ladder logic. The key variable is each party's war-economy threshold and the credibility of their willingness to cross it.",
+    insight:"I learned that the value of a threat decreases once you execute it. The escalation ladder works because each step raises stakes without triggering the outcome -- the threat value is precisely that it has not yet been used. Managing the ladder requires knowing your own threshold before the game begins.",
+    contextBanner:(ctx)=>{
+      const bce=ctx?.bce;
+      if (!bce?.synthesis) return null;
+      const st=bce.synthesis.empire_stage??bce.layers?.layer1?.empire_stage??'?';
+      const num=Number(st)||3;
+      const thr=num>=5?2:num>=4?3:4;
+      const note=num>=5?'Late-cycle fragility compresses the safe escalation window.':num>=4?'Mid-cycle stress applies standard brinkmanship constraints.':'Early-cycle resilience provides more room before threshold triggers.';
+      return { title:`Big Cycle Context: ${bce.subject||'prior analysis'}`, text:`Empire Stage ${st}. War-economy threshold: ${thr} cumulative escalations before final-round penalty triggers. ${note}` };
     }
   },
 ];
@@ -6640,10 +6723,17 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
     try { const s = localStorage.getItem(GT_STORAGE_KEY); return s ? JSON.parse(s) : { history:[], streak:0, totalScore:0, completionMap:{}, concepts:[] }; }
     catch { return { history:[], streak:0, totalScore:0, completionMap:{}, concepts:[] }; }
   });
+  const [geoCtx, setGeoCtx] = useState(() => {
+    try { const b=localStorage.getItem('stint-bce-context'); const g=localStorage.getItem('stint-gi-context'); return { bce:b?JSON.parse(b):null, gi:g?JSON.parse(g):null }; }
+    catch { return { bce:null, gi:null }; }
+  });
+  const [ctxParams, setCtxParams] = useState({});
 
   useEffect(() => {
     try { localStorage.setItem(GT_STORAGE_KEY, JSON.stringify(session)); } catch {}
   }, [session]);
+  useEffect(() => { if (bceResult) setGeoCtx(c=>({...c,bce:bceResult})); }, [bceResult]);
+  useEffect(() => { if (giResult) setGeoCtx(c=>({...c,gi:giResult})); }, [giResult]);
 
   const streakMult = [1, 1.5, 2, 2.5][Math.min(session.streak, 3)];
 
@@ -6655,13 +6745,20 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
     if (sc.interfaceType === 'numbid') setPrivVal(50 + Math.floor(Math.random() * 51));
     if (sc.id === 'b1') setAiThreshold(22 + Math.floor(Math.random() * 19));
     if (sc.id === 'b2') setAiThreshold(25 + Math.floor(Math.random() * 16));
-    if (sc.id === 'e2') setAiThreshold(25 + Math.floor(Math.random() * 31));
     if (sc.id === 'd3') setAligned(Math.random() < 0.6);
     if (sc.id === 'd1') setPlayerType(Math.random() < 0.6 ? 'strong' : 'weak');
     if (sc.id === 'd1') setEducCost(15 + Math.floor(Math.random() * 16));
     if (sc.id === 'd2') setCurrentHand(Math.random() < 0.5 ? 'strong' : 'weak');
     else setCurrentHand(null);
     setInProgressId(sc.id);
+    if (sc.domain === 'E') {
+      const bce=geoCtx.bce; const gi=geoCtx.gi; const p={};
+      if (sc.id==='e1'||sc.id==='e3') p.leverageRatio=gi?.agents?.agent5b?.leverage_ratio??gi?.synthesis?.leverage_ratio??5;
+      if (sc.id==='e2') { const st=Number(bce?.synthesis?.empire_stage??bce?.layers?.layer1?.empire_stage??3); p.armsCostMult=Math.min(2.0,Math.max(0.6,0.8+st*0.15)); p.empireStage=st; }
+      if (sc.id==='e5') { const ds=bce?.layers?.layer2?.debt_status??'BORDERLINE'; const base=ds==='PONZI_FINANCE'?55:ds==='UNSUSTAINABLE'?42:ds==='BORDERLINE'?28:15; const thr=base+Math.floor(Math.random()*12); p.debtHawkThreshold=thr; setAiThreshold(thr); }
+      if (sc.id==='e6') { const st=Number(bce?.synthesis?.empire_stage??bce?.layers?.layer1?.empire_stage??3); p.escThreshold=st>=5?2:st>=4?3:4; }
+      setCtxParams(p);
+    } else setCtxParams({});
     setGtView('sim');
   };
 
@@ -6681,6 +6778,11 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
       case 'cooperative_price':     return Math.min(100, Math.max(1, (pSlider ?? 50) + Math.floor(Math.random() * 7) - 3));
       case 'reactive_price':        { const l = hist[hist.length-1]; if (!l) return 50; return l.aiChoice < l.playerChoice ? Math.max(1, l.aiChoice - 3) : Math.min(100, l.aiChoice + 3); }
       case 'cournot_best_response': return Math.max(0, Math.min(80, Math.round((80 - (pSlider ?? 27)) / 2)));
+      case 'sovereign_rational':    { const lr=ctxParams?.leverageRatio??5; const sProb=lr>=7?0.2:lr>=4?0.45:0.70; return Math.random()<sProb?0:1; }
+      case 'devalue_trigger':       { const lr=ctxParams?.leverageRatio??5; const dProb=lr>=7?0.55:lr>=4?0.40:0.25; return Math.random()<dProb?0:1; }
+      case 'mercantilist':          return Math.random()<0.65?1:0;
+      case 'debt_hawk':             return 0;
+      case 'escalate_respond':      { const last=hist[hist.length-1]; if (sc.roundInterface==='slider') { if (!last) return 25; return Math.min(80,Math.max(0,Math.round((last.playerChoice??25)*(0.85+Math.random()*0.3)))); } if (!last) return 0; return last.playerChoice===1?(Math.random()<0.85?1:0):0; }
       default:                      return Math.random() < 0.5 ? 0 : 1;
     }
   };
@@ -6700,9 +6802,9 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
       const nash = Math.round((100-thr+20)/2+20);
       return { playerPay:ok?pVal:0, aiPay:ok?aiSh:0, summary:ok?`Deal reached. You: $${pVal}, counterpart: $${aiSh}.`:`Counterpart walked away ($${aiSh} is below their BATNA of $${thr}).`, scoreType:!ok?'sub':Math.abs(pVal-nash)<=10?'ne':'coop' };
     }
-    if (sc.id === 'e2') {
-      const thr = aiThreshold ?? 35; const ok = pVal >= thr;
-      return { playerPay:ok?100-pVal:0, aiPay:ok?pVal:0, summary:ok?`Debtor accepted the ${pVal}% haircut. Creditor recovers ${100-pVal}% of face value. Restructuring agreement secured.`:`Debtor rejected ${pVal}% -- their minimum was ${thr}%. Debt restructuring collapsed. Both parties recover nothing from this negotiation.`, scoreType:!ok?'sub':Math.abs(pVal-thr)<=8?'ne':'coop' };
+    if (sc.id === 'e5') {
+      const thr = ctxParams?.debtHawkThreshold ?? aiThreshold ?? 35; const ok = pVal >= thr;
+      return { playerPay:ok?80-pVal:0, aiPay:ok?pVal:0, summary:ok?`Debtor accepted the ${pVal}% haircut. Creditor recovers ${80-pVal}% of face value. Restructuring agreed.`:`Debtor rejected ${pVal}% -- their minimum was ${thr}%. Restructuring collapsed. Both parties recover nothing from this negotiation.`, scoreType:!ok?'sub':Math.abs(pVal-thr)<=8?'ne':'coop' };
     }
     return { playerPay:0, aiPay:0, summary:'Outcome resolved.', scoreType:'sub' };
   };
@@ -6722,6 +6824,8 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
       if (sc.id==='a1') st=sc.scoreLogic(pChoice,aiChoice);
       else if (sc.id==='a3') st=sc.scoreLogic(pChoice,aiChoice);
       else if (sc.id==='e1') st=sc.scoreLogic(pChoice,aiChoice);
+      else if (sc.id==='e3') st=sc.scoreLogic(pChoice,aiChoice);
+      else if (sc.id==='e4') st=sc.scoreLogic(pChoice,aiChoice);
       else st='sub';
       return { playerPay:cell[0], aiPay:cell[1], summary:`You chose ${sc.options[pChoice]}, opponent chose ${sc.options[aiChoice]}. Your payoff: ${cell[0]} ${sc.matrix.unit}.`, scoreType:st };
     }
@@ -6740,15 +6844,22 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
       const cell=sc.matrix.cells[pChoice]?.[aiChoice]??[0,0];
       return { playerPay:cell[0], aiPay:cell[1], playerChoice:pChoice, aiChoice, summary:`${sc.options[pChoice]} vs ${sc.options[aiChoice]}: ${cell[0]} ${sc.matrix.unit}.` };
     }
-    if (sc.id==='e3') {
-      const ppMatrix=[[3,1],[4,0]];
-      const pp=ppMatrix[pChoice]?.[aiChoice]??0;
-      const ap=ppMatrix[aiChoice]?.[pChoice]??0;
-      const msg=pChoice===0&&aiChoice===0?'Coalition formed. Both bear costs and share benefit.'
-        :pChoice===0&&aiChoice===1?'You joined, partner defected. Coalition failed -- you bore costs for nothing.'
-        :pChoice===1&&aiChoice===0?'You defected while partner joined. You captured bilateral trade gains.'
-        :'Both defected. No coalition, no cost, no benefit.';
-      return { playerPay:pp, aiPay:ap, playerChoice:pChoice, aiChoice, summary:`${msg} Payoff: ${pp>=0?'+':''}${pp}.` };
+    if (sc.id==='e6') {
+      const ppM=[[2,-1],[3,-2]]; const apM=[[2,3],[-1,-2]];
+      const pp=ppM[pChoice]?.[aiChoice]??0; const ap=apM[pChoice]?.[aiChoice]??0;
+      const thr=ctxParams?.escThreshold??3;
+      const cumEsc=(roundHist.filter(h=>h.playerChoice===1).length)+(pChoice===1?1:0);
+      const warPenalty=cumEsc>=thr&&rnd===sc.rounds-1?-5:0;
+      const msg=pChoice===0&&aiChoice===0?'Both de-escalated. Tension reduced.':pChoice===0&&aiChoice===1?'You de-escalated, AI escalated. They gained leverage.':pChoice===1&&aiChoice===0?'You escalated, AI de-escalated. You gained leverage.':'Both escalated. Tension rising.';
+      return { playerPay:pp+warPenalty, aiPay:ap+(roundHist.filter(h=>h.aiChoice===1).length+(aiChoice===1?1:0)>=thr&&rnd===sc.rounds-1?-5:0), playerChoice:pChoice, aiChoice, summary:`${msg}${warPenalty<0?' War-economy threshold triggered -- final-round penalty applied.':''} Round payoff: ${pp+warPenalty>=0?'+':''}${pp+warPenalty}.` };
+    }
+    if (sc.roundInterface==='slider') {
+      if (sc.id==='e2') {
+        const mult=ctxParams?.armsCostMult??1.0; const pp=pChoice, ai=aiChoice;
+        const pSec=Math.round(100*pp/(pp+ai+1)); const pCost=Math.round(pp*mult);
+        const aSec=Math.round(100*ai/(pp+ai+1)); const aCost=Math.round(ai);
+        return { playerPay:pSec-pCost, aiPay:aSec-aCost, playerChoice:pp, aiChoice:ai, summary:`You: ${pp}%. AI: ${ai}%. Your security return: ${pSec}. Cost burden: ${pCost} (${mult.toFixed(2)}x multiplier). Net: ${(pSec-pCost)>=0?'+':''}${pSec-pCost}.` };
+      }
     }
     if (sc.roundInterface==='slider') {
       const pp=pChoice, ai=aiChoice;
@@ -6855,7 +6966,8 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
         else if (sc.id==='a2') { const c=newH.filter(h=>h.playerChoice===0).length; scoreType=c>=4?'coop':c<=1?'ne':'sub'; }
         else if (sc.id==='c1') { const ad=newH.reduce((s,h)=>s+Math.abs((h.playerChoice||0)-(h.aiChoice||0)),0)/newH.length; scoreType=ad<=5?'coop':'ne'; }
         else if (sc.id==='c2') { const aq=newH.reduce((s,h)=>s+(h.playerChoice||0),0)/newH.length; scoreType=Math.abs(aq-27)<=5?'ne':'sub'; }
-        else if (sc.id==='e3') { const cj=newH.filter(h=>h.playerChoice===0).length; scoreType=cj>=2?'coop':cj===0?'ne':'sub'; }
+        else if (sc.id==='e2') { const aq=newH.reduce((s,h)=>s+(h.playerChoice||0),0)/newH.length; const opt=Math.round(25/(ctxParams?.armsCostMult??1.0)); scoreType=aq<opt*0.8?'coop':Math.abs(aq-opt)<=8?'ne':'sub'; }
+        else if (sc.id==='e6') { const esc=newH.filter(h=>h.playerChoice===1).length; scoreType=esc>=3?'sub':esc<=1?'coop':'ne'; }
         else scoreType='coop';
         const outcome = { playerPay:tot, aiPay:newH.reduce((s,h)=>s+(h.aiPay||0),0), summary:`Completed ${newH.length} round${newH.length!==1?'s':''}. Total payoff: ${tot>=0?'+':''}${tot}.`, scoreType };
         const { pts, badge } = computeScore(scoreType);
@@ -6940,6 +7052,7 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
                   <h3 className="text-white font-bold text-sm mb-1 group-hover:text-violet-200 transition-colors leading-snug">{sc.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1 line-clamp-2">{sc.premise}</p>
                   <p className="text-xs mt-2.5 font-mono truncate" style={{color:dom.color}}>{sc.concept.split(',')[0]}</p>
+                  {sc.ctxSource && geoCtx?.[sc.ctxSource] && <span className="text-xs px-1.5 py-0.5 mt-1.5 inline-block rounded bg-teal-900/40 text-teal-400 font-semibold">Live</span>}
                 </button>
               );
             })}
@@ -6961,7 +7074,7 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
         </div>
         <h1 className="text-2xl font-black text-white mb-3">{sc.title}</h1>
         <p className="text-slate-300 text-sm leading-relaxed mb-5">{sc.premise}</p>
-        {sc.contextBanner && (() => { const b=sc.contextBanner(bceResult,giResult); return b ? (
+        {sc.contextBanner && (() => { const b=sc.contextBanner(geoCtx); return b ? (
           <div className="bg-sky-950/30 border border-sky-800/40 rounded-xl px-4 py-3 mb-5">
             <p className="text-xs text-sky-400/70 uppercase tracking-wider mb-1 font-semibold">{b.title}</p>
             <p className="text-slate-300 text-xs leading-relaxed">{b.text}</p>
@@ -7127,7 +7240,7 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{background:'linear-gradient(135deg,#7c3aed,#4f46e5)'}}>♟</div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-black text-white leading-tight">Game Theory Simulator</h1>
-            <p className="text-slate-500 text-xs">12 scenario-based simulations across cooperation, bargaining, competition, and signaling</p>
+            <p className="text-slate-500 text-xs">15 scenario-based simulations across cooperation, bargaining, competition, signaling, and geoeconomics</p>
           </div>
           <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1 flex-shrink-0">
             {[['hub','Hub'],['scoreboard','Log']].map(([v,l])=>(
@@ -7191,6 +7304,7 @@ function BigCycleEngineTool({ preload = null, onPreloadConsumed, onResult }) {
           } else if (ev.event === 'complete') {
             setBceResult(ev.result);
             onResult?.(ev.result);
+            try { localStorage.setItem('stint-bce-context', JSON.stringify(ev.result)); } catch {}
             setBceAgents({ agent1: 'complete', agent2: 'complete', agent3: 'complete', agent4: 'complete', supervisor: 'complete' });
             setStep('result');
           } else if (ev.event === 'error') {
