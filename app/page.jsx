@@ -6407,7 +6407,6 @@ const GT_DOMAIN = {
   B: { label: 'Bargaining',   bg: '#d9770618', color: '#fbbf24', border: '#d9770640' },
   C: { label: 'Competition',  bg: '#dc262618', color: '#f87171', border: '#dc262640' },
   D: { label: 'Signaling',    bg: '#0d948818', color: '#2dd4bf', border: '#0d948840' },
-  E: { label: 'Zero-Sum',     bg: '#7c3aed18', color: '#c084fc', border: '#7c3aed40' },
 };
 const GT_DIFF = {
   Entry:        { bg: '#10b98118', color: '#34d399' },
@@ -6603,26 +6602,6 @@ const GT_SCENARIOS = [
     realWorldAnchor:"Incumbent firms building excess capacity, nations with nuclear arsenals engaging in conventional conflicts, and executives pursuing bold acquisitions all signal strength to deter challenges.",
     insight:"I learned that pooling equilibria can require costly mimicry. When a signal deters challenges for both types, even the weak type must pay the cost of the strong type's preferred action.",
     scoreLogic:(ph)=>ph===0?'ne':'sub' },
-  { id:'e1', title:'The Centipede Game', domain:'E', difficulty:'Intermediate',
-    premise:"You and an AI opponent alternate turns. The active player can Take (end the game, collect the larger share) or Pass (grow the pot). Backward induction predicts immediate defection. Players rarely follow this prediction.",
-    mechanic:"Three player-turn decision points alternating with AI turns. The AI may take the pot before you reach the last node.",
-    interfaceType:'multiround', roundInterface:'binary', rounds:3,
-    options:['Take','Pass'], aiStrategies:['centipede_ai'], ne:'Take on the first move (backward induction)',
-    concept:'Backward Induction, Finite Game Paradox',
-    conceptDef:"Backward induction argues: in the last round, the active player always Takes. Knowing this, the previous player also Takes. Unraveling backward, the unique subgame perfect equilibrium is to Take immediately. Experiments consistently show players Pass for several rounds, achieving higher payoffs — a stark contradiction of standard theory.",
-    realWorldAnchor:"Negotiations with known deadlines, litigation vs. settlement timing, and leveraged buyout processes all face backward-induction logic: the party who can credibly commit to acting early gains strategic advantage.",
-    insight:"I learned that backward induction produces a theoretically clean but empirically fragile prediction. The gap between equilibrium and observed behavior reveals important limits of the rational actor model.",
-    scoreLogic:(hist)=>hist.findIndex(h=>h.playerChoice===0)===0?'ne':'coop' },
-  { id:'e2', title:'Matching Pennies', domain:'E', difficulty:'Entry',
-    premise:"Each player simultaneously reveals Heads or Tails. You win if your choices match. Your opponent wins if they differ. A pure zero-sum game with no communication and no common interest.",
-    mechanic:"Three rounds. Choose Heads or Tails each round. No pure-strategy equilibrium exists.",
-    interfaceType:'multiround', roundInterface:'binary', rounds:3,
-    options:['Heads','Tails'], aiStrategies:['mixed_pennies'], ne:'50/50 mixed strategy for both players',
-    concept:'Zero-Sum Game, Mixed Strategy Equilibrium',
-    conceptDef:"No pure-strategy Nash Equilibrium exists: if you always play Heads, the opponent plays Tails; if you switch, they switch. The unique NE is 50/50 randomization by both players, making each exactly indifferent between their options and eliminating any exploitable pattern.",
-    realWorldAnchor:"Penalty kicks in football, blitz-vs-pass decisions in American football, and security inspection patterns all require genuine randomization to prevent exploitation by an observant opponent.",
-    insight:"I learned that in zero-sum games, predictability is fatal. The equilibrium strategy makes your opponent unable to benefit from knowing your distribution.",
-    scoreLogic:(hist)=>hist.filter(h=>h.playerChoice===h.aiChoice).length>=2?'ne':'sub' },
 ];
 
 function GameTheorySimulatorTool() {
@@ -7078,7 +7057,10 @@ function GameTheorySimulatorTool() {
         </div>
         <div className="flex gap-3">
           <button onClick={()=>startScenario(sc)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 transition-colors">Replay</button>
-          <button onClick={()=>setGtView('hub')} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{background:`linear-gradient(135deg,${dom.color}90,${dom.color}55)`}}>Back to Hub</button>
+          <button onClick={()=>{const pool=GT_SCENARIOS.filter(s=>s.id!==sc.id&&!session.completionMap[s.id]);startScenario((pool.length?pool:GT_SCENARIOS.filter(s=>s.id!==sc.id))[Math.floor(Math.random()*(pool.length||GT_SCENARIOS.length-1))]);}} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{background:`linear-gradient(135deg,${dom.color}90,${dom.color}55)`}}>Next</button>
+        </div>
+        <div className="text-center mt-2">
+          <button onClick={()=>setGtView('hub')} className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Back to Hub</button>
         </div>
       </div>
     );
@@ -8778,7 +8760,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               <span className="block text-xs font-medium">Game Theory Simulator</span>
               <span className="block text-slate-600 text-xs">Strategic decision scenarios</span>
             </span>
-            {activeTab === 'gametheory' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />}
+            {activeTab === 'gametheory' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
         </div>
 
@@ -9160,16 +9142,16 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       </div>
                     </div>
                     <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
-                      Eighteen interactive scenarios across five strategic domains — from negotiation and market entry to geopolitical bargaining. Play against AI opponents with distinct strategy profiles, reveal payoff matrices, and receive structured decision debriefs.
+                      Twelve interactive scenarios across four strategic domains: cooperation, bargaining, competition, and signaling. Play against AI opponents with distinct strategy profiles, reveal payoff matrices, and receive structured decision debriefs.
                     </p>
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {['18 Scenarios', 'AI Opponents', 'Payoff Matrix', 'Scoring', 'Debrief'].map(t => (
+                      {['Nash Equilibrium', 'Payoff Matrix', 'Signaling', 'Bargaining', 'Cooperation'].map(t => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
                       ))}
                     </div>
                     <button
                       onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'gametheory' })}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-indigo-300 border border-indigo-900/60 bg-indigo-950/30 hover:bg-indigo-900/30 hover:text-indigo-200 transition-colors"
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
                     >
                       Open Game Theory Simulator →
                     </button>
