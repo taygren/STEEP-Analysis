@@ -6703,9 +6703,9 @@ function GameTheorySimulatorTool() {
 
   const finalize = (sc, outcome, pts, badge, pChoice, aiChoice) => {
     setInProgressId(null);
-    setDebrief({ sc, outcome, pts, badge, pChoice, aiChoice, aiStratLabel:GT_AI_LABELS[aiStrat]??{ name:aiStrat, desc:'' } });
-    setPhase('debrief');
     const newConcept = !session.concepts.includes(sc.concept);
+    setDebrief({ sc, outcome, pts, badge, pChoice, aiChoice, aiStratLabel:GT_AI_LABELS[aiStrat]??{ name:aiStrat, desc:'' }, newConcept });
+    setPhase('debrief');
     setSession(s => ({
       ...s,
       streak: outcome.scoreType==='sub' ? 0 : s.streak+1,
@@ -6957,7 +6957,7 @@ function GameTheorySimulatorTool() {
 
   const renderDebrief = () => {
     const sc=scenario; if (!sc||!debrief) return null;
-    const dom=GT_DOMAIN[sc.domain]; const { outcome, pts, badge, pChoice, aiChoice, aiStratLabel } = debrief;
+    const dom=GT_DOMAIN[sc.domain]; const { outcome, pts, badge, pChoice, aiChoice, aiStratLabel, newConcept } = debrief;
     const pRow=sc.interfaceType==='binary'&&typeof pChoice==='number'?pChoice:null;
     const aiCol=sc.interfaceType==='binary'&&typeof aiChoice==='number'?aiChoice:null;
     return (
@@ -6970,6 +6970,12 @@ function GameTheorySimulatorTool() {
             {badge&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">{badge}</span>}
           </div>
         </div>
+        {newConcept&&(
+          <div className="flex items-center gap-2 bg-teal-950/40 border border-teal-700/30 rounded-xl px-3 py-2 mb-4">
+            <span className="text-teal-400 text-sm">◈</span>
+            <div><p className="text-teal-300 text-xs font-semibold">New concept unlocked</p><p className="text-teal-400/70 text-xs">{sc.concept}</p></div>
+          </div>
+        )}
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Outcome</p>
           <p className="text-white text-sm leading-relaxed">{outcome.summary}</p>
@@ -9070,7 +9076,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                   </div>
                   <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#3730a318', color: '#818cf8', border: '1.5px solid #3730a325' }}>⬡</div>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#0d948818', color: '#2dd4bf', border: '1.5px solid #0d948825' }}>♟</div>
                       <div className="min-w-0">
                         <h3 className="text-white font-bold text-sm leading-tight">Game Theory Simulator</h3>
                         <p className="text-slate-500 text-xs mt-0.5">Strategic decision scenarios</p>
