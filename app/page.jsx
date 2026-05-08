@@ -6934,14 +6934,17 @@ function PromptEngineeringPackageTool() {
           </div>
         </div>
         {/* Section tab bar */}
-        <div className="flex gap-1 overflow-x-auto pb-px" style={{ scrollbarWidth: 'none' }}>
-          {PKG_TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setPkgSection(t.key)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${pkgSection === t.key ? 'bg-violet-950/70 text-violet-300 border border-violet-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-slate-800/60'}`}
-            >{t.label}</button>
-          ))}
+        <div className="relative">
+          <div className="flex gap-1 overflow-x-auto pb-px" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+            {PKG_TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setPkgSection(t.key)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${pkgSection === t.key ? 'bg-violet-950/70 text-violet-300 border border-violet-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-slate-800/60'}`}
+              >{t.label}</button>
+            ))}
+          </div>
+          <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#09090f] to-transparent pointer-events-none md:hidden" />
         </div>
         <div className="mt-3 border-b border-slate-800" />
       </div>
@@ -7416,8 +7419,8 @@ function RASCEFTool() {
           ) : (
             /* Single one-liner view */
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-violet-950/30">
-                <div>
+              <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-800 bg-violet-950/30">
+                <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-sm">Ready-to-paste System Prompt</p>
                   <p className="text-slate-500 text-xs mt-0.5">Copy and paste directly into any AI tool as the system prompt</p>
                 </div>
@@ -7494,13 +7497,13 @@ function RASCEFTool() {
         </div>
 
         {/* How it works */}
-        <div className="flex items-start gap-0 mb-8">
+        <div className="flex flex-col sm:flex-row items-start gap-0 mb-8">
           {[
             { n: '1', label: 'Describe your role and use case', sub: 'Two required fields — everything else sharpens the output' },
             { n: '2', label: 'Choose your output format', sub: 'Full structured breakdown or a single ready-to-paste prompt' },
             { n: '3', label: 'Copy and use immediately', sub: 'Paste into any AI tool — ChatGPT, Claude, Gemini, or your own' },
           ].map((s, i) => (
-            <div key={s.n} className="flex-1 flex gap-2 px-2">
+            <div key={s.n} className="flex gap-2 px-2 sm:flex-1">
               <div className="flex flex-col items-center gap-0">
                 <div className="w-7 h-7 rounded-full bg-violet-900 border border-violet-700 flex items-center justify-center text-xs font-black text-violet-300 flex-shrink-0">{s.n}</div>
                 {i < 2 && <div className="w-px flex-1 bg-slate-800 mt-1" style={{ minHeight: 24 }} />}
@@ -7519,11 +7522,13 @@ function RASCEFTool() {
 
           {/* Role */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-              Role or function
-              <span className="text-red-500">*</span>
-              <span className="text-slate-600 font-normal ml-auto">e.g. Sales Engineer · HR Business Partner · Financial Analyst</span>
-            </label>
+            <div className="mb-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                Role or function
+                <span className="text-red-500">*</span>
+              </label>
+              <p className="text-slate-600 text-xs mt-0.5">e.g. Sales Engineer · HR Business Partner · Financial Analyst</p>
+            </div>
             <input
               type="text"
               value={form.role}
@@ -7537,11 +7542,13 @@ function RASCEFTool() {
 
           {/* Use case */}
           <div>
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-              Use case
-              <span className="text-red-500">*</span>
-              <span className="text-slate-600 font-normal ml-auto">The more specific, the better</span>
-            </label>
+            <div className="mb-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                Use case
+                <span className="text-red-500">*</span>
+              </label>
+              <p className="text-slate-600 text-xs mt-0.5">The more specific, the better</p>
+            </div>
             <textarea
               id="rascef-usecase"
               value={form.usecase}
