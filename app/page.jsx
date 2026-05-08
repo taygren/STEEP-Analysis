@@ -5646,7 +5646,7 @@ const GEO_EXAMPLES = [
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GeoInstrumentTool({ preload = null, onPreloadConsumed }) {
+function GeoInstrumentTool({ preload = null, onPreloadConsumed, onResult }) {
   const [giStep, setGiStep] = useState(preload ? 'result' : 'form');
   const [giForm, setGiForm] = useState(preload ? { instrument: preload.instrument, sender: preload.sender, target: preload.target, context: '' } : { instrument: '', sender: '', target: '', context: '' });
   const [giErrors, setGiErrors] = useState({});
@@ -5703,6 +5703,7 @@ function GeoInstrumentTool({ preload = null, onPreloadConsumed }) {
             setGiAgents(s => ({ ...s, [ev.agent]: 'complete' }));
           } else if (ev.event === 'complete') {
             setGiResult(ev.result);
+            onResult?.(ev.result);
             setGiAgents({ agent5a: 'complete', agent5b: 'complete', agent5c: 'complete', convergence: 'complete', agent5d: 'complete' });
             setGiStep('result');
           } else if (ev.event === 'error') {
@@ -6407,6 +6408,7 @@ const GT_DOMAIN = {
   B: { label: 'Bargaining',   bg: '#d9770618', color: '#fbbf24', border: '#d9770640' },
   C: { label: 'Competition',  bg: '#dc262618', color: '#f87171', border: '#dc262640' },
   D: { label: 'Signaling',    bg: '#0d948818', color: '#2dd4bf', border: '#0d948840' },
+  E: { label: 'Geoeconomics', bg: '#082f4918', color: '#38bdf8', border: '#082f4940' },
 };
 const GT_DIFF = {
   Entry:        { bg: '#10b98118', color: '#34d399' },
@@ -6558,9 +6560,62 @@ const GT_SCENARIOS = [
     realWorldAnchor:"Analyst recommendations from firms with investment banking conflicts, internal advisors pushing preferred strategies, and regulatory capture all produce babbling: messages that convey less than their apparent content.",
     insight:"I learned that credible communication requires aligned interests. When incentives diverge, words lose information, and the receiver knows it.",
     scoreLogic:()=>'coop' },
+  { id:'e1', title:'The Tariff Standoff', domain:'E', difficulty:'Intermediate',
+    premise:"Two economic powers face a bilateral trade dispute. Each can escalate with tariffs or hold back. Escalating when the rival holds back captures market advantage. Both escalating triggers a trade war that costs both sides. Neither party observes the other's posture before committing.",
+    mechanic:"One-shot simultaneous choice. No coordination mechanism exists.",
+    interfaceType:'binary', options:['Hold Back','Escalate'],
+    matrix:{ rows:['Hold Back','Escalate'], cols:['Hold Back','Escalate'], cells:[[[3,3],[0,5]],[[5,0],[-1,-1]]], unit:'pts' },
+    aiStrategies:['mixed_hawk','random'],
+    ne:'Mixed strategy: each escalates with probability proportional to gain over conflict cost',
+    concept:'Hawk-Dove in Trade Policy, Escalation Dynamics',
+    conceptDef:"The Tariff Standoff is a Hawk-Dove game applied to trade. Escalation wins against restraint but is mutually costly when both powers escalate simultaneously. No pure-strategy Nash Equilibrium exists where one side always dominates. The unique mixed-strategy NE has each power randomizing based on the ratio of potential gains to total conflict cost. Mutual restraint is efficient but not individually stable.",
+    realWorldAnchor:"US-China semiconductor export controls, EU retaliatory tariffs on US steel, and SWIFT exclusion decisions all fit this structure. Calibrated escalation thresholds matter more than geopolitical narrative in determining outcomes.",
+    insight:"I learned that trade conflicts are not zero-sum. Mutual escalation destroys value for both sides, yet escalating is individually rational unless both parties credibly commit to restraint. The mixed-strategy equilibrium explains why real trade disputes neither collapse into full war nor resolve cleanly.",
+    neRow:0, neCol:0, scoreLogic:(ph,ah)=>(ph===0&&ah===0)?'coop':(ph===1&&ah===1)?'sub':'ne',
+    contextBanner:(bce,gi)=>{
+      if (!gi?.synthesis) return null;
+      const sev=gi.synthesis.unified_severity_tier||'';
+      const holder=gi.agents?.agent5b?.leverage_holder||'unknown';
+      return { title:`GeoInstrument Context: ${gi.instrument||''}`, text:`Severity tier: ${sev}. Leverage holder: ${holder}. This scenario reflects the escalation structure of your recent instrument assessment.` };
+    }
+  },
+  { id:'e2', title:'Debt Restructuring Standoff', domain:'E', difficulty:'Advanced',
+    premise:"A creditor power holds leverage over a debt-distressed nation. You set the concession level -- what percentage of the outstanding debt to forgive. The debtor has a minimum acceptable haircut below which they will pursue alternative financing, triggering a default and costing you any recovery.",
+    mechanic:"Slider: debt haircut offered (0-100%). The debtor's minimum acceptable threshold is hidden from you.",
+    interfaceType:'slider', sliderMin:0, sliderMax:100, sliderDefault:40, sliderLabel:'debt haircut offered (%)',
+    aiStrategies:['fair_threshold'],
+    ne:'Offer at the debtor reservation point (minimum acceptable haircut)',
+    concept:'Creditor-Debtor Bargaining, Debt Overhang',
+    conceptDef:"Debt restructuring is an ultimatum game where the creditor proposes and the debtor accepts or defaults. The creditor's theoretically optimal strategy is to offer exactly the debtor's reservation point. In practice, creditors over-hold because they cannot observe the debtor's true distress threshold, triggering costly defaults that destroy value for both parties. Debt overhang occurs when outstanding claims are so large that the debtor cannot credibly commit to repayment, suppressing investment and growth regardless of the formal terms.",
+    realWorldAnchor:"IMF structural adjustment programs, China's Belt and Road debt negotiations, and European sovereign debt restructuring (Greece 2015) all exhibit this structure. The creditor with the best information about the debtor's BATNA wins; the debtor with the most credible exit option -- alternative lenders, domestic political constraints -- extracts the most relief.",
+    insight:"I learned that creditor leverage is bounded by the debtor's outside options. Overreach triggers default, which destroys value for both parties. The strategic core of debt diplomacy is identifying -- not ignoring -- the counterpart's true walk-away point.",
+    contextBanner:(bce,gi)=>{
+      if (!bce?.layers?.layer2) return null;
+      const l2=bce.layers.layer2;
+      return { title:`Big Cycle Context: ${bce.subject||''}`, text:`Debt status: ${(l2.debt_status||'').replace(/_/g,' ')}. Printing probability: ${l2.printing_probability??'?'}%. This negotiation maps onto the debt sustainability conditions from your Big Cycle analysis.` };
+    }
+  },
+  { id:'e3', title:'Sanctions Coalition', domain:'E', difficulty:'Advanced',
+    premise:"A multilateral sanctions regime requires participation from multiple powers to be effective. Each round you decide whether to join the coalition or defect to capture bilateral trade gains with the target. Coalition membership is costly, but a coalition without critical mass fails entirely -- and your costs are wasted.",
+    mechanic:"Three rounds. Each round choose Join or Defect. Effective coalitions require both parties to participate. The AI's strategy is revealed only at debrief.",
+    interfaceType:'multiround', roundInterface:'binary', rounds:3,
+    options:['Join Coalition','Defect'],
+    matrix:null, aiStrategies:['titfortat','alwaysdefect','coordinate'],
+    ne:'Defect (dominant strategy in one-shot version)',
+    concept:'Coalition Formation, Critical Mass Problems',
+    conceptDef:"In a one-shot coalition game, defection dominates: you capture trade gains regardless of others' choices, while the coalition bears costs. With repetition and a tit-for-tat enforcement structure, cooperation can be sustained when the shadow of future retaliation is sufficiently large. Critical mass problems emerge when coalitions require a minimum number of participants to achieve effectiveness -- a single major defection can unravel the entire regime because remaining members reassess their own participation calculus.",
+    realWorldAnchor:"Russia sanctions coordination (2022), Iran JCPOA membership dynamics, OPEC+ production agreements, and WTO compliance enforcement all exhibit critical mass coalition structure. One major defector shifts the cost-benefit calculus for all remaining members.",
+    insight:"I learned that effective coalitions require each member to believe the others will stay. Credible tit-for-tat commitments -- not declarations of solidarity -- sustain cooperation that one-shot logic destroys. The defection incentive is always present; it is only suppressed by credible future punishment.",
+    contextBanner:(bce,gi)=>{
+      if (!gi?.agents?.agent5b) return null;
+      const b=gi.agents.agent5b;
+      const cps=b.chokepoints_identified?.length?` Chokepoints: ${b.chokepoints_identified.slice(0,2).join(', ')}.`:'';
+      return { title:`GeoInstrument Context: ${gi.instrument||''}`, text:`Retaliation capacity: ${b.retaliation_capacity||'unknown'}.${cps} This coalition scenario is informed by the leverage structure of your instrument assessment.` };
+    }
+  },
 ];
 
-function GameTheorySimulatorTool() {
+function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
   const [gtView, setGtView]           = useState('hub');
   const [domFilter, setDomFilter]     = useState('all');
   const [diffFilter, setDiffFilter]   = useState('all');
@@ -6600,6 +6655,7 @@ function GameTheorySimulatorTool() {
     if (sc.interfaceType === 'numbid') setPrivVal(50 + Math.floor(Math.random() * 51));
     if (sc.id === 'b1') setAiThreshold(22 + Math.floor(Math.random() * 19));
     if (sc.id === 'b2') setAiThreshold(25 + Math.floor(Math.random() * 16));
+    if (sc.id === 'e2') setAiThreshold(25 + Math.floor(Math.random() * 31));
     if (sc.id === 'd3') setAligned(Math.random() < 0.6);
     if (sc.id === 'd1') setPlayerType(Math.random() < 0.6 ? 'strong' : 'weak');
     if (sc.id === 'd1') setEducCost(15 + Math.floor(Math.random() * 16));
@@ -6644,6 +6700,10 @@ function GameTheorySimulatorTool() {
       const nash = Math.round((100-thr+20)/2+20);
       return { playerPay:ok?pVal:0, aiPay:ok?aiSh:0, summary:ok?`Deal reached. You: $${pVal}, counterpart: $${aiSh}.`:`Counterpart walked away ($${aiSh} is below their BATNA of $${thr}).`, scoreType:!ok?'sub':Math.abs(pVal-nash)<=10?'ne':'coop' };
     }
+    if (sc.id === 'e2') {
+      const thr = aiThreshold ?? 35; const ok = pVal >= thr;
+      return { playerPay:ok?100-pVal:0, aiPay:ok?pVal:0, summary:ok?`Debtor accepted the ${pVal}% haircut. Creditor recovers ${100-pVal}% of face value. Restructuring agreement secured.`:`Debtor rejected ${pVal}% -- their minimum was ${thr}%. Debt restructuring collapsed. Both parties recover nothing from this negotiation.`, scoreType:!ok?'sub':Math.abs(pVal-thr)<=8?'ne':'coop' };
+    }
     return { playerPay:0, aiPay:0, summary:'Outcome resolved.', scoreType:'sub' };
   };
 
@@ -6661,6 +6721,7 @@ function GameTheorySimulatorTool() {
       let st;
       if (sc.id==='a1') st=sc.scoreLogic(pChoice,aiChoice);
       else if (sc.id==='a3') st=sc.scoreLogic(pChoice,aiChoice);
+      else if (sc.id==='e1') st=sc.scoreLogic(pChoice,aiChoice);
       else st='sub';
       return { playerPay:cell[0], aiPay:cell[1], summary:`You chose ${sc.options[pChoice]}, opponent chose ${sc.options[aiChoice]}. Your payoff: ${cell[0]} ${sc.matrix.unit}.`, scoreType:st };
     }
@@ -6678,6 +6739,16 @@ function GameTheorySimulatorTool() {
     if (sc.id==='a2' && sc.matrix) {
       const cell=sc.matrix.cells[pChoice]?.[aiChoice]??[0,0];
       return { playerPay:cell[0], aiPay:cell[1], playerChoice:pChoice, aiChoice, summary:`${sc.options[pChoice]} vs ${sc.options[aiChoice]}: ${cell[0]} ${sc.matrix.unit}.` };
+    }
+    if (sc.id==='e3') {
+      const ppMatrix=[[3,1],[4,0]];
+      const pp=ppMatrix[pChoice]?.[aiChoice]??0;
+      const ap=ppMatrix[aiChoice]?.[pChoice]??0;
+      const msg=pChoice===0&&aiChoice===0?'Coalition formed. Both bear costs and share benefit.'
+        :pChoice===0&&aiChoice===1?'You joined, partner defected. Coalition failed -- you bore costs for nothing.'
+        :pChoice===1&&aiChoice===0?'You defected while partner joined. You captured bilateral trade gains.'
+        :'Both defected. No coalition, no cost, no benefit.';
+      return { playerPay:pp, aiPay:ap, playerChoice:pChoice, aiChoice, summary:`${msg} Payoff: ${pp>=0?'+':''}${pp}.` };
     }
     if (sc.roundInterface==='slider') {
       const pp=pChoice, ai=aiChoice;
@@ -6784,6 +6855,7 @@ function GameTheorySimulatorTool() {
         else if (sc.id==='a2') { const c=newH.filter(h=>h.playerChoice===0).length; scoreType=c>=4?'coop':c<=1?'ne':'sub'; }
         else if (sc.id==='c1') { const ad=newH.reduce((s,h)=>s+Math.abs((h.playerChoice||0)-(h.aiChoice||0)),0)/newH.length; scoreType=ad<=5?'coop':'ne'; }
         else if (sc.id==='c2') { const aq=newH.reduce((s,h)=>s+(h.playerChoice||0),0)/newH.length; scoreType=Math.abs(aq-27)<=5?'ne':'sub'; }
+        else if (sc.id==='e3') { const cj=newH.filter(h=>h.playerChoice===0).length; scoreType=cj>=2?'coop':cj===0?'ne':'sub'; }
         else scoreType='coop';
         const outcome = { playerPay:tot, aiPay:newH.reduce((s,h)=>s+(h.aiPay||0),0), summary:`Completed ${newH.length} round${newH.length!==1?'s':''}. Total payoff: ${tot>=0?'+':''}${tot}.`, scoreType };
         const { pts, badge } = computeScore(scoreType);
@@ -6889,6 +6961,12 @@ function GameTheorySimulatorTool() {
         </div>
         <h1 className="text-2xl font-black text-white mb-3">{sc.title}</h1>
         <p className="text-slate-300 text-sm leading-relaxed mb-5">{sc.premise}</p>
+        {sc.contextBanner && (() => { const b=sc.contextBanner(bceResult,giResult); return b ? (
+          <div className="bg-sky-950/30 border border-sky-800/40 rounded-xl px-4 py-3 mb-5">
+            <p className="text-xs text-sky-400/70 uppercase tracking-wider mb-1 font-semibold">{b.title}</p>
+            <p className="text-slate-300 text-xs leading-relaxed">{b.text}</p>
+          </div>
+        ) : null; })()}
         <div className="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 mb-5">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Mechanic</p>
           <p className="text-slate-300 text-xs leading-relaxed">{sc.mechanic}</p>
@@ -7068,7 +7146,7 @@ function GameTheorySimulatorTool() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
+function BigCycleEngineTool({ preload = null, onPreloadConsumed, onResult }) {
   const [step, setStep] = useState(preload ? 'result' : 'form');
   const [bceSubject, setBceSubject] = useState(preload?.subject ?? '');
   const [bceError, setBceError] = useState('');
@@ -7112,6 +7190,7 @@ function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
             setBceAgents(s => { const n = { ...s, [ev.agent]: 'complete' }; if (ev.next) n[ev.next] = 'running'; return n; });
           } else if (ev.event === 'complete') {
             setBceResult(ev.result);
+            onResult?.(ev.result);
             setBceAgents({ agent1: 'complete', agent2: 'complete', agent3: 'complete', agent4: 'complete', supervisor: 'complete' });
             setStep('result');
           } else if (ev.event === 'error') {
@@ -8332,6 +8411,9 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
 
+  const [bceCache, setBceCache] = useState(null);
+  const [giCache, setGiCache] = useState(null);
+
   // ── Auto-trigger Prediction Markets fetch immediately after synthesis ──
   useEffect(() => {
     if (status === 'complete' && predictionStatus === 'idle') {
@@ -8908,6 +8990,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <BigCycleEngineTool
               preload={state.bcePreload}
               onPreloadConsumed={() => dispatch({ type: 'CLEAR_PRELOAD', key: 'bce' })}
+              onResult={r => setBceCache(r)}
             />
           </div>
         )}
@@ -8918,6 +9001,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             <GeoInstrumentTool
               preload={state.giPreload}
               onPreloadConsumed={() => dispatch({ type: 'CLEAR_PRELOAD', key: 'gi' })}
+              onResult={r => setGiCache(r)}
             />
           </div>
         )}
@@ -8932,7 +9016,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {/* Game Theory Simulator — strategic decision scenarios */}
         {activeTab === 'gametheory' && (
           <div className="h-full overflow-y-auto">
-            <GameTheorySimulatorTool />
+            <GameTheorySimulatorTool bceResult={bceCache} giResult={giCache} />
           </div>
         )}
 
