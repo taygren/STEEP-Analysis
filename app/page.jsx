@@ -8769,6 +8769,17 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </span>
             {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'gametheory' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'gametheory' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+          >
+            <span className="text-base leading-none">⬡</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">Game Theory Simulator</span>
+              <span className="block text-slate-600 text-xs">Strategic decision scenarios</span>
+            </span>
+            {activeTab === 'gametheory' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />}
+          </button>
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
@@ -8995,6 +9006,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* Game Theory Simulator — strategic decision scenarios */}
+        {activeTab === 'gametheory' && (
+          <div className="h-full overflow-y-auto">
+            <GameTheorySimulatorTool />
+          </div>
+        )}
+
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
@@ -9133,6 +9151,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       Open Prompt Engineering Package →
                     </button>
                   </div>
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#3730a318', color: '#818cf8', border: '1.5px solid #3730a325' }}>⬡</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Game Theory Simulator</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Strategic decision scenarios</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Eighteen interactive scenarios across five strategic domains — from negotiation and market entry to geopolitical bargaining. Play against AI opponents with distinct strategy profiles, reveal payoff matrices, and receive structured decision debriefs.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['18 Scenarios', 'AI Opponents', 'Payoff Matrix', 'Scoring', 'Debrief'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'gametheory' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-indigo-300 border border-indigo-900/60 bg-indigo-950/30 hover:bg-indigo-900/30 hover:text-indigo-200 transition-colors"
+                    >
+                      Open Game Theory Simulator →
+                    </button>
+                  </div>
                 </div>
               </section>
 
@@ -9200,7 +9241,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && status === 'idle' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -9305,7 +9346,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -9341,7 +9382,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && isComplete && (
           <div className="h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-violet-500/10 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
