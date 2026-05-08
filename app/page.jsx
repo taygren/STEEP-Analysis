@@ -6463,7 +6463,7 @@ const GT_SCENARIOS = [
     matrix:{ rows:['Hunt Stag','Hunt Rabbit'], cols:['Hunt Stag','Hunt Rabbit'], cells:[[[4,4],[0,2]],[[2,0],[2,2]]], unit:'pts' },
     aiStrategies:['coordinate','random'], ne:'Hunt Stag / Hunt Stag (payoff-dominant)',
     concept:'Coordination Game, Payoff-Dominant Equilibrium',
-    conceptDef:"The Stag Hunt has two pure-strategy Nash Equilibria: (Stag, Stag) is payoff-dominant — both prefer it — but (Rabbit, Rabbit) is risk-dominant — it is safe regardless of the partner's choice. This tension between a better outcome requiring coordination and a safe outcome requiring nothing is the game's central lesson.",
+    conceptDef:"The Stag Hunt has two pure-strategy Nash Equilibria: (Stag, Stag) is payoff-dominant (both prefer it) but (Rabbit, Rabbit) is risk-dominant (it is safe regardless of the partner's choice). This tension between a better outcome requiring coordination and a safe outcome requiring nothing is the game's central lesson.",
     realWorldAnchor:"International climate commitments require simultaneous action by all major parties. Any nation that defects while others cooperate gains a free ride, creating exactly this stag hunt dynamic.",
     insight:"I learned that not all equilibria are equal. Payoff-dominance and risk-dominance can conflict, and coordination failures are rational when trust is absent.",
     neRow:0, neCol:0, scoreLogic:(ph,ah)=>(ph===0&&ah===0)?'ne':ph===1?'ne':'sub' },
@@ -6473,7 +6473,7 @@ const GT_SCENARIOS = [
     interfaceType:'slider', sliderMin:0, sliderMax:100, sliderDefault:40, sliderLabel:'dollars to offer counterpart',
     aiStrategies:['fair_threshold'], ne:'Offer $1 (subgame perfect equilibrium)',
     concept:'Subgame Perfect Equilibrium, Fairness Norms',
-    conceptDef:"Rational analysis predicts the proposer should offer the minimum positive amount: the counterpart should accept any positive offer rather than receive nothing. In practice, offers below $25-30 are routinely rejected. People pay real money to punish unfair treatment — a systematic deviation from the rational actor model.",
+    conceptDef:"Rational analysis predicts the proposer should offer the minimum positive amount: the counterpart should accept any positive offer rather than receive nothing. In practice, offers below $25-30 are routinely rejected. People pay real money to punish unfair treatment, a systematic deviation from the rational actor model.",
     realWorldAnchor:"Salary offers, merger terms, and trade deal concessions are all shaped by fairness norms that constrain what is theoretically achievable, even when one party holds structural power.",
     insight:"I learned that subgame perfect equilibrium often fails because people value fairness, not just material outcomes. Behavioral deviations are systematic, not random.",
     scoreLogic:null },
@@ -6483,7 +6483,7 @@ const GT_SCENARIOS = [
     interfaceType:'slider', sliderMin:20, sliderMax:80, sliderDefault:50, sliderLabel:'your share of the surplus ($)',
     aiStrategies:['nash_bargaining'], ne:'Equal surplus split above both BATNAs',
     concept:'Nash Bargaining Solution, Pareto Efficiency',
-    conceptDef:"The Nash Bargaining Solution maximizes the product of each party's gains above their disagreement point. With symmetric bargaining power, both parties split the surplus equally above their BATNAs. Demanding too much risks breakdown — destroying value for both parties and achieving a Pareto-inferior outcome.",
+    conceptDef:"The Nash Bargaining Solution maximizes the product of each party's gains above their disagreement point. With symmetric bargaining power, both parties split the surplus equally above their BATNAs. Demanding too much risks breakdown, destroying value for both parties and achieving a Pareto-inferior outcome.",
     realWorldAnchor:"Joint venture equity splits, labor contract negotiations, and licensing royalties are governed in theory by bargaining solutions that reflect each party's outside options.",
     insight:"I learned that efficient bargaining requires understanding both parties' BATNAs. The Nash Bargaining Solution formalizes the intuition that leverage flows from alternatives, not just table position.",
     scoreLogic:null },
@@ -6493,12 +6493,12 @@ const GT_SCENARIOS = [
     interfaceType:'binary', options:['Partner with Player A','Partner with Player B'],
     matrix:null, aiStrategies:['counteroffers'], ne:'No stable coalition (core is empty)',
     concept:'Coalition Games, Shapley Value',
-    conceptDef:"In three-player coalition games, the core — the set of allocations no coalition can improve upon — is often empty. The Shapley value assigns each player their average marginal contribution across all coalition orderings, providing a unique fairness criterion. But no coalition can enforce it unilaterally: the excluded player always has a profitable deviation.",
+    conceptDef:"In three-player coalition games, the core (the set of allocations no coalition can improve upon) is often empty. The Shapley value assigns each player their average marginal contribution across all coalition orderings, providing a unique fairness criterion. But no coalition can enforce it unilaterally: the excluded player always has a profitable deviation.",
     realWorldAnchor:"Legislative coalition building, cartel formation among firms, and three-way joint ventures all exhibit this instability. The excluded party always has an incentive to poach a coalition member by offering a slightly better deal.",
     insight:"I learned that three-player bargaining creates inherent instability. The strongest coalitions attract the most disruption, and the player with the weakest outside option is typically excluded.",
     scoreLogic:()=>'coop' },
   { id:'c1', title:'The Pricing War', domain:'C', difficulty:'Intermediate',
-    premise:"Two firms sell the same product. Each quarter you set a price. Consumers buy from the cheaper firm. High prices mean better margins — if your competitor matches.",
+    premise:"Two firms sell the same product. Each quarter you set a price. Consumers buy from the cheaper firm. High prices mean better margins, but only if your competitor matches.",
     mechanic:"Slider: price per unit ($1-100). Four rounds. The AI's pricing strategy is hidden.",
     interfaceType:'multiround', roundInterface:'slider', rounds:4,
     sliderMin:1, sliderMax:100, sliderDefault:50, sliderLabel:'price per unit ($)',
@@ -6506,7 +6506,7 @@ const GT_SCENARIOS = [
     concept:'Bertrand Competition, Collusion Incentives',
     conceptDef:"Bertrand competition predicts two firms will undercut each other until price equals marginal cost, eliminating all profit. In practice, firms sustain higher prices through tacit collusion, product differentiation, or switching costs. The tension between theory and practice is the Bertrand paradox.",
     realWorldAnchor:"Airline pricing, retail fuel, and mobile data tariffs all exhibit the tension between Bertrand undercutting logic and the practical incentive to maintain price discipline through tacit coordination.",
-    insight:"I learned that Bertrand competition is a race to the bottom. Sustaining margins requires differentiation or tacit coordination — neither of which pure price competition allows.",
+    insight:"I learned that Bertrand competition is a race to the bottom. Sustaining margins requires differentiation or tacit coordination. Pure price competition allows neither.",
     scoreLogic:null },
   { id:'c2', title:'Cournot Duopoly', domain:'C', difficulty:'Intermediate',
     premise:"Two firms choose production quantities simultaneously. Market price falls as total supply rises. You maximize profit given your competitor's output, which you observe only after committing.",
@@ -6524,8 +6524,8 @@ const GT_SCENARIOS = [
     mechanic:"Enter your bid. All bids are revealed after the auction closes.",
     interfaceType:'numbid', matrix:null, aiStrategies:['random'], ne:'Bid your true private value',
     concept:'Vickrey Auction, Dominant Strategy in Mechanism Design',
-    conceptDef:"In a second-price auction, bidding your true value is a dominant strategy. If you win, you pay the second-highest bid regardless of your own bid — so overbidding risks overpaying without benefit, and underbidding risks losing profitable deals. Truth-telling uniquely dominates all alternatives.",
-    realWorldAnchor:"Google's ad auction system, eBay's proxy bidding mechanism, and spectrum license auctions apply Vickrey principles. Dominant-strategy incentive compatibility — making truth-telling individually rational — is the core design goal.",
+    conceptDef:"In a second-price auction, bidding your true value is a dominant strategy. If you win, you pay the second-highest bid regardless of your own bid, so overbidding risks overpaying without benefit and underbidding risks losing profitable deals. Truth-telling uniquely dominates all alternatives.",
+    realWorldAnchor:"Google's ad auction system, eBay's proxy bidding mechanism, and spectrum license auctions apply Vickrey principles. Dominant-strategy incentive compatibility (making truth-telling individually rational) is the core design goal.",
     insight:"I learned that good mechanism design can make honesty the dominant strategy. The rules of the game determine whether deception or truth is individually rational.",
     scoreLogic:null },
   { id:'d1', title:'The Signaling Game', domain:'D', difficulty:'Advanced',
@@ -6539,14 +6539,14 @@ const GT_SCENARIOS = [
     insight:"I learned that costly signals are credible precisely because they are costly. A signal cheap for everyone to send conveys no information.",
     scoreLogic:(ph,pt)=>((pt==='strong'&&ph===0)||(pt==='weak'&&ph===1))?'ne':'sub' },
   { id:'d2', title:'The Bluffing Game', domain:'D', difficulty:'Intermediate',
-    premise:"A simplified poker variant. Each round you are dealt a hand — strong or weak, shown only to you. You can Bet or Fold. Your opponent can Call or Fold.",
+    premise:"A simplified poker variant. Each round you are dealt a hand (strong or weak), shown only to you. You can Bet or Fold. Your opponent can Call or Fold.",
     mechanic:"Three rounds. Your hand changes each round. Track your bluff frequency carefully.",
     interfaceType:'multiround', roundInterface:'binary', rounds:3,
     options:['Bet','Fold'], aiStrategies:['poker_ai'], ne:'Bluff at the equilibrium frequency: call cost divided by total pot',
     concept:'Mixed Strategy Nash Equilibrium, Credible Threats',
     conceptDef:"The equilibrium bluffing frequency makes your opponent exactly indifferent between calling and folding. Bluff too often and they should always call. Bluff never and they should always fold when you bet. The NE frequency eliminates both exploits, making your betting pattern unexploitable regardless of the opponent's response.",
     realWorldAnchor:"Military deterrence credibility, antitrust enforcement threats, and price war commitments all require calibrated commitment. Empty threats are called; unconditional threats escalate. The equilibrium is in between.",
-    insight:"I learned that the optimal bluff frequency makes your opponent indifferent between responses. Strategic randomization is not impulsiveness — it is calculated unpredictability.",
+    insight:"I learned that the optimal bluff frequency makes your opponent indifferent between responses. Strategic randomization is not impulsiveness: it is calculated unpredictability.",
     scoreLogic:null },
   { id:'d3', title:'Cheap Talk Game', domain:'D', difficulty:'Advanced',
     premise:"You are an expert advising a decision-maker. Your recommendation costs nothing to give. But your interests may or may not align with theirs. The decision-maker cannot verify your alignment.",
@@ -6556,7 +6556,7 @@ const GT_SCENARIOS = [
     concept:'Crawford-Sobel Model, Babbling Equilibrium',
     conceptDef:"When the expert's interests diverge sufficiently from the decision-maker's, no informative equilibrium exists. The expert has incentive to distort recommendations; the decision-maker knows this and discounts the message. This babbling equilibrium destroys all information content even though communication is costless.",
     realWorldAnchor:"Analyst recommendations from firms with investment banking conflicts, internal advisors pushing preferred strategies, and regulatory capture all produce babbling: messages that convey less than their apparent content.",
-    insight:"I learned that credible communication requires aligned interests. When incentives diverge, words lose information — and the receiver knows it.",
+    insight:"I learned that credible communication requires aligned interests. When incentives diverge, words lose information, and the receiver knows it.",
     scoreLogic:()=>'coop' },
 ];
 
@@ -6580,6 +6580,7 @@ function GameTheorySimulatorTool() {
   const [playerType, setPlayerType]   = useState(null);
   const [currentHand, setCurrentHand] = useState(null);
   const [educCost, setEducCost]       = useState(null);
+  const [inProgressId, setInProgressId] = useState(null);
   const [session, setSession]         = useState(() => {
     try { const s = localStorage.getItem(GT_STORAGE_KEY); return s ? JSON.parse(s) : { history:[], streak:0, totalScore:0, completionMap:{}, concepts:[] }; }
     catch { return { history:[], streak:0, totalScore:0, completionMap:{}, concepts:[] }; }
@@ -6600,10 +6601,11 @@ function GameTheorySimulatorTool() {
     if (sc.id === 'b1') setAiThreshold(22 + Math.floor(Math.random() * 19));
     if (sc.id === 'b2') setAiThreshold(25 + Math.floor(Math.random() * 16));
     if (sc.id === 'd3') setAligned(Math.random() < 0.6);
-    if (sc.id === 'd1' || sc.id === 'd4') setPlayerType(Math.random() < 0.6 ? 'strong' : 'weak');
+    if (sc.id === 'd1') setPlayerType(Math.random() < 0.6 ? 'strong' : 'weak');
     if (sc.id === 'd1') setEducCost(15 + Math.floor(Math.random() * 16));
     if (sc.id === 'd2') setCurrentHand(Math.random() < 0.5 ? 'strong' : 'weak');
     else setCurrentHand(null);
+    setInProgressId(sc.id);
     setGtView('sim');
   };
 
@@ -6618,13 +6620,11 @@ function GameTheorySimulatorTool() {
       case 'poker_ai':              { const h = Math.random() < 0.5 ? 'strong' : 'weak'; return h === 'strong' ? 0 : Math.random() < 0.33 ? 0 : 1; }
       case 'counteroffers':         return Math.random() < 0.6 ? 0 : 1;
       case 'skeptical_dm':          return aligned ? 0 : 1;
-      case 'challenger':            return pChoice === 1 ? 0 : 1;
       case 'separating_employer':   return playerType === 'strong' ? 0 : 1;
       case 'aggressive_price':      return Math.max(1, (pSlider ?? 50) - Math.floor(Math.random() * 6 + 3));
       case 'cooperative_price':     return Math.min(100, Math.max(1, (pSlider ?? 50) + Math.floor(Math.random() * 7) - 3));
       case 'reactive_price':        { const l = hist[hist.length-1]; if (!l) return 50; return l.aiChoice < l.playerChoice ? Math.max(1, l.aiChoice - 3) : Math.min(100, l.aiChoice + 3); }
       case 'cournot_best_response': return Math.max(0, Math.min(80, Math.round((80 - (pSlider ?? 27)) / 2)));
-      case 'mixed_contrib':         return 7 + Math.floor(Math.random() * 7);
       default:                      return Math.random() < 0.5 ? 0 : 1;
     }
   };
@@ -6635,19 +6635,14 @@ function GameTheorySimulatorTool() {
   };
 
   const resolveSlider = (sc, pVal) => {
-    if (sc.id === 'a4') {
-      const [a1,a2,a3] = [7+Math.floor(Math.random()*7), 7+Math.floor(Math.random()*7), 7+Math.floor(Math.random()*7)];
-      const pool = (pVal+a1+a2+a3)*1.6; const share = Math.round(pool/4);
-      return { playerPay:(20-pVal)+share, aiPay:share, summary:`You contributed ${pVal} tokens. AI averaged ${Math.round((a1+a2+a3)/3)} each. Pool: ${Math.round(pool)}. Your share: ${share}. Total: ${(20-pVal)+share}.`, scoreType:pVal<=2?'ne':pVal>=15?'coop':'sub' };
-    }
     if (sc.id === 'b1') {
       const thr = aiThreshold ?? 30; const ok = pVal >= thr;
-      return { playerPay:ok?100-pVal:0, aiPay:ok?pVal:0, summary:ok?`Counterpart accepted $${pVal}. You keep $${100-pVal}.`:`Counterpart rejected $${pVal} — below their minimum of $${thr}. Both receive $0.`, scoreType:!ok?'sub':pVal<=25?'ne':'coop' };
+      return { playerPay:ok?100-pVal:0, aiPay:ok?pVal:0, summary:ok?`Counterpart accepted $${pVal}. You keep $${100-pVal}.`:`Counterpart rejected $${pVal} (below their minimum of $${thr}). Both receive $0.`, scoreType:!ok?'sub':pVal<=25?'ne':'coop' };
     }
     if (sc.id === 'b2') {
       const thr = aiThreshold ?? 30; const aiSh = 100-pVal; const ok = aiSh >= thr;
       const nash = Math.round((100-thr+20)/2+20);
-      return { playerPay:ok?pVal:0, aiPay:ok?aiSh:0, summary:ok?`Deal reached. You: $${pVal}, counterpart: $${aiSh}.`:`Counterpart walked away — $${aiSh} is below their BATNA of $${thr}.`, scoreType:!ok?'sub':Math.abs(pVal-nash)<=10?'ne':'coop' };
+      return { playerPay:ok?pVal:0, aiPay:ok?aiSh:0, summary:ok?`Deal reached. You: $${pVal}, counterpart: $${aiSh}.`:`Counterpart walked away ($${aiSh} is below their BATNA of $${thr}).`, scoreType:!ok?'sub':Math.abs(pVal-nash)<=10?'ne':'coop' };
     }
     return { playerPay:0, aiPay:0, summary:'Outcome resolved.', scoreType:'sub' };
   };
@@ -6661,17 +6656,11 @@ function GameTheorySimulatorTool() {
       const dmF = aiChoice === 0; const pay = aligned?(dmF?10:2):(dmF?-3:5);
       return { playerPay:pay, aiPay:0, summary:`You recommended ${sc.options[pChoice]}. Decision-maker ${dmF?'followed':'ignored'} your advice. Your interests were ${aligned?'aligned':'misaligned'}. Payoff: ${pay}.`, scoreType:'coop' };
     }
-    if (sc.id === 'd4') {
-      const chal = aiChoice === 0; const str = playerType === 'strong';
-      const pay = pChoice===0 ? (str?8:(chal?2:5)) : (str?5:(chal?-2:7));
-      return { playerPay:pay, aiPay:0, summary:`You chose ${sc.options[pChoice]}. Rival ${chal?'challenged':'did not challenge'}. Type: ${str?'Strong':'Weak'}. Payoff: ${pay}.`, scoreType:sc.scoreLogic(pChoice) };
-    }
     if (sc.matrix) {
       const cell = sc.matrix.cells[pChoice]?.[aiChoice] ?? [0,0];
       let st;
       if (sc.id==='a1') st=sc.scoreLogic(pChoice,aiChoice);
       else if (sc.id==='a3') st=sc.scoreLogic(pChoice,aiChoice);
-      else if (sc.id==='a5') st=sc.scoreLogic(pChoice,aiChoice);
       else st='sub';
       return { playerPay:cell[0], aiPay:cell[1], summary:`You chose ${sc.options[pChoice]}, opponent chose ${sc.options[aiChoice]}. Your payoff: ${cell[0]} ${sc.matrix.unit}.`, scoreType:st };
     }
@@ -6679,14 +6668,6 @@ function GameTheorySimulatorTool() {
   };
 
   const resolveMultiRound = (sc, pChoice, aiChoice, rnd) => {
-    if (sc.id==='e2') { const w=pChoice===aiChoice; return { playerPay:w?1:-1, aiPay:w?-1:1, playerChoice:pChoice, aiChoice, summary:`${sc.options[pChoice]} vs ${sc.options[aiChoice]}. You ${w?'win +1':'lose -1'}.` }; }
-    if (sc.id==='e1') {
-      const pots=[[4,1],[16,4],[64,16]]; const ap=[[2,8],[8,32]];
-      const pot=pots[rnd]??[4,1];
-      if (pChoice===0) return { playerPay:pot[0], aiPay:pot[1], playerChoice:pChoice, aiChoice, ended:true, summary:`You took at node ${rnd*2+1}. You get ${pot[0]}, AI gets ${pot[1]}.` };
-      if (aiChoice===0) { const a=ap[rnd]??[2,8]; return { playerPay:a[0], aiPay:a[1], playerChoice:pChoice, aiChoice:0, ended:true, summary:`You passed. AI took at node ${rnd*2+2}. You get ${a[0]}, AI gets ${a[1]}.` }; }
-      return { playerPay:0, aiPay:0, playerChoice:pChoice, aiChoice:1, ended:false, summary:'Both passed. Pot grows. Your next decision awaits.' };
-    }
     if (sc.id==='d2') {
       const hand=currentHand??'weak';
       if (pChoice===1) return { playerPay:0, aiPay:1, playerChoice:pChoice, aiChoice, summary:'You folded.' };
@@ -6721,6 +6702,7 @@ function GameTheorySimulatorTool() {
   };
 
   const finalize = (sc, outcome, pts, badge, pChoice, aiChoice) => {
+    setInProgressId(null);
     setDebrief({ sc, outcome, pts, badge, pChoice, aiChoice, aiStratLabel:GT_AI_LABELS[aiStrat]??{ name:aiStrat, desc:'' } });
     setPhase('debrief');
     const newConcept = !session.concepts.includes(sc.concept);
@@ -6741,7 +6723,7 @@ function GameTheorySimulatorTool() {
       if (playerChoice === null) return;
       const inv=playerChoice===0; const str=playerType==='strong'; const cost=educCost??20;
       const wage=inv?(str?80:25):25; const net=inv?wage-cost:wage;
-      const outcome = { playerPay:net, aiPay:0, summary:inv?`You invested in education (cost: $${cost}). Employer offered $${wage} — ${str?'recognizing strong type':'unable to distinguish type from credential alone'}. Net payoff: $${net}.`:`You skipped education. Employer offered baseline wage: $${wage}. Net payoff: $${wage}.`, scoreType:((str&&inv)||(!str&&!inv))?'ne':'sub' };
+      const outcome = { playerPay:net, aiPay:0, summary:inv?`You invested in education (cost: $${cost}). Employer offered $${wage} (${str?'recognizing strong type':'unable to distinguish type from credential alone'}). Net payoff: $${net}.`:`You skipped education. Employer offered baseline wage: $${wage}. Net payoff: $${wage}.`, scoreType:((str&&inv)||(!str&&!inv))?'ne':'sub' };
       const { pts, badge } = computeScore(outcome.scoreType);
       finalize(sc, outcome, pts, badge, playerChoice, null);
       return;
@@ -6798,8 +6780,7 @@ function GameTheorySimulatorTool() {
       if (rr.ended===true || round+1>=sc.rounds) {
         const tot = newH.reduce((s,h)=>s+(h.playerPay||0),0);
         let scoreType;
-        if (sc.id==='e1'||sc.id==='e2') scoreType=sc.scoreLogic(newH);
-        else if (sc.id==='d2') scoreType=tot>0?'coop':'sub';
+        if (sc.id==='d2') scoreType=tot>0?'coop':'sub';
         else if (sc.id==='a2') { const c=newH.filter(h=>h.playerChoice===0).length; scoreType=c>=4?'coop':c<=1?'ne':'sub'; }
         else if (sc.id==='c1') { const ad=newH.reduce((s,h)=>s+Math.abs((h.playerChoice||0)-(h.aiChoice||0)),0)/newH.length; scoreType=ad<=5?'coop':'ne'; }
         else if (sc.id==='c2') { const aq=newH.reduce((s,h)=>s+(h.playerChoice||0),0)/newH.length; scoreType=Math.abs(aq-27)<=5?'ne':'sub'; }
@@ -6831,7 +6812,7 @@ function GameTheorySimulatorTool() {
               <tr key={r}>
                 <td className="text-slate-400 font-medium pr-3 whitespace-nowrap py-1">{row}</td>
                 {cols.map((_,c)=>{
-                  const idx=r*cols.length+c; const revealed=revealCells.includes(idx)||phase==='debrief';
+                  const idx=r*cols.length+c; const revealed=revealCells.includes(idx);
                   const isOut=phase==='debrief'&&pRow===r&&aiCol===c; const cell=cells[r][c];
                   return (
                     <td key={c} className="p-1"><div className={`rounded-lg p-2 text-center border transition-all duration-300 ${isOut?'border-amber-600/60':'border-slate-700/40'}`} style={{ background:isOut?'#92400e25':'#0f172050' }}>
@@ -6872,15 +6853,16 @@ function GameTheorySimulatorTool() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filt.map(sc=>{
-              const dom=GT_DOMAIN[sc.domain]; const diff=GT_DIFF[sc.difficulty]; const comp=session.completionMap[sc.id];
+              const dom=GT_DOMAIN[sc.domain]; const diff=GT_DIFF[sc.difficulty]; const comp=session.completionMap[sc.id]; const isProg=inProgressId===sc.id;
               return (
-                <button key={sc.id} onClick={()=>startScenario(sc)} className="text-left bg-slate-800/50 border border-slate-700 hover:border-slate-600 rounded-2xl p-4 flex flex-col transition-all hover:-translate-y-0.5 group">
+                <button key={sc.id} onClick={()=>startScenario(sc)} className="text-left bg-slate-800/50 border border-slate-700 hover:border-slate-600 rounded-2xl p-4 flex flex-col transition-all hover:-translate-y-0.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <span className="text-xs px-2 py-0.5 rounded-md font-semibold" style={{background:dom.bg,color:dom.color}}>{dom.label}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs px-2 py-0.5 rounded-md font-medium" style={{background:diff.bg,color:diff.color}}>{sc.difficulty}</span>
-                      {comp==='mastered'&&<span className="text-amber-400 text-xs">★</span>}
-                      {comp==='complete'&&<span className="text-slate-400 text-xs">✓</span>}
+                      {isProg&&<span className="text-teal-400 text-xs font-mono">▶</span>}
+                      {!isProg&&comp==='mastered'&&<span className="text-amber-400 text-xs">★</span>}
+                      {!isProg&&comp==='complete'&&<span className="text-slate-400 text-xs">✓</span>}
                     </div>
                   </div>
                   <h3 className="text-white font-bold text-sm mb-1 group-hover:text-violet-200 transition-colors leading-snug">{sc.title}</h3>
@@ -6911,7 +6893,7 @@ function GameTheorySimulatorTool() {
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Mechanic</p>
           <p className="text-slate-300 text-xs leading-relaxed">{sc.mechanic}</p>
         </div>
-        {(sc.id==='d1'||sc.id==='d4')&&playerType&&(
+        {sc.id==='d1'&&playerType&&(
           <div className="bg-violet-950/30 border border-violet-700/30 rounded-xl px-4 py-3 mb-5">
             <p className="text-xs text-violet-400/70 uppercase tracking-wider mb-0.5">Your type (known only to you)</p>
             <p className="text-violet-200 text-lg font-black capitalize">{playerType}</p>
@@ -6954,18 +6936,17 @@ function GameTheorySimulatorTool() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-4">
             {sc.id==='d2'&&currentHand&&(<div className="bg-violet-950/30 border border-violet-700/30 rounded-xl px-4 py-3"><p className="text-xs text-violet-400/70 uppercase tracking-wider mb-0.5">Your hand this round</p><p className="text-white font-black text-lg capitalize">{currentHand}</p><p className="text-slate-500 text-xs mt-0.5">{currentHand==='strong'?'Strong hand wins if the AI calls.':'Weak hand loses if called. Bluff or fold.'}</p></div>)}
-            {sc.id==='e1'&&(<div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4"><p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Current node (your turn {round+1})</p><div className="space-y-1.5 text-xs"><div className="flex justify-between"><span className="text-slate-400">If you Take:</span><span className="text-white font-mono font-bold">You +{cPots[round]?.[0]??4} / AI +{cPots[round]?.[1]??1}</span></div>{round<2&&<div className="flex justify-between"><span className="text-slate-400">If you Pass:</span><span className="text-slate-500 font-mono">pot grows for AI's turn</span></div>}</div></div>)}
-            {(sc.id==='c3'||sc.id==='c4')&&privVal&&(<div className="bg-amber-950/30 border border-amber-800/40 rounded-xl px-4 py-3"><p className="text-xs text-amber-400/70 uppercase tracking-wider mb-0.5">Your private value</p><p className="text-amber-200 text-2xl font-black font-mono">${privVal}</p>{sc.id==='c4'&&<p className="text-amber-400/50 text-xs mt-1">Optimal bid: ~${Math.round(privVal*2/3)} (2/3 of value, 3 bidders)</p>}</div>)}
+            {sc.id==='c3'&&privVal&&(<div className="bg-amber-950/30 border border-amber-800/40 rounded-xl px-4 py-3"><p className="text-xs text-amber-400/70 uppercase tracking-wider mb-0.5">Your private value</p><p className="text-amber-200 text-2xl font-black font-mono">${privVal}</p></div>)}
             {sc.id==='d1'&&(<div className="bg-violet-950/30 border border-violet-700/30 rounded-xl px-4 py-3"><p className="text-xs text-violet-400/70 uppercase tracking-wider mb-0.5">Your situation</p><p className="text-white text-sm font-semibold capitalize">{playerType} ability type</p>{educCost&&<p className="text-slate-500 text-xs mt-1">Credential cost: ${educCost}. High-ability types find signals cheaper to obtain.</p>}</div>)}
             {sc.matrix&&renderMatrix(sc,null,null)}
             {isMR&&roundHist.length>0&&(<div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3"><p className="text-xs text-slate-500 uppercase tracking-wider mb-2">History</p><div className="space-y-1 text-xs">{roundHist.map((rh,i)=>(<div key={i} className="flex justify-between"><span className="text-slate-400">R{i+1}: {sc.roundInterface==='binary'?(opts[rh.playerChoice]??rh.playerChoice):`$${rh.playerChoice}`} vs {sc.roundInterface==='binary'?(opts[rh.aiChoice]??rh.aiChoice):`$${rh.aiChoice}`}</span><span className="font-mono" style={{color:(rh.playerPay??0)>=0?'#34d399':'#f87171'}}>{(rh.playerPay??0)>=0?'+':''}{rh.playerPay??0}</span></div>))}</div></div>)}
           </div>
           <div className="space-y-4">
             <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
-              {isBin&&(<div className="space-y-2"><p className="text-xs text-slate-400 mb-3">{isMR?`Round ${round+1} action:`:'Choose your action:'}</p>{opts.map((opt,i)=>(<button key={i} onClick={()=>setPlayerChoice(i)} className={`w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${playerChoice===i?'':'bg-slate-700/40 border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white'}`} style={playerChoice===i?{background:`linear-gradient(135deg,${dom.color}30,${dom.color}15)`,border:`1px solid ${dom.color}60`,color:dom.color}:{}}>{opt}</button>))}</div>)}
-              {isSl&&(<div><p className="text-xs text-slate-400 mb-3">Set your {sc.sliderLabel}:</p><div className="flex items-center justify-between mb-2"><span className="text-slate-500 text-xs">{sc.sliderMin}</span><span className="text-white font-black text-xl font-mono">{sliderVal}</span><span className="text-slate-500 text-xs">{sc.sliderMax}</span></div><input type="range" min={sc.sliderMin??0} max={sc.sliderMax??100} value={sliderVal} onChange={e=>setSliderVal(Number(e.target.value))} className="w-full accent-violet-500" /><p className="text-xs text-center text-slate-600 mt-1">{sc.sliderLabel}</p></div>)}
-              {sc.interfaceType==='numbid'&&(<div><p className="text-xs text-slate-400 mb-3">Enter your bid:</p><input type="number" min="0" value={bidInput} onChange={e=>setBidInput(e.target.value)} placeholder={`Bid (your value: $${privVal})`} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:border-violet-500/60 focus:outline-none transition-colors" /></div>)}
-              <button onClick={commitChoice} disabled={!canGo} className="w-full mt-4 py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{background:`linear-gradient(135deg,${dom.color}90,${dom.color}55)`}}>{isMR&&round<(sc.rounds??1)-1?`Confirm Round ${round+1}`:'Confirm Decision'}</button>
+              {isBin&&(<div className="space-y-2"><p className="text-xs text-slate-400 mb-3">{isMR?`Round ${round+1} action:`:'Choose your action:'}</p>{opts.map((opt,i)=>(<button key={i} onClick={()=>setPlayerChoice(i)} className={`w-full px-4 py-3 rounded-xl text-sm font-bold transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${playerChoice===i?'':'bg-slate-700/40 border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white'}`} style={playerChoice===i?{background:`linear-gradient(135deg,${dom.color}30,${dom.color}15)`,border:`1px solid ${dom.color}60`,color:dom.color}:{}}>{opt}</button>))}</div>)}
+              {isSl&&(<div><p className="text-xs text-slate-400 mb-3">Set your {sc.sliderLabel}:</p><div className="flex items-center justify-between mb-2"><span className="text-slate-500 text-xs">{sc.sliderMin}</span><span className="text-white font-black text-xl font-mono">{sliderVal}</span><span className="text-slate-500 text-xs">{sc.sliderMax}</span></div><input type="range" min={sc.sliderMin??0} max={sc.sliderMax??100} value={sliderVal} onChange={e=>setSliderVal(Number(e.target.value))} className="w-full accent-violet-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded" /><p className="text-xs text-center text-slate-600 mt-1">{sc.sliderLabel}</p></div>)}
+              {sc.interfaceType==='numbid'&&(<div><p className="text-xs text-slate-400 mb-3">Enter your bid:</p><input type="number" min="0" value={bidInput} onChange={e=>setBidInput(e.target.value)} placeholder={`Bid (your value: $${privVal})`} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-lg focus:border-violet-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 transition-colors" /></div>)}
+              <button onClick={commitChoice} disabled={!canGo} className="w-full mt-4 py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" style={{background:`linear-gradient(135deg,${dom.color}90,${dom.color}55)`}}>{isMR&&round<(sc.rounds??1)-1?`Confirm Round ${round+1}`:'Confirm Decision'}</button>
             </div>
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl px-4 py-3"><p className="text-xs text-slate-500">AI opponent active. Strategy hidden until debrief.</p></div>
           </div>
