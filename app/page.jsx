@@ -7240,7 +7240,7 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{background:'linear-gradient(135deg,#7c3aed,#4f46e5)'}}>♟</div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-black text-white leading-tight">Game Theory Simulator</h1>
-            <p className="text-slate-500 text-xs">15 scenario-based simulations across cooperation, bargaining, competition, signaling, and geoeconomics</p>
+            <p className="text-slate-500 text-xs">18 scenario-based simulations across cooperation, bargaining, competition, signaling, and geoeconomics</p>
           </div>
           <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1 flex-shrink-0">
             {[['hub','Hub'],['scoreboard','Log']].map(([v,l])=>(
