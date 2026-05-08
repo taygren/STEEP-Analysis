@@ -6427,13 +6427,9 @@ const GT_AI_LABELS = {
   cooperative_price:     { name: 'Cooperative Pricer',     desc: 'Matched your price closely, testing whether tacit collusion could be sustained without communication.' },
   reactive_price:        { name: 'Reactive Pricer',        desc: 'Adjusted price based on the previous round\'s relative profit performance.' },
   cournot_best_response: { name: 'Cournot Best Responder', desc: 'Computed the theoretically optimal quantity given your production choice each round.' },
-  mixed_pennies:         { name: 'True Randomizer',        desc: 'Played each option with exactly 50% probability — the unique Nash Equilibrium for Matching Pennies.' },
   poker_ai:              { name: 'Calibrated Bluffer',     desc: 'Called with strong hands and bluffed weak hands at the equilibrium frequency.' },
   skeptical_dm:          { name: 'Skeptical Decision-Maker', desc: 'Weighed your recommendation against the prior probability of alignment. Followed credible advice, discounted suspect advice.' },
-  challenger:            { name: 'Bayesian Challenger',    desc: 'Updated beliefs from your signal and challenged when the posterior probability of weakness made it profitable.' },
   separating_employer:   { name: 'Sophisticated Employer', desc: 'Offered high wages to credentialed applicants and low wages to uncredentialed ones, consistent with a separating equilibrium.' },
-  centipede_ai:          { name: 'Backward Inductor',      desc: 'Passed early to build the pot, then took at a later node — applying imperfect but non-trivial backward induction.' },
-  mixed_contrib:         { name: 'Conditional Cooperator', desc: 'Contributed proportional to their estimate of others\' contributions, a common behavioral pattern in public goods experiments.' },
 };
 const GT_STORAGE_KEY = 'stint-gametheory-state';
 const GT_SCENARIOS = [
@@ -6471,27 +6467,6 @@ const GT_SCENARIOS = [
     realWorldAnchor:"International climate commitments require simultaneous action by all major parties. Any nation that defects while others cooperate gains a free ride, creating exactly this stag hunt dynamic.",
     insight:"I learned that not all equilibria are equal. Payoff-dominance and risk-dominance can conflict, and coordination failures are rational when trust is absent.",
     neRow:0, neCol:0, scoreLogic:(ph,ah)=>(ph===0&&ah===0)?'ne':ph===1?'ne':'sub' },
-  { id:'a4', title:'Public Goods Game', domain:'A', difficulty:'Intermediate',
-    premise:"Each of four players receives 20 tokens. You decide how many to contribute to a shared pool. The pool is multiplied by 1.6 and divided equally, regardless of individual contribution.",
-    mechanic:"Slider: tokens to contribute (0-20). Three AI players contribute simultaneously.",
-    interfaceType:'slider', sliderMin:0, sliderMax:20, sliderDefault:10, sliderLabel:'tokens to contribute',
-    aiStrategies:['mixed_contrib'], ne:'Contribute 0 (free riding dominates)',
-    concept:'Free Rider Problem, Social Dilemma',
-    conceptDef:"Keeping tokens dominates contributing: whatever others give, you are individually better off keeping your own. Yet if all four free-ride, everyone earns only 20 tokens. Full cooperation yields 32 for everyone. The socially optimal outcome is individually irrational without coordination, norms, or enforcement.",
-    realWorldAnchor:"National defense, open-source software, and carbon emission reductions are public goods: benefits are non-excludable, so individuals systematically under-contribute relative to the social optimum.",
-    insight:"I learned that free riding is individually rational but collectively destructive. Social dilemmas require external mechanisms — norms, incentives, or regulation — to reach efficient outcomes.",
-    scoreLogic:(pv)=>pv<=2?'ne':pv>=15?'coop':'sub' },
-  { id:'a5', title:'Hawk-Dove Game', domain:'A', difficulty:'Intermediate',
-    premise:"Two players compete for a resource worth 10 points. Playing Hawk risks a costly fight (cost: 16 points each). Playing Dove concedes the resource but avoids injury.",
-    mechanic:"Simultaneous binary choice. No pure-strategy equilibrium exists for these payoffs.",
-    interfaceType:'binary', options:['Hawk','Dove'],
-    matrix:{ rows:['Hawk','Dove'], cols:['Hawk','Dove'], cells:[[[-3,-3],[10,0]],[[0,10],[5,5]]], unit:'pts' },
-    aiStrategies:['mixed_hawk','random'], ne:'Mixed strategy: 62.5% Hawk, 37.5% Dove',
-    concept:'Mixed Strategy Nash Equilibrium',
-    conceptDef:"No pure-strategy Nash Equilibrium exists: if your opponent always plays Dove, you should play Hawk; but then they should switch to Hawk, which makes you switch back. The unique NE is a mixed strategy where each player plays Hawk with probability V/C = 10/16 = 62.5%, making the opponent exactly indifferent between options.",
-    realWorldAnchor:"Arms buildups between rival states, aggressive vs. accommodating negotiation postures, and market entry decisions all exhibit this dynamic: unpredictability has strategic value when conflict is costly.",
-    insight:"I learned that mixed strategies are not confusion. They are calculated randomization designed to prevent the opponent from exploiting a predictable pattern.",
-    neRow:-1, neCol:-1, scoreLogic:(ph,ah)=>ph!==ah?'ne':ph===1?'coop':'sub' },
   { id:'b1', title:'Ultimatum Game', domain:'B', difficulty:'Entry',
     premise:"You receive $100. Propose how to split it with a counterpart. They accept or reject. If rejected, neither player receives anything.",
     mechanic:"Slider: amount to offer (0-100). The counterpart's rejection threshold is hidden from you.",
@@ -6553,15 +6528,6 @@ const GT_SCENARIOS = [
     realWorldAnchor:"Google's ad auction system, eBay's proxy bidding mechanism, and spectrum license auctions apply Vickrey principles. Dominant-strategy incentive compatibility — making truth-telling individually rational — is the core design goal.",
     insight:"I learned that good mechanism design can make honesty the dominant strategy. The rules of the game determine whether deception or truth is individually rational.",
     scoreLogic:null },
-  { id:'c4', title:'First-Price Sealed Bid Auction', domain:'C', difficulty:'Intermediate',
-    premise:"Same auction, different rules. The winner pays their own bid. Bidding your true value guarantees zero profit even if you win. You must shade your bid downward to capture surplus.",
-    mechanic:"Enter your bid. Shade it below your private value — but not so low you lose to competitors.",
-    interfaceType:'numbid', matrix:null, aiStrategies:['random'], ne:'(N-1)/N of private value with N symmetric bidders',
-    concept:'Revenue Equivalence, Bid Shading',
-    conceptDef:"In a first-price auction, the optimal bid shades below true value. With 3 symmetric bidders, the Nash equilibrium bid is 2/3 of private value. The Revenue Equivalence Theorem shows first-price and second-price auctions generate equal expected revenue for the seller — through opposite bidder behaviors.",
-    realWorldAnchor:"Government procurement contracts, commercial real estate offers in competitive markets, and M&A bids are first-price mechanisms where bid-shading strategy determines the surplus captured.",
-    insight:"I learned that bid shading is rational, not deceptive. First-price auctions require modeling your competitors — not just knowing your own valuation.",
-    scoreLogic:null },
   { id:'d1', title:'The Signaling Game', domain:'D', difficulty:'Advanced',
     premise:"You are a job applicant. Your ability type is known only to you. Education signals ability to employers, but it is costly. Do you invest in the credential?",
     mechanic:"One decision: invest in education or skip. Your type and education cost are shown. The employer's wage offer reveals the equilibrium.",
@@ -6592,16 +6558,6 @@ const GT_SCENARIOS = [
     realWorldAnchor:"Analyst recommendations from firms with investment banking conflicts, internal advisors pushing preferred strategies, and regulatory capture all produce babbling: messages that convey less than their apparent content.",
     insight:"I learned that credible communication requires aligned interests. When incentives diverge, words lose information — and the receiver knows it.",
     scoreLogic:()=>'coop' },
-  { id:'d4', title:'Beer-Quiche Signaling Game', domain:'D', difficulty:'Advanced',
-    premise:"You are entering a market. A rival challenges weak entrants. Strong entrants prefer Aggressive Expansion; weak entrants prefer Cautious Entry. But both types want to deter the challenge.",
-    mechanic:"Choose your market signal. The rival updates beliefs about your type from the signal and decides whether to challenge.",
-    interfaceType:'binary', options:['Aggressive Expansion','Cautious Entry'],
-    matrix:null, aiStrategies:['challenger'], ne:'Pooling equilibrium: both types choose Aggressive Expansion',
-    concept:'Perfect Bayesian Equilibrium, Pooling Equilibrium',
-    conceptDef:"A pooling equilibrium exists where both types signal Aggressive Expansion. The rival observes the signal but cannot distinguish types. Given the prior that most entrants are strong, they optimally do not challenge. The equilibrium is sustained by the off-path belief: anyone choosing Cautious Entry must be weak.",
-    realWorldAnchor:"Incumbent firms building excess capacity, nations with nuclear arsenals engaging in conventional conflicts, and executives pursuing bold acquisitions all signal strength to deter challenges.",
-    insight:"I learned that pooling equilibria can require costly mimicry. When a signal deters challenges for both types, even the weak type must pay the cost of the strong type's preferred action.",
-    scoreLogic:(ph)=>ph===0?'ne':'sub' },
 ];
 
 function GameTheorySimulatorTool() {
@@ -6659,8 +6615,6 @@ function GameTheorySimulatorTool() {
       case 'grimtrigger':           return hist.some(h => h.playerChoice === 1) ? 1 : 0;
       case 'coordinate':            return Math.random() < 0.7 ? 0 : 1;
       case 'mixed_hawk':            return Math.random() < 0.625 ? 0 : 1;
-      case 'mixed_pennies':         return Math.random() < 0.5 ? 0 : 1;
-      case 'centipede_ai':          return rnd < 1 ? 1 : (Math.random() < 0.75 ? 0 : 1);
       case 'poker_ai':              { const h = Math.random() < 0.5 ? 'strong' : 'weak'; return h === 'strong' ? 0 : Math.random() < 0.33 ? 0 : 1; }
       case 'counteroffers':         return Math.random() < 0.6 ? 0 : 1;
       case 'skeptical_dm':          return aligned ? 0 : 1;
@@ -6869,7 +6823,7 @@ function GameTheorySimulatorTool() {
     const { rows, cols, cells, unit } = sc.matrix;
     return (
       <div className="bg-slate-900/60 border border-slate-700 rounded-2xl p-4">
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Payoff Matrix <span className="normal-case font-mono">(you, opponent — {unit})</span></p>
+        <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Payoff Matrix <span className="normal-case font-mono">(you, opponent: {unit})</span></p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead><tr><th />{cols.map(c=><th key={c} className="text-slate-400 font-medium pb-2 px-2 text-center whitespace-nowrap">{c}</th>)}</tr></thead>
@@ -7108,7 +7062,7 @@ function GameTheorySimulatorTool() {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0" style={{background:'linear-gradient(135deg,#7c3aed,#4f46e5)'}}>♟</div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-black text-white leading-tight">Game Theory Simulator</h1>
-            <p className="text-slate-500 text-xs">18 scenario-based simulations across cooperation, bargaining, competition, and signaling</p>
+            <p className="text-slate-500 text-xs">12 scenario-based simulations across cooperation, bargaining, competition, and signaling</p>
           </div>
           <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1 flex-shrink-0">
             {[['hub','Hub'],['scoreboard','Log']].map(([v,l])=>(
