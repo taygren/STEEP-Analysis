@@ -1,0 +1,245 @@
+ Tool Architecture
+Top-Level Structure
+Game Theory Simulator
+├── Scenario Hub (home/lobby)
+│   ├── Scenario cards by category
+│   ├── Player progress / streak tracker
+│   └── Difficulty filter
+│
+├── Active Simulation
+│   ├── Scenario Brief
+│   ├── Decision Interface
+│   ├── Payoff Matrix (revealed progressively)
+│   ├── Outcome Engine
+│   └── Debrief + Concept Explanation
+│
+└── Scoreboard / Insight Log
+    ├── Personal performance history
+    ├── Concepts encountered
+    └── Strategic patterns identified
+
+4. Scenario Library (12 Core Scenarios)
+Organized into four strategic domains. Each scenario includes a narrative wrapper, a decision interface, and a post-decision debrief with game theory concept reinforcement.
+
+DOMAIN A: COOPERATION & CONFLICT
+A1. The Prisoner's Dilemma (Classic)
+
+Premise: Two suspects are interrogated separately. Each can cooperate with the other (stay silent) or defect (betray). The outcome depends on both choices.
+Mechanic: Simultaneous choice — Cooperate or Defect. No communication.
+Payoff Matrix: Standard PD matrix (displayed as years of sentence)
+Concept: Dominant strategy, Nash Equilibrium, tragedy of the commons
+Difficulty: Entry
+
+A2. Repeated Prisoner's Dilemma
+
+Premise: Same scenario but over 10 rounds. The opponent's history is visible. You can build a reputation or exploit one.
+Mechanic: Sequential rounds. Opponent uses one of four AI strategies (Tit-for-Tat, Always Defect, Grim Trigger, Random). Strategy is hidden until debrief.
+Concept: Folk theorem, reputation effects, shadow of the future
+Difficulty: Intermediate
+
+A3. The Stag Hunt
+
+Premise: Two hunters can pursue a stag together (high reward, requires both) or each hunt a rabbit alone (guaranteed small reward). Neither knows what the other will do.
+Mechanic: Simultaneous choice. No communication before round 1; limited signal possible in round 2.
+Concept: Coordination game, payoff-dominant vs. risk-dominant equilibria
+Difficulty: Entry
+
+
+DOMAIN B: BARGAINING & NEGOTIATION
+B1. Ultimatum Game
+
+Premise: You receive $100. You propose how to split it with a counterpart. They accept or reject. If they reject, neither gets anything.
+Mechanic: Slider input for offer (0-100). AI counterpart has a hidden rejection threshold. User must infer it through pattern or principle.
+Concept: Subgame perfect equilibrium, fairness norms, behavioral deviation
+Difficulty: Entry
+
+B2. The Nash Bargaining Problem
+
+Premise: Two parties are negotiating terms of a deal. Both have a walk-away (BATNA) value. The deal space is displayed as a frontier. Players submit positions and concede incrementally.
+Mechanic: Multi-round offer/counter-offer with a visible Pareto frontier. Timer creates pressure.
+Concept: Nash Bargaining Solution, Pareto efficiency, disagreement points
+Difficulty: Advanced
+
+B3. Divide the Surplus
+
+Premise: Three-player negotiation. Any two can form a coalition and split the value, leaving the third out. Coalitions can shift each round.
+Mechanic: Coalition formation interface. Players bid for coalition membership.
+Concept: Coalition games, core, Shapley value
+Difficulty: Advanced
+
+
+DOMAIN C: COMPETITION & MARKETS
+C1. The Pricing War
+
+Premise: Two firms set prices for a homogeneous product each quarter. Consumers go to the lower price. High prices mean higher margins but lost share.
+Mechanic: Price slider per round (8 rounds). Opponent AI uses one of three pricing strategies (aggressive, cooperative, reactive).
+Concept: Bertrand competition, collusion incentives, market equilibrium
+Difficulty: Intermediate
+
+C2. The Cournot Duopoly
+
+Premise: Two firms decide how much to produce. Market price falls as total supply rises. Each firm maximizes its own profit.
+Mechanic: Quantity selector per round. Payoff curve updates dynamically as decisions are entered.
+Concept: Cournot equilibrium, reaction functions, best response
+Difficulty: Intermediate
+
+C3. The Auction
+
+Premise: You are bidding in a sealed-bid second-price auction. Your private value for the item is shown. Other bidders' values are hidden.
+Mechanic: Enter your bid. Outcome reveals all bids and explains why the dominant strategy is truthful bidding.
+Concept: Vickrey auction, dominant strategy in mechanism design, winner's curse (in a variant)
+Difficulty: Entry
+
+
+DOMAIN D: SIGNALING & INFORMATION
+D1. The Signaling Game
+
+Premise: You are a job applicant. Education is costly but signals ability. Employers offer wages based on signals. Do you invest in the credential?
+Mechanic: Two-stage decision. Stage 1: invest in signal (yes/no, with displayed cost). Stage 2: wage offer reveals whether it was worth it. Employer type (sophisticated vs. naive) is randomized.
+Concept: Spence signaling model, separating vs. pooling equilibria
+Difficulty: Advanced
+
+D2. The Bluffing Game
+
+Premise: Simplified poker variant. You are dealt a hand (strong/weak, shown only to you). You can bet or fold. The opponent can call or fold. Outcome depends on hands and choices.
+Mechanic: 5-round game. Track bluff frequency. Post-round, opponent's strategy adapts.
+Concept: Mixed strategy Nash Equilibrium, credible threats, information asymmetry
+Difficulty: Intermediate
+
+D3. The Cheap Talk Game
+
+Premise: You are an expert (informed) sending a recommendation to a decision-maker (uninformed). Your interests may or may not be aligned. The decision-maker must decide whether to follow your advice.
+Mechanic: Role assignment per round (sender/receiver alternates). Alignment is probabilistic and hidden.
+Concept: Crawford-Sobel model, babbling equilibrium, strategic communication
+Difficulty: Advanced
+
+
+5. Core Mechanics & Interaction Design
+5A. Session Flow
+Scenario Hub
+    → User selects scenario (or "Surprise Me" assigns one)
+    → Scenario Brief loads (narrative + context)
+    → Decision Interface activates
+    → User makes choice(s)
+    → Outcome Engine resolves
+    → Payoff Matrix fully revealed
+    → Debrief panel: concept name, explanation, how this round's result illustrates it
+    → Score updates, concept logged
+    → Option: Replay / Next Scenario / Return to Hub
+5B. Decision Interfaces (per scenario type)
+Interface TypeUsed InDescriptionBinary choice buttonsA1, A3, B1 (accept/reject)Two styled action buttons, full-width, labeled clearlySlider inputB1 (offer), C1 (price), C2 (quantity)Draggable range with live value display in DM MonoMulti-round sequentialA2, B2, C1, C2, D2Turn-based flow with round counter and history logCoalition selectorB3Drag-to-group or checkbox coalition builderNumeric bid entryC3Input field with private value displayed prominentlyTwo-stage branchingD1Step 1 and Step 2 presented sequentially with outcome bridge
+5C. Payoff Matrix Display
+Every scenario surfaces a payoff matrix. Rules:
+
+Matrix is partially obscured before the decision is made (opponent values hidden)
+After decision, full matrix reveals with animation (cells flip or fade in)
+Player's outcome highlighted in burnt orange
+All values displayed in DM Mono
+Matrix labeled clearly: rows = Player 1 strategy, columns = Player 2 strategy
+
+5D. Opponent AI Behaviors
+Each scenario's AI opponent operates on one of the following logic types (hidden until debrief):
+
+Rational/Theoretical: Plays the Nash Equilibrium strategy always
+Reactive: Mirrors player's last move (Tit-for-Tat style)
+Exploitative: Identifies and defects on cooperative patterns
+Noisy: Plays a mixed strategy with randomization
+Behavioral: Incorporates fairness norms and non-rational preferences
+
+The AI type is revealed in the debrief with an explanation of what it implies for real-world counterpart modeling.
+
+6. Scoring & Progression System
+Score Architecture
+
+Points per round: Determined by outcome relative to Nash Equilibrium benchmark
+
+Matched or beat the equilibrium prediction: +100 base
+Deviated but achieved higher joint payoff: +75 + "Cooperation Bonus" badge
+Suboptimal outcome: +25 + feedback note
+
+
+Streak multiplier: Consecutive correct/optimal decisions multiply score (1x, 1.5x, 2x, 2.5x)
+Concept mastery: First time each concept is encountered, a badge is awarded and logged
+
+Progress Indicators
+
+Scenario Hub shows completion state per card (untouched / in progress / complete / mastered)
+A "Concepts Encountered" counter tracks unique game theory concepts surfaced
+An "Insight Log" records one key takeaway per completed scenario, phrased as a strategic principle
+
+Difficulty Scaling
+
+Entry: Pre-set AI strategy, explained payoff matrix, guided debrief
+Intermediate: AI type hidden, matrix partially labeled, less guided debrief
+Advanced: AI type unknown, matrix unlabeled, user must name the concept encountered
+
+
+7. Debrief Panel Design
+After every scenario resolution, the Debrief Panel slides in from the right (or expands below on mobile). It contains:
+
+Outcome Summary — What happened, stated plainly (e.g., "Both players defected. Total payoff: 4 years combined sentence.")
+Optimal Path — What the Nash Equilibrium predicted and why
+Concept Name + Definition — E.g., "Dominant Strategy: a choice that produces the best outcome regardless of what the opponent does."
+Real-World Anchor — One sentence connecting the concept to a real strategic context (business, geopolitics, negotiation)
+Your Score This Round — Displayed in DM Mono with streak indicator
+Replay / Next — Two CTA buttons
+
+
+8. Navigation & Layout Principles
+Scenario Hub
+
+Card-based grid (3 columns desktop, 1 column mobile)
+Each card: scenario title, domain badge (color-coded by domain A/B/C/D), difficulty chip, one-line premise, completion state
+Filter bar: All / Cooperation / Bargaining / Competition / Signaling
+"Surprise Me" button assigns a random incomplete scenario
+
+Active Simulation
+
+Two-panel layout: Left = scenario context + opponent info. Right = decision interface + payoff matrix.
+Mobile: stacked, context above, interface below
+Persistent: round counter, current score, streak indicator in header strip
+
+Scoreboard / Insight Log
+
+Clean table: Scenario | Domain | Score | Concept Mastered | Date
+Insight Log: chronological list of strategic principles, phrased in first person ("I learned that in repeated games, reputation shapes equilibrium more than rational calculation alone.")
+
+
+9. Copy Tone Standards
+
+Scenario titles: declarative and specific ("The Pricing War", not "Price Competition Game")
+Debrief copy: analytical, direct, no hedging. State what happened and why.
+UI labels: lowercase where appropriate, never all-caps except domain badges
+Error/empty states: brief and purposeful ("No scenarios completed yet. Start with The Prisoner's Dilemma.")
+No em dashes throughout. Use colons, commas, or new sentences.
+
+
+10. Technical Implementation Notes
+Recommended Stack
+
+Single-file HTML artifact for initial build (consistent with STEEP tool pattern on Vercel)
+Vanilla JS for state management and game logic (no framework dependency for simplicity)
+CSS custom properties for theming (use STINT.Studio palette tokens)
+Google Fonts: Cormorant Garamond (400, 600, 700) + DM Mono (400, 500) + Instrument Sans (400, 500)
+
+State Management Requirements
+
+Current scenario state (round, choices made, scores)
+Session history (scenarios completed, concepts encountered, scores)
+AI opponent behavior state (type assigned, history of moves)
+Persisted via localStorage between sessions
+
+Animation Guidelines
+
+Payoff matrix cell reveals: CSS transition, staggered by 50ms per cell
+Score ticker: countUp animation on score update (DM Mono, burnt orange)
+Decision buttons: subtle press feedback (scale transform)
+Debrief panel: slide-in from right, 300ms ease-out
+No particle effects, no heavy canvas animations
+
+Accessibility
+
+All decision interfaces keyboard-navigable
+Color never the sole indicator of state (pair with label/icon)
+Minimum 4.5:1 contrast on all text
+Focus states visible and styled (burnt orange outline)
