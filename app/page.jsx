@@ -5727,7 +5727,7 @@ function GeoInstrumentTool({ preload = null, onPreloadConsumed }) {
   const canRun = giForm.instrument.trim() && giForm.sender.trim() && giForm.target.trim();
 
   if (giStep === 'form') return (
-    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl">◈</div>
@@ -5869,7 +5869,7 @@ function GeoInstrumentTool({ preload = null, onPreloadConsumed }) {
   const confColor = GEO_CONV_C[syn?.convergence_confidence] || '#94a3b8';
 
   return (
-    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-4xl mx-auto">
 
         {/* Header */}
@@ -6466,7 +6466,7 @@ function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
   };
 
   if (step === 'form') return (
-    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 mx-auto mb-4 flex items-center justify-center text-xl font-black text-white shadow-xl">⊕</div>
@@ -6561,7 +6561,7 @@ function BigCycleEngineTool({ preload = null, onPreloadConsumed }) {
   const alloc = syn?.allocation_summary?.length ? syn.allocation_summary : (layer4?.allocation_matrix || []);
 
   return (
-    <div className="overflow-y-auto px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-4xl mx-auto">
 
         {/* Header */}
@@ -7462,7 +7462,7 @@ function RASCEFTool() {
 
   // ── Form / Landing view ────────────────────────────────────────
   return (
-    <div className="min-h-full bg-[#07070e] text-white overflow-y-auto">
+    <div className="min-h-full bg-[#07070e] text-white">
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 pb-16">
 
         {/* Hero */}
@@ -7898,7 +7898,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   const tabs = [...coreTabs, ...topOnlyTabs];
 
   return (
-    <div className="flex h-screen bg-[#07070e] overflow-hidden">
+    <div className="flex bg-[#07070e] overflow-hidden" style={{ height: '100dvh' }}>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (

@@ -5,12 +5,26 @@
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body, #__next { height: 100%; margin: 0; padding: 0; }
+html {
+  height: 100%;
+  /* iOS Safari: use -webkit-fill-available so the html element exactly
+     fills the visible viewport (excludes browser chrome). */
+  height: -webkit-fill-available;
+}
+
+body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   background: #07070e;
   color: #f1f5f9;
+  /* Prevent page-level scroll; individual panels scroll internally */
   overflow: hidden;
+  /* Prevent iOS elastic overscroll bounce on the body layer */
+  overscroll-behavior: none;
 }
 
 /* ── Scrollbars ── */
