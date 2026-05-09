@@ -73,6 +73,14 @@ body {
   pointer-events: none;
   z-index: 0;
 }
+/* On mobile, only show the glow when sidebar is actually open */
+@media (max-width: 767px) {
+  .sidebar-glow-mobile-off::before { display: none; }
+}
+
+/* ── Safe area utilities (iOS notch / home indicator) ── */
+.pb-safe  { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe  { padding-top:    env(safe-area-inset-top); }
 
 /* ── Gradient text utility ── */
 .gradient-text {

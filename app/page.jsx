@@ -11179,13 +11179,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={closeSidebar} />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden touch-none" onClick={closeSidebar} />
       )}
 
       {/* ── SIDEBAR ── */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2.5rem))] bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto overscroll-contain transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 sidebar-glow-mobile-off'}`}>
         {/* Branding */}
-        <div className="px-5 py-4 border-b border-violet-500/10">
+        <div className="px-5 pb-4 border-b border-violet-500/10 md:pt-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
           <div className="flex items-center gap-2.5 mb-1">
             <button
               onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
@@ -11468,7 +11468,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
-        <div className="px-5 py-3 border-t border-violet-500/10 mt-auto">
+        <div className="px-5 pt-3 border-t border-violet-500/10 mt-auto" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <p className="text-slate-700 text-xs">Groq · {selectedModel}</p>
         </div>
       </aside>
@@ -11477,7 +11477,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
         {/* Mobile header bar — flex-shrink-0 so it always sits at top of the flex column */}
-        <div className="flex-shrink-0 z-30 flex items-center gap-3 px-4 py-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden">
+        <div className="flex-shrink-0 z-30 flex items-center gap-3 px-4 pb-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-violet-950/40 transition-colors flex-shrink-0"
