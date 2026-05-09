@@ -11175,7 +11175,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   const tabs = [...coreTabs, ...topOnlyTabs];
 
   return (
-    <div className="flex bg-[#07070e] overflow-hidden h-full">
+    <div className="relative flex bg-[#07070e] overflow-hidden h-full">
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -11474,7 +11474,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      <main className="max-md:absolute max-md:inset-0 max-md:z-10 flex-1 min-w-0 flex flex-col overflow-hidden">
 
         {/* Mobile header bar — flex-shrink-0 so it always sits at top of the flex column */}
         <div className="flex-shrink-0 z-30 flex items-center gap-3 px-4 pb-3 bg-[#09090f]/95 backdrop-blur-xl border-b border-violet-500/10 md:hidden" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
