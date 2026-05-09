@@ -11175,7 +11175,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   const tabs = [...coreTabs, ...topOnlyTabs];
 
   return (
-    <div className="flex bg-[#07070e] overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="flex bg-[#07070e] overflow-hidden h-full">
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -11817,7 +11817,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && activeTab !== 'geoeconscenarioemulator' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'promptpkg' && activeTab !== 'gametheory' && activeTab !== 'geoeconscenarioemulator' && status === 'idle' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
