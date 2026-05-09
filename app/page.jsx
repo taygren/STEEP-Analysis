@@ -7261,8 +7261,109 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
 // GEOECON SCENARIO EMULATOR — DATA & COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GESE_STORAGE_KEY = 'stint-geosim-v1';
-const GESE_HISTORY_KEY = 'stint-geosim-history-v1';
+const GSE_COMPLETION_KEY = 'stint-geosim-completion';
+const GSE_HISTORY_KEY = 'stint-geosim-history-v1';
+const GSE_BIG_CYCLE_PHASES = ["Accumulation","Rise","Consolidation","Overextension","Decline","Reset","Transition","New-Cycle-Entry"];
+const GSE_STEEP_DIMENSIONS = ["S","T","E","En","P"];
+
+const GSE_CROSS_LINKS = [
+  { fromScenario:"oil-shocks-1973", fromNodeId:"os73-L4-spr", toScenario:"imf-energy-shock-2026", toNodeId:"ies26-L0", linkLabel:"Fast-forward 50 years -- energy architecture tested again", rationale:"The 1973 institutional architecture faces a new stress test in 2026. Model how the inherited system performs under new pressures." },
+  { fromScenario:"gfc-2008", fromNodeId:"gfc08-L4-shadow", toScenario:"bipolar-economy", toNodeId:"bpe-L0", linkLabel:"Financial fragility meets geopolitical fracture", rationale:"Unresolved shadow banking risk intersects with hegemonic competition; dual vulnerability amplifies both crises." },
+  { fromScenario:"asia-crisis-1997", fromNodeId:"afc97-L4-reserve", toScenario:"gfc-2008", toNodeId:"gfc08-L0", linkLabel:"Asian reserves fuel US credit bubble", rationale:"Asian reserve accumulation suppresses US long rates; cheap money fuels the housing bubble; 1997 response seeds 2008 crisis." },
+  { fromScenario:"ai-bubble-burst", fromNodeId:"aibb-L4-state-ai", toScenario:"ai-open-source-shock", toNodeId:"aios-L0", linkLabel:"State AI programs collide with open-source capability frontier", rationale:"Nationalized AI infrastructure triggers open-source response; new governance crisis emerges." },
+  { fromScenario:"bipolar-economy", fromNodeId:"bpe-L4-digital-dollar", toScenario:"imf-energy-shock-2026", toNodeId:"ies26-L0", linkLabel:"Dollar weaponization accelerates Hormuz crisis impact", rationale:"Digital dollar enforcement intensifies the energy shock by restricting sanctioned nations' ability to hedge." },
+  { fromScenario:"ai-displacement", fromNodeId:"aid-L4-dual-economy", toScenario:"bipolar-economy", toNodeId:"bpe-L0", linkLabel:"Dual economy instability feeds hegemonic competition", rationale:"Domestic instability from AI-driven inequality increases geopolitical confrontation pressure." },
+  { fromScenario:"black-swan", fromNodeId:"bsw-L4-allied-supply", toScenario:"ai-open-source-shock", toNodeId:"aios-L0", linkLabel:"Supply chain security architecture extends to AI governance", rationale:"Allied supply chain agreements provide institutional template for AI governance coalition." }
+];
+
+function gseInitLens() {
+  return {
+    bigCycle: { phase:"Unknown", phaseIndex:-1, score:0, history:[], note:"" },
+    steep: { S:0, T:0, E:0, En:0, P:0, primary:null, secondary:null, activationCount:0 },
+    geoEcon: { toolsDeployed:[], dominantTool:null, intensityScore:0 },
+    gameTheory: { moves:[], cooperateCount:0, defectCount:0, currentType:"Unknown", payoffLedger:{positive:0,negative:0,neutral:0}, dominantPattern:null }
+  };
+}
+
+function gseUpdateLens(cur, snap) {
+  const u = JSON.parse(JSON.stringify(cur));
+  if (snap.bigCycle) {
+    u.bigCycle.phase = snap.bigCycle.phase;
+    u.bigCycle.note = snap.bigCycle.note || u.bigCycle.note;
+    const pi = GSE_BIG_CYCLE_PHASES.indexOf((snap.bigCycle.phase||'').split('-')[0]);
+    if (pi >= 0) u.bigCycle.phaseIndex = pi;
+    u.bigCycle.score = Math.min(100, u.bigCycle.score + 10);
+    u.bigCycle.history.push(snap.bigCycle.phase);
+  }
+  if (snap.steep) {
+    const p = snap.steep.primary; const s = snap.steep.secondary;
+    if (p && GSE_STEEP_DIMENSIONS.includes(p)) { u.steep[p] = Math.min(1.0,(u.steep[p]||0)+0.2); u.steep.primary = p; }
+    if (s && GSE_STEEP_DIMENSIONS.includes(s)) { u.steep[s] = Math.min(1.0,(u.steep[s]||0)+0.1); u.steep.secondary = s; }
+    u.steep.activationCount += 1;
+  }
+  if (snap.geoEcon && snap.geoEcon.tool) {
+    const t = snap.geoEcon.tool;
+    if (!u.geoEcon.toolsDeployed.includes(t)) u.geoEcon.toolsDeployed.push(t);
+    u.geoEcon.dominantTool = t;
+    u.geoEcon.intensityScore = Math.min(100, u.geoEcon.intensityScore + 15);
+  }
+  if (snap.gameTheory && snap.gameTheory.type) {
+    const type = snap.gameTheory.type;
+    u.gameTheory.currentType = type;
+    u.gameTheory.moves.push(type);
+    const coop = ["Cooperate","Coordinate","Positive-Sum","Cooperative","Coalition","Commitment"];
+    const def = ["Defect","Retaliate","Escalate","Zero-Sum","Coercion","Attacker"];
+    if (coop.some(c => type.includes(c))) { u.gameTheory.cooperateCount++; u.gameTheory.payoffLedger.positive++; }
+    else if (def.some(d => type.includes(d))) { u.gameTheory.defectCount++; u.gameTheory.payoffLedger.negative++; }
+    else u.gameTheory.payoffLedger.neutral++;
+    const c = u.gameTheory.cooperateCount; const dv = u.gameTheory.defectCount;
+    u.gameTheory.dominantPattern = c > dv * 1.5 ? "Cooperative" : dv > c * 1.5 ? "Adversarial" : "Mixed";
+  }
+  return u;
+}
+
+function gseGetSteepDominant(steep) {
+  let max = 0; let dom = "E";
+  GSE_STEEP_DIMENSIONS.forEach(d => { if ((steep[d]||0) > max) { max = steep[d]; dom = d; } });
+  return dom;
+}
+
+function gseEvalChoice(choiceId, decisionVector, lensScores) {
+  const rules = {
+    "os73-L3-petrodollar": dv => !dv.some(d => d.choiceId === "os73-L1-defend-peg"),
+    "bpe-L2-aggressive-secondary-sanctions": dv => dv.some(d => d.choiceId === "bpe-L1-containment"),
+    "bpe-L2-economic-incentives": dv => dv.some(d => d.choiceId === "bpe-L1-accommodation"),
+    "ies26-L4-imf-program": (_dv, ls) => ls.geoEcon.intensityScore > 40,
+    "aid-L3-international-tax-coordination": dv => dv.some(d => d.choiceId === "aid-L2-ubi-experiment"),
+    "aid-L3-sovereign-wealth-fund": dv => dv.some(d => d.choiceId === "aid-L2-demand-collapse"),
+    "aibb-L4-quantum-commercial": dv => dv.some(d => ["aibb-L1-strategic-pivot","aibb-L2-state-industrial-policy"].includes(d.choiceId)),
+    "aios-L4-binding-treaty": (_dv, ls) => ls.gameTheory.cooperateCount >= ls.gameTheory.defectCount,
+    "os73-L2-volcker": dv => dv.some(d => d.choiceId === "os73-L1-lower"),
+    "os73-L3-premature-easing": dv => dv.some(d => d.choiceId === "os73-L2-volcker"),
+  };
+  if (!rules[choiceId]) return { available:true, lockReason:null };
+  try {
+    const ok = rules[choiceId](decisionVector, lensScores);
+    return { available:ok, lockReason: ok ? null : "Requires a prior path condition to unlock" };
+  } catch { return { available:true, lockReason:null }; }
+}
+
+function gseGetCrossLinks(scenarioId, nodeId) {
+  return GSE_CROSS_LINKS.filter(l => l.fromScenario === scenarioId && l.fromNodeId === nodeId);
+}
+
+function gseCalcTrajectory(lensScores, decisionVector) {
+  if (!decisionVector.length) return { label:"Not Started", color:"#64748b" };
+  const c = lensScores.gameTheory.cooperateCount;
+  const d = lensScores.gameTheory.defectCount;
+  const ratio = d / Math.max(1, c + d);
+  const phase = lensScores.bigCycle.phase;
+  if (ratio > 0.7) return { label:"Adversarial Escalation", color:"#ef4444" };
+  if (ratio < 0.3) return { label:"Cooperative Resolution", color:"#22c55e" };
+  if (phase.includes("Reset") || phase.includes("Transition")) return { label:"Managed Transition", color:"#f97316" };
+  if (phase.includes("Overextension") || phase.includes("Decline")) return { label:"Systemic Fragility", color:"#a855f7" };
+  return { label:"Uncertain Equilibrium", color:"#3b82f6" };
+}
 
 const GESE_CLUSTER_META = {
   historical: { label:'Historical Archetypes', accent:'#f59e0b', bg:'rgba(120,53,15,0.15)', border:'rgba(146,64,14,0.3)', icon:'⏳', desc:'Pivotal inflection points that redefined global economic and geopolitical architecture.' },
@@ -8753,57 +8854,84 @@ const GESE_SCENARIOS = [
 ];
 
 function GeoEconScenarioEmulatorTool() {
-  const [geseView, setGeseView] = useState('hub');
+  const [gseView, setGseView] = useState('hub');
   const [activeScenario, setActiveScenario] = useState(null);
   const [currentNodeId, setCurrentNodeId] = useState(null);
+  const [decisionVector, setDecisionVector] = useState([]);
   const [simPath, setSimPath] = useState([]);
+  const [lensScores, setLensScores] = useState(() => gseInitLens());
   const [clusterFilter, setClusterFilter] = useState('all');
-  const [completions, setCompletions] = useState(() => { try { return JSON.parse(localStorage.getItem(GESE_STORAGE_KEY) || '{}'); } catch { return {}; } });
-  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(GESE_HISTORY_KEY) || '[]'); } catch { return []; } });
+  const [completions, setCompletions] = useState(() => { try { return JSON.parse(localStorage.getItem(GSE_COMPLETION_KEY) || '{}'); } catch { return {}; } });
+  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(GSE_HISTORY_KEY) || '[]'); } catch { return []; } });
   const [synthText, setSynthText] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
   const [synthError, setSynthError] = useState('');
 
   const currentNode = activeScenario?.nodes?.[currentNodeId];
-  const isTerminal = currentNode?.type === 'terminal';
+  const cm = activeScenario ? GESE_CLUSTER_META[activeScenario.cluster] : null;
+  const trajectory = gseCalcTrajectory(lensScores, decisionVector);
 
-  const startScenario = sc => {
+  const terminalNodes = (sc) => Object.values(sc.nodes || {}).filter(n => n.type === 'terminal');
+  const completedCount = (sc) => terminalNodes(sc).filter(n => completions[n.id]).length;
+
+  const startBrief = (sc) => {
     setActiveScenario(sc);
-    setCurrentNodeId(sc.rootNodeId);
-    setSimPath([{ nodeId: sc.rootNodeId, choice: null }]);
-    setSynthText(''); setSynthError('');
-    setGeseView('sim');
+    setGseView('brief');
   };
 
-  const makeChoice = (targetNodeId, choiceLabel) => {
-    const targetNode = activeScenario?.nodes?.[targetNodeId];
+  const startSim = () => {
+    if (!activeScenario) return;
+    const rootNode = activeScenario.nodes[activeScenario.rootNodeId];
+    const initLens = gseInitLens();
+    const updatedLens = rootNode?.lensSnapshot ? gseUpdateLens(initLens, rootNode.lensSnapshot) : initLens;
+    setCurrentNodeId(activeScenario.rootNodeId);
+    setDecisionVector([]);
+    setSimPath([]);
+    setLensScores(updatedLens);
+    setSynthText(''); setSynthError('');
+    setGseView('sim');
+  };
+
+  const makeChoice = (choiceId) => {
+    if (!activeScenario || !currentNode) return;
+    const { available } = gseEvalChoice(choiceId, decisionVector, lensScores);
+    if (!available) return;
+    const targetNode = activeScenario.nodes[choiceId];
     if (!targetNode) return;
-    const newPath = [...simPath, { nodeId: targetNodeId, choice: choiceLabel }];
+    const newDV = [...decisionVector, { nodeId: currentNodeId, nodeTitle: currentNode.title, choiceId, layer: currentNode.layer || 0, timestamp: Date.now() }];
+    const newPath = [...simPath, targetNode.label || targetNode.title];
+    const newLens = targetNode.lensSnapshot ? gseUpdateLens(lensScores, targetNode.lensSnapshot) : lensScores;
+    setDecisionVector(newDV);
     setSimPath(newPath);
-    setCurrentNodeId(targetNodeId);
+    setLensScores(newLens);
+    setCurrentNodeId(choiceId);
     setSynthText(''); setSynthError('');
     if (targetNode.type === 'terminal') {
+      const nc = { ...completions, [choiceId]: { scenarioId: activeScenario.id, ts: Date.now() } };
       const rec = {
         scenarioId: activeScenario.id, scenarioTitle: activeScenario.title, cluster: activeScenario.cluster,
-        outcome: targetNode.outcome, pathLabels: newPath.slice(1).map(p => p.choice).filter(Boolean),
-        finalNodeId: targetNodeId, date: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }), ts: Date.now()
+        outcome: targetNode.outcome, terminalNodeId: choiceId, pathLabels: newPath,
+        trajectory: gseCalcTrajectory(newLens, newDV).label,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), ts: Date.now()
       };
-      const nc = { ...completions, [activeScenario.id]: (completions[activeScenario.id] || 0) + 1 };
       const nh = [rec, ...history].slice(0, 40);
       setCompletions(nc); setHistory(nh);
-      try { localStorage.setItem(GESE_STORAGE_KEY, JSON.stringify(nc)); localStorage.setItem(GESE_HISTORY_KEY, JSON.stringify(nh)); } catch {}
+      try { localStorage.setItem(GSE_COMPLETION_KEY, JSON.stringify(nc)); localStorage.setItem(GSE_HISTORY_KEY, JSON.stringify(nh)); } catch {}
+      setGseView('debrief');
     }
   };
 
   const runSynthesis = async () => {
     if (!currentNode?.aiPromptSeed || synthLoading) return;
     setSynthLoading(true); setSynthText(''); setSynthError('');
-    const pathStr = simPath.slice(1).map(p => p.choice).filter(Boolean).join(' > ');
+    const pathStr = simPath.join(' > ');
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject: `GeoEcon Scenario: ${activeScenario.title}`, dimension: 'synthesis',
-          prompt: `You are a geopolitical scenario analyst. ${currentNode.aiPromptSeed}\n\nDecision path taken: ${pathStr || 'direct'}\n\nProvide a structured analytical synthesis in three paragraphs: (1) the key strategic dynamics and structural forces at play in this outcome, (2) second-order effects and medium-term implications across economic, political, and technological dimensions, (3) positioning implications for institutional, policy, and investment actors over a 3-5 year horizon. Write in precise, practitioner-grade analytical language.` })
+        body: JSON.stringify({
+          subject: `GeoEcon Scenario: ${activeScenario.title}`, dimension: 'synthesis',
+          prompt: `You are a geopolitical scenario analyst. ${currentNode.aiPromptSeed}\n\nDecision path taken: ${pathStr || 'direct'}\n\nBig Cycle phase: ${lensScores.bigCycle.phase}. STEEP dominant: ${gseGetSteepDominant(lensScores.steep)}. Game theory pattern: ${lensScores.gameTheory.dominantPattern || 'Mixed'}. GeoEcon tools deployed: ${lensScores.geoEcon.toolsDeployed.join(', ') || 'none'}.\n\nProvide a structured analytical synthesis in three paragraphs: (1) the key strategic dynamics and structural forces at play in this outcome, (2) second-order effects and medium-term implications across economic, political, and technological dimensions, (3) positioning implications for institutional, policy, and investment actors over a 3-5 year horizon. Write in precise, practitioner-grade analytical language. Do not use em dashes.`
+        })
       });
       if (!res.ok) throw new Error('Request failed');
       const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
@@ -8823,17 +8951,19 @@ function GeoEconScenarioEmulatorTool() {
     setSynthLoading(false);
   };
 
-  const cm = activeScenario ? GESE_CLUSTER_META[activeScenario.cluster] : null;
-
+  // ----- RENDER: HUB -----
   const renderHub = () => {
     const clusters = Object.entries(GESE_CLUSTER_META);
     const filtered = clusterFilter === 'all' ? clusters : clusters.filter(([k]) => k === clusterFilter);
+    const totalTerminalsReachedGlobal = Object.keys(completions).length;
     return (
       <div className="px-4 py-5 md:px-6">
-        <div className="flex gap-1 mb-5 flex-wrap">
-          {[['all','All'], ...clusters.map(([k,m]) => [k, m.label])].map(([v,l]) => (
-            <button key={v} onClick={() => setClusterFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${clusterFilter === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white bg-slate-800/50'}`}>{l}</button>
+        <div className="flex gap-1 mb-5 flex-wrap items-center">
+          {[['all', 'All'], ...clusters.map(([k, m]) => [k, m.label])].map(([v, l]) => (
+            <button key={v} onClick={() => setClusterFilter(v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${clusterFilter === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white bg-slate-800/50'}`}>{l}</button>
           ))}
+          {totalTerminalsReachedGlobal > 0 && <span className="ml-auto text-xs text-slate-600">{totalTerminalsReachedGlobal} terminal{totalTerminalsReachedGlobal !== 1 ? 's' : ''} reached</span>}
         </div>
         {filtered.map(([clusterId, clusterMeta]) => {
           const clusterScenarios = GESE_SCENARIOS.filter(s => s.cluster === clusterId);
@@ -8846,20 +8976,26 @@ function GeoEconScenarioEmulatorTool() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {clusterScenarios.map(sc => {
-                  const runs = completions[sc.id] || 0;
+                  const done = completedCount(sc);
+                  const total = terminalNodes(sc).length;
                   return (
-                    <button key={sc.id} onClick={() => startScenario(sc)}
+                    <button key={sc.id} onClick={() => startBrief(sc)}
                       className="text-left rounded-xl p-4 border transition-all hover:scale-[1.01] active:scale-[0.99]"
                       style={{ background: clusterMeta.bg, borderColor: clusterMeta.border }}>
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h4 className="text-white text-xs font-bold leading-snug">{sc.title}</h4>
-                        {runs > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 font-semibold" style={{ background: `${clusterMeta.accent}22`, color: clusterMeta.accent }}>{runs}x</span>}
+                        {done > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 font-semibold" style={{ background: `${clusterMeta.accent}22`, color: clusterMeta.accent }}>
+                            {done}/{total}
+                          </span>
+                        )}
                       </div>
                       <p className="text-slate-400 text-xs leading-relaxed mb-2 line-clamp-2">{sc.description}</p>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-slate-600 text-xs">{sc.era}</span>
                         <span className="text-slate-700 text-xs">·</span>
                         <span className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{sc.primaryLens}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{sc.timeHorizon}</span>
                       </div>
                     </button>
                   );
@@ -8872,30 +9008,84 @@ function GeoEconScenarioEmulatorTool() {
     );
   };
 
+  // ----- RENDER: BRIEF -----
+  const renderBrief = () => {
+    if (!activeScenario || !cm) return null;
+    const done = completedCount(activeScenario);
+    const total = terminalNodes(activeScenario).length;
+    return (
+      <div className="px-4 py-5 md:px-6 max-w-2xl mx-auto">
+        <button onClick={() => setGseView('hub')} className="text-slate-500 hover:text-white text-xs transition-colors mb-4 block">Back to Hub</button>
+        <div className="rounded-2xl border p-5 mb-5" style={{ borderColor: cm.border, background: cm.bg }}>
+          <div className="flex items-center gap-2 mb-3">
+            <span style={{ color: cm.accent }}>{cm.icon}</span>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: cm.accent }}>{cm.label}</span>
+            {done > 0 && <span className="ml-auto text-xs font-semibold" style={{ color: cm.accent }}>{done}/{total} terminals reached</span>}
+          </div>
+          <h2 className="text-white font-black text-lg leading-tight mb-1">{activeScenario.title}</h2>
+          <div className="flex gap-2 flex-wrap mb-3">
+            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800/60 text-slate-400">{activeScenario.era}</span>
+            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800/60 text-slate-400">{activeScenario.timeHorizon}</span>
+            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800/60 text-slate-400">{activeScenario.primaryLens}</span>
+          </div>
+          <p className="text-slate-300 text-sm leading-relaxed mb-4">{activeScenario.description}</p>
+          {activeScenario.tags?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activeScenario.tags.map(t => (
+                <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-4 mb-5">
+          <div className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">What to expect</div>
+          <ul className="space-y-1.5">
+            <li className="text-xs text-slate-400 flex gap-2"><span className="text-slate-600 flex-shrink-0">-</span><span>Navigate a branching decision tree across {Object.keys(activeScenario.nodes || {}).length} nodes and up to 5 layers</span></li>
+            <li className="text-xs text-slate-400 flex gap-2"><span className="text-slate-600 flex-shrink-0">-</span><span>Some choices are conditionally locked based on your prior decisions in this path</span></li>
+            <li className="text-xs text-slate-400 flex gap-2"><span className="text-slate-600 flex-shrink-0">-</span><span>Lens scores accumulate across your path: Big Cycle, STEEP, GeoEcon, Game Theory</span></li>
+            <li className="text-xs text-slate-400 flex gap-2"><span className="text-slate-600 flex-shrink-0">-</span><span>Terminal outcomes include an AI synthesis extension and cross-scenario chain links</span></li>
+          </ul>
+        </div>
+        <button onClick={startSim}
+          className="w-full py-3 rounded-xl text-sm font-bold transition-all"
+          style={{ background: `linear-gradient(135deg, ${cm.accent}30, ${cm.accent}18)`, color: cm.accent, border: `1.5px solid ${cm.accent}40` }}>
+          Begin Simulation
+        </button>
+      </div>
+    );
+  };
+
+  // ----- RENDER: SIM -----
   const renderSim = () => {
     if (!currentNode || !cm) return null;
-    const ls = currentNode.lensSnapshot;
     const allLayers = Object.values(activeScenario.nodes).map(n => n.layer || 0);
     const maxLayer = Math.max(...allLayers);
+    const ls = lensScores;
+    const steepDom = gseGetSteepDominant(ls.steep);
     return (
       <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+        {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 mb-3 flex-wrap text-xs">
-          <button onClick={() => setGeseView('hub')} className="text-slate-500 hover:text-white transition-colors">Hub</button>
-          {simPath.slice(0,-1).map((p, i) => p.choice && (
+          <button onClick={() => setGseView('hub')} className="text-slate-500 hover:text-white transition-colors">Hub</button>
+          <span className="text-slate-700">›</span>
+          <button onClick={() => setGseView('brief')} className="text-slate-500 hover:text-white transition-colors truncate max-w-[100px]">{activeScenario.title}</button>
+          {simPath.slice(0, -1).map((label, i) => (
             <span key={i} className="flex items-center gap-1.5">
               <span className="text-slate-700">›</span>
-              <span className="text-slate-600 truncate max-w-[70px]">{p.choice}</span>
+              <span className="text-slate-600 truncate max-w-[60px]">{label}</span>
             </span>
           ))}
           <span className="text-slate-700">›</span>
           <span className="font-medium" style={{ color: cm.accent }}>Layer {currentNode.layer}</span>
         </div>
+        {/* Progress bar */}
         <div className="flex gap-1 mb-4">
           {Array.from({ length: maxLayer + 1 }).map((_, i) => (
             <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
               style={{ background: i <= (currentNode.layer || 0) ? cm.accent : '#1e293b' }} />
           ))}
         </div>
+        {/* Node */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-xs px-2 py-0.5 rounded-md uppercase font-semibold"
@@ -8906,12 +9096,39 @@ function GeoEconScenarioEmulatorTool() {
           <h2 className="text-white font-bold text-base leading-tight mb-2">{currentNode.title}</h2>
           <p className="text-slate-300 text-sm leading-relaxed">{currentNode.narrative}</p>
         </div>
-        {ls && (
+        {/* Accumulated lens scores (shown after first choice; initial snapshot shown before) */}
+        {decisionVector.length > 0 ? (
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Accumulated Lens Scores</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-slate-800/60 p-2">
+                <div className="text-xs font-semibold mb-0.5" style={{ color: '#f59e0b' }}>Big Cycle</div>
+                <div className="text-white text-xs font-medium leading-snug">{ls.bigCycle.phase}</div>
+                {ls.bigCycle.note && <div className="text-slate-500 text-xs mt-0.5 leading-tight">{ls.bigCycle.note}</div>}
+              </div>
+              <div className="rounded-lg bg-slate-800/60 p-2">
+                <div className="text-xs font-semibold mb-0.5" style={{ color: '#a78bfa' }}>STEEP</div>
+                <div className="text-white text-xs font-medium leading-snug">Dominant: {steepDom}</div>
+                <div className="text-slate-500 text-xs mt-0.5">{GSE_STEEP_DIMENSIONS.map(d => `${d}:${Math.round((ls.steep[d] || 0) * 100)}%`).join(' ')}</div>
+              </div>
+              <div className="rounded-lg bg-slate-800/60 p-2">
+                <div className="text-xs font-semibold mb-0.5" style={{ color: '#2dd4bf' }}>GeoEcon</div>
+                <div className="text-white text-xs font-medium leading-snug">{ls.geoEcon.dominantTool || 'None yet'}</div>
+                {ls.geoEcon.toolsDeployed.length > 1 && <div className="text-slate-500 text-xs mt-0.5">{ls.geoEcon.toolsDeployed.length} tools deployed</div>}
+              </div>
+              <div className="rounded-lg bg-slate-800/60 p-2">
+                <div className="text-xs font-semibold mb-0.5" style={{ color: '#60a5fa' }}>Game Theory</div>
+                <div className="text-white text-xs font-medium leading-snug">{ls.gameTheory.dominantPattern || 'Mixed'}</div>
+                <div className="text-slate-500 text-xs mt-0.5">C:{ls.gameTheory.cooperateCount} D:{ls.gameTheory.defectCount}</div>
+              </div>
+            </div>
+          </div>
+        ) : currentNode.lensSnapshot && (
           <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4 grid grid-cols-2 gap-2">
-            {[['Big Cycle', ls.bigCycle?.phase || ls.bigCycle?.note, ls.bigCycle?.note, '#f59e0b'],
-              ['STEEP', ls.steep?.primary ? `${ls.steep.primary}${ls.steep.secondary ? ' / ' + ls.steep.secondary : ''}` : '', ls.steep?.note, '#a78bfa'],
-              ['GeoEcon', ls.geoEcon?.tool, ls.geoEcon?.note, '#2dd4bf'],
-              ['Game Theory', ls.gameTheory?.type, ls.gameTheory?.note, '#60a5fa']
+            {[['Big Cycle', currentNode.lensSnapshot.bigCycle?.phase, currentNode.lensSnapshot.bigCycle?.note, '#f59e0b'],
+              ['STEEP', currentNode.lensSnapshot.steep?.primary ? `${currentNode.lensSnapshot.steep.primary}${currentNode.lensSnapshot.steep.secondary ? ' / ' + currentNode.lensSnapshot.steep.secondary : ''}` : '', currentNode.lensSnapshot.steep?.note, '#a78bfa'],
+              ['GeoEcon', currentNode.lensSnapshot.geoEcon?.tool, currentNode.lensSnapshot.geoEcon?.note, '#2dd4bf'],
+              ['Game Theory', currentNode.lensSnapshot.gameTheory?.type, currentNode.lensSnapshot.gameTheory?.note, '#60a5fa']
             ].map(([label, val, note, color]) => val && (
               <div key={label} className="rounded-lg bg-slate-800/60 p-2">
                 <div className="text-xs font-semibold mb-0.5" style={{ color }}>{label}</div>
@@ -8921,6 +9138,7 @@ function GeoEconScenarioEmulatorTool() {
             ))}
           </div>
         )}
+        {/* Second-order effects */}
         {currentNode.secondOrderEffects?.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Second-Order Effects</div>
@@ -8933,11 +9151,13 @@ function GeoEconScenarioEmulatorTool() {
             </ul>
           </div>
         )}
+        {/* Historical analog */}
         {currentNode.historicalAnalog && (
           <div className="text-xs text-slate-500 mb-4">
             <span className="font-semibold text-slate-400">Historical analog: </span>{currentNode.historicalAnalog}
           </div>
         )}
+        {/* Choices with conditional lock evaluation */}
         {currentNode.choicePrompt && currentNode.choices?.length > 0 && (
           <div>
             <div className="text-xs font-semibold text-slate-300 mb-2 leading-relaxed">{currentNode.choicePrompt}</div>
@@ -8945,20 +9165,28 @@ function GeoEconScenarioEmulatorTool() {
               {currentNode.choices.map((cid, idx) => {
                 const cn = activeScenario.nodes[cid];
                 if (!cn) return null;
+                const { available, lockReason } = gseEvalChoice(cid, decisionVector, lensScores);
                 return (
-                  <button key={cid} onClick={() => makeChoice(cid, cn.label || cn.title)}
-                    className="w-full text-left rounded-xl p-3 border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60 transition-all">
+                  <button key={cid} onClick={() => makeChoice(cid)}
+                    disabled={!available}
+                    className={`w-full text-left rounded-xl p-3 border transition-all ${available ? 'border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60' : 'border-slate-800/50 bg-slate-900/30 opacity-50 cursor-not-allowed'}`}>
                     <div className="flex items-start gap-2.5">
                       <div className="w-5 h-5 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5"
-                        style={{ background: `${cm.accent}20`, color: cm.accent }}>
+                        style={{ background: available ? `${cm.accent}20` : '#1e293b', color: available ? cm.accent : '#475569' }}>
                         {String.fromCharCode(65 + idx)}
                       </div>
-                      <div>
-                        <div className="text-white text-xs font-semibold mb-0.5">{cn.label || cn.title}</div>
-                        {cn.narrative && (
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold mb-0.5 flex items-center gap-2 flex-wrap">
+                          <span className={available ? 'text-white' : 'text-slate-500'}>{cn.label || cn.title}</span>
+                          {!available && <span className="text-slate-600 font-normal">Locked</span>}
+                        </div>
+                        {available && cn.narrative && (
                           <div className="text-slate-400 text-xs leading-relaxed">
-                            {cn.narrative.slice(0, 130)}{cn.narrative.length > 130 ? '...' : ''}
+                            {cn.narrative.slice(0, 140)}{cn.narrative.length > 140 ? '...' : ''}
                           </div>
+                        )}
+                        {!available && lockReason && (
+                          <div className="text-slate-600 text-xs">{lockReason}</div>
                         )}
                       </div>
                     </div>
@@ -8972,35 +9200,72 @@ function GeoEconScenarioEmulatorTool() {
     );
   };
 
-  const renderTerminal = () => {
+  // ----- RENDER: DEBRIEF -----
+  const renderDebrief = () => {
     if (!currentNode || !cm) return null;
-    const scores = currentNode.finalLensScores?.steep;
-    const chartData = scores ? [
-      { dim:'S', v:Math.round((scores.S||0)*100) },
-      { dim:'T', v:Math.round((scores.T||0)*100) },
-      { dim:'E', v:Math.round((scores.E||0)*100) },
-      { dim:'En', v:Math.round((scores.En||0)*100) },
-      { dim:'P', v:Math.round((scores.P||0)*100) }
-    ] : null;
+    const ls = lensScores;
+    const steepChartData = GSE_STEEP_DIMENSIONS.map(d => ({ dim: d, v: Math.round((ls.steep[d] || 0) * 100) }));
+    const crossLinks = gseGetCrossLinks(activeScenario.id, currentNodeId);
+    const steepDom = gseGetSteepDominant(ls.steep);
     return (
       <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between gap-3 mb-4">
+        {/* Header */}
+        <div className="flex items-center gap-2 flex-wrap mb-4">
           <span className="text-xs px-2 py-1 rounded-lg font-bold uppercase tracking-wider"
             style={{ background: `${cm.accent}20`, color: cm.accent }}>Outcome Reached</span>
-          <button onClick={() => setGeseView('hub')} className="text-slate-500 hover:text-white text-xs transition-colors">Back to Hub</button>
+          <span className="text-xs px-2 py-1 rounded-lg font-semibold"
+            style={{ background: `${trajectory.color}18`, color: trajectory.color }}>{trajectory.label}</span>
+          <button onClick={() => setGseView('hub')} className="ml-auto text-slate-500 hover:text-white text-xs transition-colors">Back to Hub</button>
         </div>
+        {/* Outcome card */}
         <div className="rounded-xl border p-4 mb-4" style={{ borderColor: `${cm.accent}30`, background: `${cm.accent}08` }}>
           <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: cm.accent }}>{currentNode.outcome}</div>
           <h2 className="text-white font-bold text-base leading-tight mb-2">{currentNode.title}</h2>
           <p className="text-slate-300 text-sm leading-relaxed">{currentNode.outcomeNarrative || currentNode.narrative}</p>
         </div>
+        {/* Accumulated lens profile + STEEP chart */}
+        <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Accumulated Lens Profile</div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#f59e0b' }}>Big Cycle</div>
+              <div className="text-white text-xs font-medium leading-snug">{ls.bigCycle.phase}</div>
+              {ls.bigCycle.note && <div className="text-slate-500 text-xs mt-0.5 leading-tight">{ls.bigCycle.note}</div>}
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#60a5fa' }}>Game Theory</div>
+              <div className="text-white text-xs font-medium">{ls.gameTheory.dominantPattern || 'Mixed'}</div>
+              <div className="text-slate-500 text-xs mt-0.5">Cooperate: {ls.gameTheory.cooperateCount} / Defect: {ls.gameTheory.defectCount}</div>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#2dd4bf' }}>GeoEcon Tools</div>
+              <div className="text-white text-xs font-medium">{ls.geoEcon.dominantTool || 'None'}</div>
+              {ls.geoEcon.toolsDeployed.length > 0 && <div className="text-slate-500 text-xs mt-0.5 leading-tight">{ls.geoEcon.toolsDeployed.join(', ')}</div>}
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#a78bfa' }}>STEEP Dominant</div>
+              <div className="text-white text-xs font-medium">{steepDom}</div>
+              <div className="text-slate-500 text-xs mt-0.5">Activations: {ls.steep.activationCount}</div>
+            </div>
+          </div>
+          <div className="text-xs font-semibold text-slate-500 mb-1.5">STEEP Accumulated Intensity</div>
+          <ResponsiveContainer width="100%" height={72}>
+            <BarChart data={steepChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="dim" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#475569' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, fontSize: 11 }} formatter={v => [`${v}%`, 'Intensity']} />
+              <Bar dataKey="v" radius={[4, 4, 0, 0]} fill={cm.accent} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Terminal lens assessment from node data */}
         {currentNode.finalLensScores && (
-          <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Final Lens Assessment</div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-              {[['Big Cycle', currentNode.finalLensScores.bigCycle,'#f59e0b'],
-                ['GeoEcon Tool', currentNode.finalLensScores.geoEcon,'#2dd4bf'],
-                ['Game Theory', currentNode.finalLensScores.gameTheory,'#60a5fa']
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-3 mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Terminal Assessment</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[['Big Cycle', currentNode.finalLensScores.bigCycle, '#f59e0b'],
+                ['GeoEcon', currentNode.finalLensScores.geoEcon, '#2dd4bf'],
+                ['Game Theory', currentNode.finalLensScores.gameTheory, '#60a5fa']
               ].map(([label, val, color]) => val && (
                 <div key={label} className="rounded-lg bg-slate-800/60 p-2">
                   <div className="text-xs font-semibold mb-0.5" style={{ color }}>{label}</div>
@@ -9008,37 +9273,60 @@ function GeoEconScenarioEmulatorTool() {
                 </div>
               ))}
             </div>
-            {chartData && (
-              <div>
-                <div className="text-xs font-semibold text-slate-500 mb-1.5">STEEP Intensity at Terminal</div>
-                <ResponsiveContainer width="100%" height={72}>
-                  <BarChart data={chartData} margin={{ top:0, right:0, left:-20, bottom:0 }}>
-                    <XAxis dataKey="dim" tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0,100]} tick={{ fontSize:9, fill:'#475569' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background:'#0f172a', border:'1px solid #334155', borderRadius:8, fontSize:11 }}
-                      formatter={v => [`${v}%`, 'Intensity']} />
-                    <Bar dataKey="v" radius={[4,4,0,0]} fill={cm.accent} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
           </div>
         )}
-        {simPath.length > 1 && (
+        {/* Decision path summary */}
+        {decisionVector.length > 0 && (
           <div className="mb-4">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Decision Path</div>
-            <div className="flex flex-wrap gap-1.5">
-              {simPath.slice(1).map((p, i) => p.choice && (
-                <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">{p.choice}</span>
-              ))}
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Decision Path ({decisionVector.length} steps)</div>
+            <div className="space-y-1">
+              {decisionVector.map((dv, i) => {
+                const choiceNode = activeScenario.nodes[dv.choiceId];
+                return (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    <span className="text-slate-600 flex-shrink-0 w-4 text-right">{i + 1}.</span>
+                    <span className="text-slate-500">{dv.nodeTitle}</span>
+                    <span className="text-slate-700">to</span>
+                    <span className="text-slate-400 font-medium">{choiceNode?.label || choiceNode?.title || dv.choiceId}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
+        {/* Historical analog */}
         {currentNode.historicalAnalog && (
           <div className="text-xs text-slate-500 mb-4">
             <span className="font-semibold text-slate-400">Historical analog: </span>{currentNode.historicalAnalog}
           </div>
         )}
+        {/* Cross-scenario chain cards */}
+        {crossLinks.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cross-Scenario Chains</div>
+            <div className="space-y-2">
+              {crossLinks.map((link, i) => {
+                const targetSc = GESE_SCENARIOS.find(s => s.id === link.toScenario);
+                if (!targetSc) return null;
+                const tcm = GESE_CLUSTER_META[targetSc.cluster];
+                return (
+                  <button key={i} onClick={() => startBrief(targetSc)}
+                    className="w-full text-left rounded-xl p-3 border border-slate-700/40 bg-slate-800/20 hover:bg-slate-800/40 transition-all">
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-sm flex-shrink-0 mt-0.5" style={{ color: tcm?.accent || '#94a3b8' }}>{tcm?.icon || 'O'}</span>
+                      <div>
+                        <div className="text-white text-xs font-semibold mb-0.5">{link.linkLabel}</div>
+                        <div className="text-slate-400 text-xs mb-1">{link.rationale}</div>
+                        <div className="text-xs font-medium" style={{ color: tcm?.accent || '#94a3b8' }}>Continue with: {targetSc.title}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {/* AI synthesis */}
         {currentNode.aiPromptSeed && (
           <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-3 mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -9046,15 +9334,14 @@ function GeoEconScenarioEmulatorTool() {
               {!synthText && !synthLoading && (
                 <button onClick={runSynthesis}
                   className="text-xs px-3 py-1 rounded-lg font-medium transition-all border"
-                  style={{ borderColor:`${cm.accent}40`, color:cm.accent, background:`${cm.accent}10` }}>
+                  style={{ borderColor: `${cm.accent}40`, color: cm.accent, background: `${cm.accent}10` }}>
                   Generate Synthesis
                 </button>
               )}
             </div>
             {synthLoading && !synthText && (
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <div className="w-3 h-3 rounded-full border-2 animate-spin"
-                  style={{ borderColor:cm.accent, borderTopColor:'transparent' }} />
+                <div className="w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: cm.accent, borderTopColor: 'transparent' }} />
                 Synthesizing...
               </div>
             )}
@@ -9067,21 +9354,27 @@ function GeoEconScenarioEmulatorTool() {
             )}
           </div>
         )}
+        {/* Actions */}
         <div className="flex gap-2">
-          <button onClick={() => startScenario(activeScenario)}
+          <button onClick={startSim}
             className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all border"
-            style={{ borderColor:`${cm.accent}30`, color:cm.accent, background:`${cm.accent}10` }}>
-            Replay Scenario
+            style={{ borderColor: `${cm.accent}30`, color: cm.accent, background: `${cm.accent}10` }}>
+            Replay
           </button>
-          <button onClick={() => setGeseView('hub')}
+          <button onClick={() => setGseView('brief')}
             className="flex-1 py-2 rounded-xl text-xs font-semibold text-slate-400 border border-slate-700/50 hover:text-white transition-all">
-            Back to Hub
+            Brief
+          </button>
+          <button onClick={() => setGseView('hub')}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold text-slate-400 border border-slate-700/50 hover:text-white transition-all">
+            New Scenario
           </button>
         </div>
       </div>
     );
   };
 
+  // ----- RENDER: HISTORY -----
   const renderHistory = () => (
     <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
       {history.length === 0 ? (
@@ -9096,7 +9389,8 @@ function GeoEconScenarioEmulatorTool() {
                   <div className="text-white text-xs font-semibold leading-snug">{rec.scenarioTitle}</div>
                   <span className="text-slate-600 text-xs flex-shrink-0">{rec.date}</span>
                 </div>
-                <div className="text-xs font-bold uppercase mb-1.5" style={{ color: rcm.accent }}>{rec.outcome}</div>
+                <div className="text-xs font-bold uppercase mb-1" style={{ color: rcm.accent }}>{rec.outcome}</div>
+                {rec.trajectory && <div className="text-slate-500 text-xs mb-1.5">{rec.trajectory}</div>}
                 {rec.pathLabels?.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {rec.pathLabels.map((l, j) => (
@@ -9112,35 +9406,36 @@ function GeoEconScenarioEmulatorTool() {
     </div>
   );
 
-  const totalComplete = Object.keys(completions).length;
+  const totalTerminalsReached = Object.keys(completions).length;
 
   return (
     <div className="h-full flex flex-col bg-[#06060f]">
       <div className="flex-shrink-0 px-4 py-3 md:px-6 border-b border-violet-500/10 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg,#0d9488,#2563eb)' }}>⬡</div>
+          style={{ background: 'linear-gradient(135deg,#0d9488,#2563eb)' }}>O</div>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-black text-white leading-tight">GeoEcon Scenario Emulator</h1>
           <p className="text-slate-500 text-xs">15 branching scenarios across historical archetypes, systemic risks, geoeconomic orders, and AI disruption</p>
         </div>
         <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1 flex-shrink-0">
-          {[['hub','Scenarios'],['history',`Log${totalComplete > 0 ? ` (${totalComplete})` : ''}`]].map(([v,l]) => (
-            <button key={v} onClick={() => setGeseView(v)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${geseView === v ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{l}</button>
+          {[['hub', 'Scenarios'], ['history', `Log${totalTerminalsReached > 0 ? ` (${totalTerminalsReached})` : ''}`]].map(([v, l]) => (
+            <button key={v} onClick={() => setGseView(v)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${gseView === v ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{l}</button>
           ))}
         </div>
       </div>
-      {geseView === 'sim' && activeScenario && (
+      {(gseView === 'sim' || gseView === 'debrief') && activeScenario && (
         <div className="flex-shrink-0 px-4 py-2 border-b border-slate-800/60 flex items-center justify-between">
           <div className="text-xs text-slate-400 font-medium truncate max-w-[70%]">{activeScenario.title}</div>
-          <button onClick={() => setGeseView('hub')} className="text-slate-600 hover:text-white text-xs transition-colors flex-shrink-0">Exit</button>
+          <button onClick={() => setGseView('hub')} className="text-slate-600 hover:text-white text-xs transition-colors flex-shrink-0">Exit</button>
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {geseView === 'hub' && renderHub()}
-        {geseView === 'sim' && !isTerminal && renderSim()}
-        {geseView === 'sim' && isTerminal && renderTerminal()}
-        {geseView === 'history' && renderHistory()}
+        {gseView === 'hub' && renderHub()}
+        {gseView === 'brief' && renderBrief()}
+        {gseView === 'sim' && renderSim()}
+        {gseView === 'debrief' && renderDebrief()}
+        {gseView === 'history' && renderHistory()}
       </div>
     </div>
   );
