@@ -7267,20 +7267,37 @@ const GSE_BIG_CYCLE_PHASES = ["Accumulation","Rise","Consolidation","Overextensi
 const GSE_STEEP_DIMENSIONS = ["S","T","E","En","P"];
 
 const GSE_CROSS_LINKS = [
-  { fromScenario:"oil-shocks-1973", fromNodeId:"os73-L4-spr", toScenario:"imf-energy-shock-2026", toNodeId:"ies26-L0", linkLabel:"Fast-forward 50 years -- energy architecture tested again", rationale:"The 1973 institutional architecture faces a new stress test in 2026. Model how the inherited system performs under new pressures." },
-  { fromScenario:"gfc-2008", fromNodeId:"gfc08-L4-shadow", toScenario:"bipolar-economy", toNodeId:"bpe-L0", linkLabel:"Financial fragility meets geopolitical fracture", rationale:"Unresolved shadow banking risk intersects with hegemonic competition; dual vulnerability amplifies both crises." },
-  { fromScenario:"asia-crisis-1997", fromNodeId:"afc97-L4-reserve", toScenario:"gfc-2008", toNodeId:"gfc08-L0", linkLabel:"Asian reserves fuel US credit bubble", rationale:"Asian reserve accumulation suppresses US long rates; cheap money fuels the housing bubble; 1997 response seeds 2008 crisis." },
-  { fromScenario:"ai-bubble-burst", fromNodeId:"aibb-L4-state-ai", toScenario:"ai-open-source-shock", toNodeId:"aios-L0", linkLabel:"State AI programs collide with open-source capability frontier", rationale:"Nationalized AI infrastructure triggers open-source response; new governance crisis emerges." },
-  { fromScenario:"bipolar-economy", fromNodeId:"bpe-L4-digital-dollar", toScenario:"imf-energy-shock-2026", toNodeId:"ies26-L0", linkLabel:"Dollar weaponization accelerates Hormuz crisis impact", rationale:"Digital dollar enforcement intensifies the energy shock by restricting sanctioned nations' ability to hedge." },
-  { fromScenario:"ai-displacement", fromNodeId:"aid-L4-dual-economy", toScenario:"bipolar-economy", toNodeId:"bpe-L0", linkLabel:"Dual economy instability feeds hegemonic competition", rationale:"Domestic instability from AI-driven inequality increases geopolitical confrontation pressure." },
-  { fromScenario:"black-swan", fromNodeId:"bsw-L4-allied-supply", toScenario:"ai-open-source-shock", toNodeId:"aios-L0", linkLabel:"Supply chain security architecture extends to AI governance", rationale:"Allied supply chain agreements provide institutional template for AI governance coalition." }
+  { fromScenario:"oil-shocks-1973",  fromNodeId:"os73-L4-spr",        toScenario:"imf-energy-shock-2026", toNodeId:"ies26-L0", linkLabel:"Fast-forward 50 years -- energy architecture tested again",         rationale:"Successful 1973 energy architecture did not prevent 2026 vulnerability. Model how the inherited system performs under new stress." },
+  { fromScenario:"gfc-2008",         fromNodeId:"gfc08-L4-shadow",     toScenario:"bipolar-economy",       toNodeId:"bpe-L0",   linkLabel:"Financial fragility meets geopolitical fracture",                 rationale:"Unresolved shadow banking risk intersects with hegemonic competition; dual vulnerability amplifies both crises." },
+  { fromScenario:"asia-crisis-1997", fromNodeId:"afc97-L4-reserve",    toScenario:"gfc-2008",              toNodeId:"gfc08-L0", linkLabel:"Asian reserves fuel US credit bubble",                           rationale:"Asian reserve accumulation suppresses US long rates; cheap money fuels housing bubble. The 1997 response seeds the 2008 crisis." },
+  { fromScenario:"ai-bubble-burst",  fromNodeId:"aibb-L4-state-ai",    toScenario:"ai-open-source-shock",  toNodeId:"aios-L0",  linkLabel:"Nationalized AI collides with open-source capability frontier",  rationale:"State AI infrastructure programs trigger open-source competitive response; a new governance crisis emerges." },
+  { fromScenario:"bipolar-economy",  fromNodeId:"bpe-L4-digital-dollar",toScenario:"imf-energy-shock-2026",toNodeId:"ies26-L0", linkLabel:"Dollar weaponization accelerates the Hormuz crisis impact",      rationale:"Digital dollar enforcement intensifies the energy shock by restricting sanctioned nations from hedging exposure." },
+  { fromScenario:"ai-displacement",  fromNodeId:"aid-L4-dual-economy",  toScenario:"bipolar-economy",       toNodeId:"bpe-L0",   linkLabel:"Dual economy instability feeds hegemonic competition",           rationale:"Domestic instability from AI-driven inequality increases pressure toward geopolitical confrontation." },
+  { fromScenario:"black-swan",       fromNodeId:"bsw-L4-allied-supply", toScenario:"ai-open-source-shock",  toNodeId:"aios-L0",  linkLabel:"Supply chain security architecture extends to AI governance",   rationale:"Allied supply chain coordination agreements provide the institutional template for an AI governance coalition." }
 ];
+
+const GSE_LENS_META = {
+  bigCycle:   { label:'Big Cycle',    color:'#f59e0b', shortLabel:'BC', desc:'Dalio macro-historical phase position' },
+  steep:      { label:'STEEP',        color:'#a78bfa', shortLabel:'ST', desc:'Social, Technological, Economic, Environmental, Political intensity' },
+  geoEcon:    { label:'GeoEcon',      color:'#2dd4bf', shortLabel:'GE', desc:'Geopolitical-economic tool deployment' },
+  gameTheory: { label:'Game Theory',  color:'#60a5fa', shortLabel:'GT', desc:'Strategic interaction and cooperation/defection pattern' }
+};
+
+const GSE_COND_RULES = {
+  "os73-L3-petrodollar":              (dv)      => !dv.some(d => d.choiceId === "os73-L1-raise"),
+  "bpe-L2-sanctions":                 (dv)      => dv.some(d => d.choiceId === "bpe-L1-containment"),
+  "ies26-L4-imf-program":             (_dv, ls) => ls.geoEcon.intensityScore > 40,
+  "aios-L4-binding-treaty":           (_dv, ls) => ls.gameTheory.cooperateCount >= ls.gameTheory.defectCount,
+  "os73-L2-volcker":                  (dv)      => dv.some(d => d.choiceId === "os73-L1-lower"),
+  "os73-L3-premature-easing":         (dv)      => dv.some(d => d.choiceId === "os73-L2-volcker"),
+  "aid-L3-international-tax-coordination": (dv) => dv.some(d => d.choiceId === "aid-L2-ubi"),
+};
 
 function gseInitLens() {
   return {
-    bigCycle: { phase:"Unknown", phaseIndex:-1, score:0, history:[], note:"" },
-    steep: { S:0, T:0, E:0, En:0, P:0, primary:null, secondary:null, activationCount:0 },
-    geoEcon: { toolsDeployed:[], dominantTool:null, intensityScore:0 },
+    bigCycle:   { phase:"Unknown", phaseIndex:-1, score:0, history:[], note:"" },
+    steep:      { S:0, T:0, E:0, En:0, P:0, primary:null, secondary:null, activationCount:0 },
+    geoEcon:    { toolsDeployed:[], dominantTool:null, intensityScore:0 },
     gameTheory: { moves:[], cooperateCount:0, defectCount:0, currentType:"Unknown", payoffLedger:{positive:0,negative:0,neutral:0}, dominantPattern:null }
   };
 }
@@ -7312,7 +7329,7 @@ function gseUpdateLens(cur, snap) {
     u.gameTheory.currentType = type;
     u.gameTheory.moves.push(type);
     const coop = ["Cooperate","Coordinate","Positive-Sum","Cooperative","Coalition","Commitment"];
-    const def = ["Defect","Retaliate","Escalate","Zero-Sum","Coercion","Attacker"];
+    const def  = ["Defect","Retaliate","Escalate","Zero-Sum","Coercion","Attacker"];
     if (coop.some(c => type.includes(c))) { u.gameTheory.cooperateCount++; u.gameTheory.payoffLedger.positive++; }
     else if (def.some(d => type.includes(d))) { u.gameTheory.defectCount++; u.gameTheory.payoffLedger.negative++; }
     else u.gameTheory.payoffLedger.neutral++;
@@ -7329,21 +7346,10 @@ function gseGetSteepDominant(steep) {
 }
 
 function gseEvalChoice(choiceId, decisionVector, lensScores) {
-  const rules = {
-    "os73-L3-petrodollar": dv => !dv.some(d => d.choiceId === "os73-L1-defend-peg"),
-    "bpe-L2-aggressive-secondary-sanctions": dv => dv.some(d => d.choiceId === "bpe-L1-containment"),
-    "bpe-L2-economic-incentives": dv => dv.some(d => d.choiceId === "bpe-L1-accommodation"),
-    "ies26-L4-imf-program": (_dv, ls) => ls.geoEcon.intensityScore > 40,
-    "aid-L3-international-tax-coordination": dv => dv.some(d => d.choiceId === "aid-L2-ubi-experiment"),
-    "aid-L3-sovereign-wealth-fund": dv => dv.some(d => d.choiceId === "aid-L2-demand-collapse"),
-    "aibb-L4-quantum-commercial": dv => dv.some(d => ["aibb-L1-strategic-pivot","aibb-L2-state-industrial-policy"].includes(d.choiceId)),
-    "aios-L4-binding-treaty": (_dv, ls) => ls.gameTheory.cooperateCount >= ls.gameTheory.defectCount,
-    "os73-L2-volcker": dv => dv.some(d => d.choiceId === "os73-L1-lower"),
-    "os73-L3-premature-easing": dv => dv.some(d => d.choiceId === "os73-L2-volcker"),
-  };
-  if (!rules[choiceId]) return { available:true, lockReason:null };
+  const rule = GSE_COND_RULES[choiceId];
+  if (!rule) return { available:true, lockReason:null };
   try {
-    const ok = rules[choiceId](decisionVector, lensScores);
+    const ok = rule(decisionVector, lensScores);
     return { available:ok, lockReason: ok ? null : "Requires a prior path condition to unlock" };
   } catch { return { available:true, lockReason:null }; }
 }
@@ -7366,10 +7372,10 @@ function gseCalcTrajectory(lensScores, decisionVector) {
 }
 
 const GESE_CLUSTER_META = {
-  historical: { label:'Historical Archetypes', accent:'#f59e0b', bg:'rgba(120,53,15,0.15)', border:'rgba(146,64,14,0.3)', icon:'⏳', desc:'Pivotal inflection points that redefined global economic and geopolitical architecture.' },
-  systemic:   { label:'Systemic Risk Typologies', accent:'#ef4444', bg:'rgba(127,29,29,0.15)', border:'rgba(153,27,27,0.3)', icon:'⚠', desc:'Structural risk patterns that overwhelm institutional response capacity.' },
-  geoeconomic:{ label:'Geoeconomic Orders', accent:'#2dd4bf', bg:'rgba(15,118,110,0.15)', border:'rgba(13,148,136,0.3)', icon:'⬡', desc:'Structural futures for the global economic and geopolitical order.' },
-  'ai-tech':  { label:'AI & Tech Disruption', accent:'#a78bfa', bg:'rgba(76,29,149,0.15)', border:'rgba(91,33,182,0.3)', icon:'◈', desc:'Five distinct trajectories for advanced AI development and its civilizational consequences.' }
+  historical:  { label:'Historical Archetypes',    accent:'#f59e0b', bg:'rgba(120,53,15,0.15)',  border:'rgba(146,64,14,0.3)',   icon:'⏳', desc:'Pivotal inflection points that redefined global economic and geopolitical architecture.',         scenarios:['oil-shocks-1973','asia-crisis-1997','gfc-2008'] },
+  systemic:    { label:'Systemic Risk Typologies', accent:'#ef4444', bg:'rgba(127,29,29,0.15)',  border:'rgba(153,27,27,0.3)',   icon:'!',  desc:'Structural risk patterns that overwhelm institutional response capacity.',                       scenarios:['black-swan','gray-rhino','imf-energy-shock-2026'] },
+  geoeconomic: { label:'Geoeconomic Orders',       accent:'#2dd4bf', bg:'rgba(15,118,110,0.15)', border:'rgba(13,148,136,0.3)',  icon:'O',  desc:'Structural futures for the global economic and geopolitical order.',                             scenarios:['bipolar-economy','fragmented-stagnation','tech-realignment','cislunar-geopolitics'] },
+  'ai-tech':   { label:'AI & Tech Disruption',     accent:'#a78bfa', bg:'rgba(76,29,149,0.15)',  border:'rgba(91,33,182,0.3)',   icon:'*',  desc:'Five distinct trajectories for advanced AI development and its civilizational consequences.',     scenarios:['ai-open-source-shock','ai-displacement','agi-monopoly','ai-wild-west','ai-bubble-burst'] }
 };
 
 const GESE_SCENARIOS = [
@@ -8866,6 +8872,8 @@ function GeoEconScenarioEmulatorTool() {
   const [synthText, setSynthText] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
   const [synthError, setSynthError] = useState('');
+  const [pendingCarriedLens, setPendingCarriedLens] = useState(null);
+  const [simPathOpen, setSimPathOpen] = useState(false);
 
   const currentNode = activeScenario?.nodes?.[currentNodeId];
   const cm = activeScenario ? GESE_CLUSTER_META[activeScenario.cluster] : null;
@@ -8882,14 +8890,32 @@ function GeoEconScenarioEmulatorTool() {
   const startSim = () => {
     if (!activeScenario) return;
     const rootNode = activeScenario.nodes[activeScenario.rootNodeId];
-    const initLens = gseInitLens();
-    const updatedLens = rootNode?.lensSnapshot ? gseUpdateLens(initLens, rootNode.lensSnapshot) : initLens;
+    const base = pendingCarriedLens ? pendingCarriedLens : gseInitLens();
+    const updatedLens = rootNode?.lensSnapshot ? gseUpdateLens(base, rootNode.lensSnapshot) : base;
     setCurrentNodeId(activeScenario.rootNodeId);
     setDecisionVector([]);
     setSimPath([]);
     setLensScores(updatedLens);
+    setPendingCarriedLens(null);
     setSynthText(''); setSynthError('');
+    setSimPathOpen(false);
     setGseView('sim');
+  };
+
+  const followChainLink = (link) => {
+    const targetSc = GESE_SCENARIOS.find(s => s.id === link.toScenario);
+    if (!targetSc) return;
+    const carried = gseInitLens();
+    GSE_STEEP_DIMENSIONS.forEach(d => { carried.steep[d] = lensScores.steep[d] * 0.5; });
+    carried.gameTheory.cooperateCount = Math.floor(lensScores.gameTheory.cooperateCount * 0.5);
+    carried.gameTheory.defectCount   = Math.floor(lensScores.gameTheory.defectCount   * 0.5);
+    carried.geoEcon.toolsDeployed   = [...lensScores.geoEcon.toolsDeployed];
+    carried.geoEcon.intensityScore  = Math.floor(lensScores.geoEcon.intensityScore * 0.5);
+    carried.bigCycle.phase          = lensScores.bigCycle.phase;
+    carried.bigCycle.history        = [...lensScores.bigCycle.history];
+    setPendingCarriedLens(carried);
+    setActiveScenario(targetSc);
+    setGseView('brief');
   };
 
   const makeChoice = (choiceId) => {
@@ -8976,27 +9002,30 @@ function GeoEconScenarioEmulatorTool() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {clusterScenarios.map(sc => {
-                  const done = completedCount(sc);
-                  const total = terminalNodes(sc).length;
+                  const terminals = terminalNodes(sc);
                   return (
                     <button key={sc.id} onClick={() => startBrief(sc)}
                       className="text-left rounded-xl p-4 border transition-all hover:scale-[1.01] active:scale-[0.99]"
                       style={{ background: clusterMeta.bg, borderColor: clusterMeta.border }}>
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h4 className="text-white text-xs font-bold leading-snug">{sc.title}</h4>
-                        {done > 0 && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 font-semibold" style={{ background: `${clusterMeta.accent}22`, color: clusterMeta.accent }}>
-                            {done}/{total}
-                          </span>
-                        )}
                       </div>
                       <p className="text-slate-400 text-xs leading-relaxed mb-2 line-clamp-2">{sc.description}</p>
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
                         <span className="text-slate-600 text-xs">{sc.era}</span>
                         <span className="text-slate-700 text-xs">·</span>
                         <span className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{sc.primaryLens}</span>
                         <span className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{sc.timeHorizon}</span>
                       </div>
+                      {terminals.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {terminals.map(t => (
+                            <span key={t.id} title={t.title}
+                              className="w-2 h-2 rounded-full transition-all"
+                              style={{ background: completions[t.id] ? clusterMeta.accent : 'rgba(100,116,139,0.3)', border: `1px solid ${completions[t.id] ? clusterMeta.accent : '#334155'}` }} />
+                          ))}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -9096,6 +9125,31 @@ function GeoEconScenarioEmulatorTool() {
           <h2 className="text-white font-bold text-base leading-tight mb-2">{currentNode.title}</h2>
           <p className="text-slate-300 text-sm leading-relaxed">{currentNode.narrative}</p>
         </div>
+        {/* Path so far collapsible */}
+        {decisionVector.length > 0 && (
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 mb-3">
+            <button onClick={() => setSimPathOpen(o => !o)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-slate-400 hover:text-white transition-colors">
+              <span className="font-semibold uppercase tracking-wide text-slate-500">Path so far ({decisionVector.length} step{decisionVector.length !== 1 ? 's' : ''})</span>
+              <span>{simPathOpen ? '▲' : '▼'}</span>
+            </button>
+            {simPathOpen && (
+              <div className="px-3 pb-3 space-y-1">
+                {decisionVector.map((dv, i) => {
+                  const choiceNode = activeScenario.nodes[dv.choiceId];
+                  return (
+                    <div key={i} className="flex items-start gap-2 text-xs">
+                      <span className="text-slate-700 flex-shrink-0 w-4 text-right">{i + 1}.</span>
+                      <span className="text-slate-500">{dv.nodeTitle}</span>
+                      <span className="text-slate-700">to</span>
+                      <span className="text-slate-400" style={{ color: cm?.accent }}>{choiceNode?.label || choiceNode?.title || dv.choiceId}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         {/* Accumulated lens scores (shown after first choice; initial snapshot shown before) */}
         {decisionVector.length > 0 ? (
           <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 mb-4">
@@ -9104,7 +9158,11 @@ function GeoEconScenarioEmulatorTool() {
               <div className="rounded-lg bg-slate-800/60 p-2">
                 <div className="text-xs font-semibold mb-0.5" style={{ color: '#f59e0b' }}>Big Cycle</div>
                 <div className="text-white text-xs font-medium leading-snug">{ls.bigCycle.phase}</div>
-                {ls.bigCycle.note && <div className="text-slate-500 text-xs mt-0.5 leading-tight">{ls.bigCycle.note}</div>}
+                {ls.bigCycle.history.length > 1 && (
+                  <div className="text-slate-600 text-xs mt-0.5 leading-tight">
+                    {ls.bigCycle.history.slice(-3).join(' → ')}
+                  </div>
+                )}
               </div>
               <div className="rounded-lg bg-slate-800/60 p-2">
                 <div className="text-xs font-semibold mb-0.5" style={{ color: '#a78bfa' }}>STEEP</div>
@@ -9207,6 +9265,16 @@ function GeoEconScenarioEmulatorTool() {
     const steepChartData = GSE_STEEP_DIMENSIONS.map(d => ({ dim: d, v: Math.round((ls.steep[d] || 0) * 100) }));
     const crossLinks = gseGetCrossLinks(activeScenario.id, currentNodeId);
     const steepDom = gseGetSteepDominant(ls.steep);
+    const accumulatedSOE = (() => {
+      const seen = new Set();
+      const effects = [];
+      decisionVector.forEach(dv => {
+        const n = activeScenario.nodes[dv.nodeId];
+        (n?.secondOrderEffects || []).forEach(e => { if (!seen.has(e)) { seen.add(e); effects.push(e); } });
+      });
+      (currentNode.secondOrderEffects || []).forEach(e => { if (!seen.has(e)) { seen.add(e); effects.push(e); } });
+      return effects;
+    })();
     return (
       <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
         {/* Header */}
@@ -9278,20 +9346,33 @@ function GeoEconScenarioEmulatorTool() {
         {/* Decision path summary */}
         {decisionVector.length > 0 && (
           <div className="mb-4">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Decision Path ({decisionVector.length} steps)</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Decision Vector ({decisionVector.length} steps)</div>
             <div className="space-y-1">
               {decisionVector.map((dv, i) => {
                 const choiceNode = activeScenario.nodes[dv.choiceId];
                 return (
                   <div key={i} className="flex items-start gap-2 text-xs">
-                    <span className="text-slate-600 flex-shrink-0 w-4 text-right">{i + 1}.</span>
+                    <span className="text-slate-600 flex-shrink-0 w-4 text-right">L{dv.layer || i}.</span>
                     <span className="text-slate-500">{dv.nodeTitle}</span>
                     <span className="text-slate-700">to</span>
-                    <span className="text-slate-400 font-medium">{choiceNode?.label || choiceNode?.title || dv.choiceId}</span>
+                    <span className="font-medium" style={{ color: cm.accent }}>{choiceNode?.label || choiceNode?.title || dv.choiceId}</span>
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
+        {/* Accumulated second-order effects */}
+        {accumulatedSOE.length > 0 && (
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Accumulated Second-Order Effects</div>
+            <ul className="space-y-1.5">
+              {accumulatedSOE.map((e, i) => (
+                <li key={i} className="text-xs text-slate-400 flex gap-2">
+                  <span className="text-slate-600 flex-shrink-0 mt-0.5">-</span><span>{e}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         {/* Historical analog */}
@@ -9310,17 +9391,19 @@ function GeoEconScenarioEmulatorTool() {
                 if (!targetSc) return null;
                 const tcm = GESE_CLUSTER_META[targetSc.cluster];
                 return (
-                  <button key={i} onClick={() => startBrief(targetSc)}
-                    className="w-full text-left rounded-xl p-3 border border-slate-700/40 bg-slate-800/20 hover:bg-slate-800/40 transition-all">
-                    <div className="flex items-start gap-2.5">
-                      <span className="text-sm flex-shrink-0 mt-0.5" style={{ color: tcm?.accent || '#94a3b8' }}>{tcm?.icon || 'O'}</span>
-                      <div>
-                        <div className="text-white text-xs font-semibold mb-0.5">{link.linkLabel}</div>
-                        <div className="text-slate-400 text-xs mb-1">{link.rationale}</div>
-                        <div className="text-xs font-medium" style={{ color: tcm?.accent || '#94a3b8' }}>Continue with: {targetSc.title}</div>
-                      </div>
+                  <div key={i} className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3">
+                    <div className="text-white text-xs font-semibold mb-0.5">{link.linkLabel}</div>
+                    <div className="text-slate-400 text-xs mb-2">{link.rationale}</div>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs font-medium" style={{ color: tcm?.accent || '#94a3b8' }}>Chain into: {targetSc.title}</span>
+                      <button onClick={() => followChainLink(link)}
+                        className="text-xs px-3 py-1 rounded-lg font-medium transition-all border"
+                        style={{ borderColor: `${tcm?.accent || '#94a3b8'}40`, color: tcm?.accent || '#94a3b8', background: `${tcm?.accent || '#94a3b8'}10` }}>
+                        Chain into this scenario
+                      </button>
                     </div>
-                  </button>
+                    <div className="text-slate-600 text-xs mt-1.5">Lens scores carry forward at 50%</div>
+                  </div>
                 );
               })}
             </div>
