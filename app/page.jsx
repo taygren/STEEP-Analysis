@@ -7371,20 +7371,21 @@ function gseCalcTrajectory(lensScores, decisionVector) {
   return { label:"Uncertain Equilibrium", color:"#3b82f6" };
 }
 
-const GESE_CLUSTER_META = {
+const GSE_CLUSTER_META = {
   historical:  { label:'Historical Archetypes',    accent:'#f59e0b', bg:'rgba(120,53,15,0.15)',  border:'rgba(146,64,14,0.3)',   icon:'⏳', desc:'Pivotal inflection points that redefined global economic and geopolitical architecture.',         scenarios:['oil-shocks-1973','asia-crisis-1997','gfc-2008'] },
   systemic:    { label:'Systemic Risk Typologies', accent:'#ef4444', bg:'rgba(127,29,29,0.15)',  border:'rgba(153,27,27,0.3)',   icon:'!',  desc:'Structural risk patterns that overwhelm institutional response capacity.',                       scenarios:['black-swan','gray-rhino','imf-energy-shock-2026'] },
   geoeconomic: { label:'Geoeconomic Orders',       accent:'#2dd4bf', bg:'rgba(15,118,110,0.15)', border:'rgba(13,148,136,0.3)',  icon:'O',  desc:'Structural futures for the global economic and geopolitical order.',                             scenarios:['bipolar-economy','fragmented-stagnation','tech-realignment','cislunar-geopolitics'] },
   'ai-tech':   { label:'AI & Tech Disruption',     accent:'#a78bfa', bg:'rgba(76,29,149,0.15)',  border:'rgba(91,33,182,0.3)',   icon:'*',  desc:'Five distinct trajectories for advanced AI development and its civilizational consequences.',     scenarios:['ai-open-source-shock','ai-displacement','agi-monopoly','ai-wild-west','ai-bubble-burst'] }
 };
 
-const GESE_SCENARIOS = [
+const GSE_SCENARIOS = [
 
   // ── CLUSTER A: HISTORICAL ────────────────────────────────────────────────
 
   { id:'oil-shocks-1973', cluster:'historical', title:'The 1973-1974 Oil Shocks', era:'1973-1974', timeHorizon:'near-term', primaryLens:'geoEcon',
     description:'OAPEC embargo quadruples oil prices, exposing Western economies to weaponized energy and stagflation that monetary frameworks were not designed to handle.',
     tags:['energy','stagflation','embargo','monetary policy'],
+    aiPromptContext:'You are simulating the 1973-1974 oil crisis. Apply Dalio Big Cycle lens (US in late consolidation/early overextension phase), STEEP analysis (P and E dominant with S feedback), and game theory (OAPEC defection against Western importers; oligopolistic coordination among Arab states).',
     rootNodeId:'os73-L0',
     nodes:{
       'os73-L0':{ id:'os73-L0', layer:0, type:'trigger', title:'Arab Oil Embargo Declared', label:'Embargo Trigger',
@@ -7559,6 +7560,7 @@ const GESE_SCENARIOS = [
   { id:'asia-crisis-1997', cluster:'historical', title:'The 1997 East Asian Financial Crisis', era:'1997-1998', timeHorizon:'near-term', primaryLens:'geoEcon',
     description:'Thai baht collapse triggers contagion across East Asia, creating a liquidity crisis that exposes dollar-pegged exchange rates, corporate over-leverage, and the brutal conditionality of IMF intervention.',
     tags:['currency crisis','IMF','contagion','capital controls','emerging markets'],
+    aiPromptContext:'You are simulating the 1997 East Asian financial crisis. Apply Big Cycle lens (developing economies in early accumulation phase, vulnerable to capital flow reversal), STEEP (E and P dominant), and game theory (currency defense as war of attrition against speculators; IMF conditionality as principal-agent problem).',
     rootNodeId:'afc97-L0',
     nodes:{
       'afc97-L0':{ id:'afc97-L0', layer:0, type:'trigger', title:'Thai Baht Collapses -- Contagion Begins', label:'Baht Crisis',
@@ -7649,6 +7651,7 @@ const GESE_SCENARIOS = [
   { id:'gfc-2008', cluster:'historical', title:'The 2008 Global Financial Crisis', era:'2008-2012', timeHorizon:'near-term', primaryLens:'bigCycle',
     description:'Lehman Brothers collapse triggers a global liquidity freeze and the deepest recession since the 1930s, testing the limits of coordinated policy response and revealing the fragility of the shadow banking system.',
     tags:['financial crisis','housing bubble','demand shock','stimulus','austerity','contagion'],
+    aiPromptContext:'You are simulating the 2008 Global Financial Crisis. Apply Big Cycle lens (US at peak of debt supercycle; private sector deleveraging; reserve currency under stress), STEEP analysis (E dominant with T and P secondary), and game theory (coordination problems in bank recapitalization; prisoner\'s dilemma in fiscal stimulus sequencing).',
     rootNodeId:'gfc08-L0',
     nodes:{
       'gfc08-L0':{ id:'gfc08-L0', layer:0, type:'trigger', title:'Lehman Brothers Collapse -- Global Liquidity Freeze', label:'Lehman Collapse',
@@ -7762,6 +7765,7 @@ const GESE_SCENARIOS = [
   { id:'black-swan', cluster:'systemic', title:'Black Swan Events', era:'Variable', timeHorizon:'near-term', primaryLens:'steep',
     description:'Unforeseen, highly disruptive events -- modeled on 9/11 and COVID-19 -- that permanently alter global security, economic postures, and supply chain architecture through shocks no model predicted.',
     tags:['black swan','tail risk','supply chain','resilience','pandemic','terrorism'],
+    aiPromptContext:'You are simulating a Black Swan event scenario. Apply STEEP lens (all dimensions disrupted simultaneously), Big Cycle (shock to existing order; potential phase transition trigger), and game theory (coordination problems in crisis response; free rider problems in global public goods provision).',
     rootNodeId:'bsw-L0',
     nodes:{
       'bsw-L0':{ id:'bsw-L0', layer:0, type:'trigger', title:'Catastrophic Unforeseeable Event', label:'Black Swan',
@@ -7831,6 +7835,7 @@ const GESE_SCENARIOS = [
   { id:'gray-rhino', cluster:'systemic', title:'The Gray Rhino Polycrisis', era:'2025-2035', timeHorizon:'medium', primaryLens:'steep',
     description:'Multiple foreseeable but ignored risks converge simultaneously -- sovereign debt overhangs, climate shocks, demographic collapse, and supply chain fragility -- overwhelming institutions designed for single-crisis management.',
     tags:['polycrisis','gray rhino','systemic risk','climate','debt','demographics','cascading failure'],
+    aiPromptContext:'You are simulating a Gray Rhino Polycrisis. Apply STEEP analysis across all five dimensions simultaneously, Big Cycle (late-cycle institutional stress testing), and game theory (multi-party coordination failure; tragedy of the commons across overlapping crisis domains). The distinguishing feature: these were all foreseeable -- the question is why they were not addressed and what happens when they arrive together.',
     rootNodeId:'grp-L0',
     nodes:{
       'grp-L0':{ id:'grp-L0', layer:0, type:'trigger', title:'Simultaneous Convergence of Four Foreseeable Crises', label:'Polycrisis Trigger',
@@ -7963,6 +7968,7 @@ const GESE_SCENARIOS = [
   { id:'imf-energy-shock-2026', cluster:'systemic', title:'IMF 2026 Energy Shock Matrix', era:'2026-2028', timeHorizon:'near-term', primaryLens:'geoEcon',
     description:'Regional conflict disrupts major energy logistics nodes, pushing global growth to 2.0% in severe scenarios, straining energy-importing currencies, and forcing divergent central bank responses.',
     tags:['energy shock','oil price','regional conflict','stagflation','central bank','emerging markets'],
+    aiPromptContext:'You are simulating the IMF 2026 Energy Shock Matrix. Apply Big Cycle (late cycle monetary stress; sovereign debt fragility in emerging markets), STEEP (E and P dominant; En secondary via energy transition acceleration), and game theory (coordination problems between energy importers; OPEC+ supply decisions as strategic games).',
     rootNodeId:'ies26-L0',
     nodes:{
       'ies26-L0':{ id:'ies26-L0', layer:0, type:'trigger', title:'Regional Conflict Disrupts Strait of Hormuz', label:'Hormuz Disruption',
@@ -8062,6 +8068,7 @@ const GESE_SCENARIOS = [
   { id:'bipolar-economy', cluster:'geoeconomic', title:'The Bipolar Economy', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
     description:'US-China competition produces two partially decoupled economic blocs, each with competing technology standards, payment systems, and trade architectures -- forcing every nation to choose or hedge.',
     tags:['US-China','decoupling','sanctions','export controls','technology standards','reserve currency'],
+    aiPromptContext:'You are simulating the Bipolar Near-Global Economy. Apply Big Cycle lens (US in late hegemonic cycle; China as challenger power), GeoEconomics (full toolkit: tariffs, export controls, sanctions, currency, alliances), and game theory (two-player hegemonic competition with third-party boundary states as strategic actors with outside options).',
     rootNodeId:'bpe-L0',
     nodes:{
       'bpe-L0':{ id:'bpe-L0', layer:0, type:'trigger', title:'US-China Economic Decoupling Accelerates', label:'Decoupling Trigger',
@@ -8145,6 +8152,7 @@ const GESE_SCENARIOS = [
   { id:'fragmented-stagnation', cluster:'geoeconomic', title:'The Age of Fragmented Stagnation', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
     description:'The global economy fragments into competing regional blocs without any dominant order, producing persistent low growth, high transaction costs, and the slow erosion of the multilateral institutions that underpinned the post-1945 prosperity architecture.',
     tags:['fragmentation','deglobalization','stagnation','regional blocs','multilateralism'],
+    aiPromptContext:'You are simulating the Age of Fragmented Stagnation. Apply Big Cycle lens (neither US nor China achieves clear hegemony; interregnum produces instability), GeoEconomics (trade fragmentation; competing standards; parallel financial systems), and game theory (multi-player competition without dominant actor; no Schelling point for coordination; tragedy of fragmentation).',
     rootNodeId:'frst-L0',
     nodes:{
       'frst-L0':{ id:'frst-L0', layer:0, type:'trigger', title:'Neither Bloc Dominates -- Hegemonic Interregnum', label:'Interregnum',
@@ -8242,6 +8250,7 @@ const GESE_SCENARIOS = [
   { id:'tech-realignment', cluster:'geoeconomic', title:'Tech-Driven Realignment', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
     description:'Multiple general-purpose technology breakthroughs -- AI, quantum computing, biotech, fusion energy -- arrive simultaneously, restructuring geopolitical power on technological capability rather than industrial capacity.',
     tags:['AI','quantum computing','biotech','fusion energy','technological leadership','geopolitics'],
+    aiPromptContext:'You are simulating the Tech-Driven Realignment. Apply STEEP lens (T overwhelmingly dominant; all other dimensions downstream of technology), Big Cycle (technological phase transition driving new hegemonic cycle), and game theory (technology race dynamics; first-mover advantages; standards wars; technology arms control).',
     rootNodeId:'tdr-L0',
     nodes:{
       'tdr-L0':{ id:'tdr-L0', layer:0, type:'trigger', title:'Multiple Technology Frontiers Break Simultaneously', label:'Technology Convergence',
@@ -8353,6 +8362,7 @@ const GESE_SCENARIOS = [
   { id:'cislunar-geopolitics', cluster:'geoeconomic', title:'Cislunar Geopolitics & The New Commons', era:'2030-2050', timeHorizon:'long', primaryLens:'geoEcon',
     description:'Commercial and national space capabilities expand to the Moon and cislunar space, creating new domains for resource competition, military posture, and governance disputes with no established legal framework.',
     tags:['space','cislunar','moon','rare minerals','space law','dual use','new commons'],
+    aiPromptContext:'You are simulating Cislunar Geopolitics. Apply Big Cycle lens (expansion of the productive frontier into space; new resource competition); GeoEconomics (resource nationalism in space; absence of property rights framework); STEEP (T dominant; En new dimension: space environment); and game theory (commons governance problem; first-mover advantage in resource extraction; security dilemma in cislunar space).',
     rootNodeId:'cis-L0',
     nodes:{
       'cis-L0':{ id:'cis-L0', layer:0, type:'trigger', title:'Commercial Lunar Operations and Resource Claims Begin', label:'Lunar Operations',
@@ -8431,6 +8441,7 @@ const GESE_SCENARIOS = [
   { id:'ai-open-source-shock', cluster:'ai-tech', title:'Unpredictable Advanced AI (The Open-Source Shock)', era:'2025-2032', timeHorizon:'medium', primaryLens:'steep',
     description:'Highly capable but unpredictable open-source AI models are released publicly, democratizing both beneficial and malicious applications in ways that overwhelm governance architectures.',
     tags:['AI','open source','cybersecurity','governance','dual-use','autonomous systems'],
+    aiPromptContext:'You are simulating the Open-Source AI Shock scenario. Apply STEEP lens (T dominant; S, P, E secondary), Big Cycle (technological phase transition), and game theory (public goods problem: AI safety requires collective action; individual actor incentives favor rapid deployment; tragedy of the commons dynamic).',
     rootNodeId:'aios-L0',
     nodes:{
       'aios-L0':{ id:'aios-L0', layer:0, type:'trigger', title:'Highly Capable Open-Source AI Models Released', label:'Open-Source AI Release',
@@ -8521,6 +8532,7 @@ const GESE_SCENARIOS = [
   { id:'ai-displacement', cluster:'ai-tech', title:'AI Disrupts the Workforce (Age of Displacement)', era:'2025-2035', timeHorizon:'medium', primaryLens:'steep',
     description:'Narrow but highly capable AI systems are widely deployed across business sectors, producing massive corporate profits while outpacing human adaptation and causing structural unemployment.',
     tags:['AI','automation','structural unemployment','UBI','social unrest','wealth concentration'],
+    aiPromptContext:'You are simulating the Age of Displacement scenario. Apply STEEP lens (T and E dominant; S cascading), Big Cycle (technological productivity gains; wealth concentration; internal conflict dynamics), and game theory (firms face automation competition game; workers face coordination problems; governments face fiscal tradeoffs).',
     rootNodeId:'aid-L0',
     nodes:{
       'aid-L0':{ id:'aid-L0', layer:0, type:'trigger', title:'Capable Narrow AI Rapidly Deployed Across Sectors', label:'AI Deployment Wave',
@@ -8597,6 +8609,7 @@ const GESE_SCENARIOS = [
   { id:'agi-monopoly', cluster:'ai-tech', title:'AGI Monopoly (One Lab Captures the Future)', era:'2027-2040', timeHorizon:'long', primaryLens:'steep',
     description:'A single laboratory achieves artificial general intelligence first, creating an unprecedented concentration of transformative power -- as a private company, allied nation, or adversarial state.',
     tags:['AGI','monopoly','power concentration','governance','existential risk','AI alignment'],
+    aiPromptContext:'You are simulating the AGI Monopoly scenario. Apply STEEP lens (T overwhelmingly dominant; all other dimensions downstream), Big Cycle (AGI as the ultimate phase-transition technology; new hegemonic cycle based on intelligence rather than resources or industrial capacity), and game theory (monopoly game theory; credible commitment problems; race dynamics; the governance dilemma: who governs the governor?).',
     rootNodeId:'agim-L0',
     nodes:{
       'agim-L0':{ id:'agim-L0', layer:0, type:'trigger', title:'Artificial General Intelligence Achieved by Single Actor', label:'AGI Breakthrough',
@@ -8701,6 +8714,7 @@ const GESE_SCENARIOS = [
   { id:'ai-wild-west', cluster:'ai-tech', title:'AI Wild West (Ungoverned AI Proliferation)', era:'2025-2032', timeHorizon:'medium', primaryLens:'steep',
     description:'Rapid fragmentation of AI development across hundreds of competing actors -- labs, governments, corporations, and criminal organizations -- without governance architecture, producing simultaneous benefits and catastrophic risks.',
     tags:['AI','governance failure','proliferation','autonomous weapons','disinformation','existential risk'],
+    aiPromptContext:'You are simulating the AI Wild West scenario. Apply STEEP (T overwhelmingly dominant; S and P destabilized), Big Cycle (technological disruption without governance produces instability; potential for faster-than-expected phase transition or collapse), and game theory (everyone has equal access to AI; competitive advantage from deploying fastest; governance a collective action problem; tragedy of the AI commons).',
     rootNodeId:'aiww-L0',
     nodes:{
       'aiww-L0':{ id:'aiww-L0', layer:0, type:'trigger', title:'AI Governance Architecture Collapses -- Proliferation Begins', label:'Governance Collapse',
@@ -8777,6 +8791,7 @@ const GESE_SCENARIOS = [
   { id:'ai-bubble-burst', cluster:'ai-tech', title:'The AI Bubble Burst', era:'2026-2030', timeHorizon:'near-term', primaryLens:'bigCycle',
     description:'Trillion-dollar AI investment expectations collide with slower-than-promised productivity materialization, triggering a financial correction that reshapes the technology industry and recalibrates AI deployment timelines.',
     tags:['AI','bubble','financial correction','productivity','technology investment','valuation'],
+    aiPromptContext:'You are simulating the AI bubble burst scenario. Apply Big Cycle lens (asset price bubble deflation; credit cycle contraction), STEEP (E and T dominant), and game theory (market coordination problems; investor exit game; central bank intervention decision).',
     rootNodeId:'aibb-L0',
     nodes:{
       'aibb-L0':{ id:'aibb-L0', layer:0, type:'trigger', title:'AI Productivity Materializes Slower Than Expectations', label:'AI Bubble Trigger',
@@ -8876,7 +8891,7 @@ function GeoEconScenarioEmulatorTool() {
   const [simPathOpen, setSimPathOpen] = useState(false);
 
   const currentNode = activeScenario?.nodes?.[currentNodeId];
-  const cm = activeScenario ? GESE_CLUSTER_META[activeScenario.cluster] : null;
+  const cm = activeScenario ? GSE_CLUSTER_META[activeScenario.cluster] : null;
   const trajectory = gseCalcTrajectory(lensScores, decisionVector);
 
   const terminalNodes = (sc) => Object.values(sc.nodes || {}).filter(n => n.type === 'terminal');
@@ -8903,7 +8918,7 @@ function GeoEconScenarioEmulatorTool() {
   };
 
   const followChainLink = (link) => {
-    const targetSc = GESE_SCENARIOS.find(s => s.id === link.toScenario);
+    const targetSc = GSE_SCENARIOS.find(s => s.id === link.toScenario);
     if (!targetSc) return;
     const carried = gseInitLens();
     GSE_STEEP_DIMENSIONS.forEach(d => { carried.steep[d] = lensScores.steep[d] * 0.5; });
@@ -8979,7 +8994,7 @@ function GeoEconScenarioEmulatorTool() {
 
   // ----- RENDER: HUB -----
   const renderHub = () => {
-    const clusters = Object.entries(GESE_CLUSTER_META);
+    const clusters = Object.entries(GSE_CLUSTER_META);
     const filtered = clusterFilter === 'all' ? clusters : clusters.filter(([k]) => k === clusterFilter);
     const totalTerminalsReachedGlobal = Object.keys(completions).length;
     return (
@@ -8992,7 +9007,7 @@ function GeoEconScenarioEmulatorTool() {
           {totalTerminalsReachedGlobal > 0 && <span className="ml-auto text-xs text-slate-600">{totalTerminalsReachedGlobal} terminal{totalTerminalsReachedGlobal !== 1 ? 's' : ''} reached</span>}
         </div>
         {filtered.map(([clusterId, clusterMeta]) => {
-          const clusterScenarios = GESE_SCENARIOS.filter(s => s.cluster === clusterId);
+          const clusterScenarios = GSE_SCENARIOS.filter(s => s.cluster === clusterId);
           return (
             <div key={clusterId} className="mb-7">
               <div className="flex items-center gap-2 mb-3">
@@ -9066,6 +9081,12 @@ function GeoEconScenarioEmulatorTool() {
             </div>
           )}
         </div>
+        {activeScenario.aiPromptContext && (
+          <div className="rounded-xl border mb-4 p-4" style={{ borderColor: `${cm.accent}25`, background: `${cm.accent}08` }}>
+            <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: cm.accent }}>Analytical Frame</div>
+            <p className="text-slate-300 text-xs leading-relaxed">{activeScenario.aiPromptContext}</p>
+          </div>
+        )}
         <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-4 mb-5">
           <div className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">What to expect</div>
           <ul className="space-y-1.5">
@@ -9387,9 +9408,9 @@ function GeoEconScenarioEmulatorTool() {
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cross-Scenario Chains</div>
             <div className="space-y-2">
               {crossLinks.map((link, i) => {
-                const targetSc = GESE_SCENARIOS.find(s => s.id === link.toScenario);
+                const targetSc = GSE_SCENARIOS.find(s => s.id === link.toScenario);
                 if (!targetSc) return null;
-                const tcm = GESE_CLUSTER_META[targetSc.cluster];
+                const tcm = GSE_CLUSTER_META[targetSc.cluster];
                 return (
                   <div key={i} className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3">
                     <div className="text-white text-xs font-semibold mb-0.5">{link.linkLabel}</div>
@@ -9465,7 +9486,7 @@ function GeoEconScenarioEmulatorTool() {
       ) : (
         <div className="space-y-2">
           {history.map((rec, i) => {
-            const rcm = GESE_CLUSTER_META[rec.cluster] || GESE_CLUSTER_META.historical;
+            const rcm = GSE_CLUSTER_META[rec.cluster] || GSE_CLUSTER_META.historical;
             return (
               <div key={i} className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
