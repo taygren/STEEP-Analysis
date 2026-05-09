@@ -8947,6 +8947,7 @@ function GeoEconScenarioEmulatorTool() {
   const [synthLoading, setSynthLoading] = useState(false);
   const [synthError, setSynthError] = useState('');
   const [pendingCarriedLens, setPendingCarriedLens] = useState(null);
+  const [pendingEntryNodeId, setPendingEntryNodeId] = useState(null);
   const [simPathOpen, setSimPathOpen] = useState(false);
 
   const currentNode = activeScenario?.nodes?.[currentNodeId];
@@ -8963,14 +8964,22 @@ function GeoEconScenarioEmulatorTool() {
 
   const startSim = () => {
     if (!activeScenario) return;
-    const rootNode = activeScenario.nodes[activeScenario.rootNodeId];
+    const entryId = pendingEntryNodeId || activeScenario.rootNodeId;
+    const entryNode = activeScenario.nodes[entryId];
     const base = pendingCarriedLens ? pendingCarriedLens : gseInitLens();
-    const updatedLens = rootNode?.lensSnapshot ? gseUpdateLens(base, rootNode.lensSnapshot) : base;
-    setCurrentNodeId(activeScenario.rootNodeId);
-    setDecisionVector([]);
-    setSimPath([]);
+    const updatedLens = entryNode?.lensSnapshot ? gseUpdateLens(base, entryNode.lensSnapshot) : base;
+    const initDV = (pendingEntryNodeId && entryNode && entryNode.layer > 0)
+      ? [{ nodeId: entryId, nodeTitle: entryNode.title, choiceId: entryId, layer: entryNode.layer || 0, timestamp: Date.now() }]
+      : [];
+    const initPath = (pendingEntryNodeId && entryNode && entryNode.layer > 0)
+      ? [entryNode.label || entryNode.title]
+      : [];
+    setCurrentNodeId(entryId);
+    setDecisionVector(initDV);
+    setSimPath(initPath);
     setLensScores(updatedLens);
     setPendingCarriedLens(null);
+    setPendingEntryNodeId(null);
     setSynthText(''); setSynthError('');
     setSimPathOpen(false);
     setGseView('sim');
@@ -8988,6 +8997,7 @@ function GeoEconScenarioEmulatorTool() {
     carried.bigCycle.phase          = lensScores.bigCycle.phase;
     carried.bigCycle.history        = [...lensScores.bigCycle.history];
     setPendingCarriedLens(carried);
+    setPendingEntryNodeId(link.toNodeId);
     setActiveScenario(targetSc);
     setGseView('brief');
   };
@@ -9230,52 +9240,89 @@ function GeoEconScenarioEmulatorTool() {
             )}
           </div>
         )}
-        {/* Accumulated lens scores (shown after first choice; initial snapshot shown before) */}
-        {decisionVector.length > 0 ? (
-          <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 mb-4">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Accumulated Lens Scores</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-slate-800/60 p-2">
-                <div className="text-xs font-semibold mb-0.5" style={{ color: '#f59e0b' }}>Big Cycle</div>
-                <div className="text-white text-xs font-medium leading-snug">{ls.bigCycle.phase}</div>
-                {ls.bigCycle.history.length > 1 && (
-                  <div className="text-slate-600 text-xs mt-0.5 leading-tight">
-                    {ls.bigCycle.history.slice(-3).join(' → ')}
-                  </div>
-                )}
-              </div>
-              <div className="rounded-lg bg-slate-800/60 p-2">
-                <div className="text-xs font-semibold mb-0.5" style={{ color: '#a78bfa' }}>STEEP</div>
-                <div className="text-white text-xs font-medium leading-snug">Dominant: {steepDom}</div>
-                <div className="text-slate-500 text-xs mt-0.5">{GSE_STEEP_DIMENSIONS.map(d => `${d}:${Math.round((ls.steep[d] || 0) * 100)}%`).join(' ')}</div>
-              </div>
-              <div className="rounded-lg bg-slate-800/60 p-2">
-                <div className="text-xs font-semibold mb-0.5" style={{ color: '#2dd4bf' }}>GeoEcon</div>
-                <div className="text-white text-xs font-medium leading-snug">{ls.geoEcon.dominantTool || 'None yet'}</div>
-                {ls.geoEcon.toolsDeployed.length > 1 && <div className="text-slate-500 text-xs mt-0.5">{ls.geoEcon.toolsDeployed.length} tools deployed</div>}
-              </div>
-              <div className="rounded-lg bg-slate-800/60 p-2">
-                <div className="text-xs font-semibold mb-0.5" style={{ color: '#60a5fa' }}>Game Theory</div>
-                <div className="text-white text-xs font-medium leading-snug">{ls.gameTheory.dominantPattern || 'Mixed'}</div>
-                <div className="text-slate-500 text-xs mt-0.5">C:{ls.gameTheory.cooperateCount} D:{ls.gameTheory.defectCount}</div>
+        {/* Persistent 4-lens snapshot + running accumulator */}
+        <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-3 mb-4">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Live Lens Panel</div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {/* Big Cycle */}
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#f59e0b' }}>Big Cycle</div>
+              <div className="text-white text-xs font-medium leading-snug">{ls.bigCycle.phase || 'Initializing'}</div>
+              {ls.bigCycle.history.length > 0 && (
+                <div className="text-slate-600 text-xs mt-1 leading-tight space-y-0.5">
+                  {ls.bigCycle.history.slice(-4).map((h, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <span className="text-slate-700">{i + 1}.</span>
+                      <span className="truncate">{h}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* STEEP */}
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#a78bfa' }}>STEEP</div>
+              <div className="text-white text-xs font-medium leading-snug">Dominant: {steepDom}</div>
+              <div className="mt-1.5 space-y-0.5">
+                {GSE_STEEP_DIMENSIONS.map(d => {
+                  const pct = Math.round((ls.steep[d] || 0) * 100);
+                  return (
+                    <div key={d} className="flex items-center gap-1.5">
+                      <span className="text-slate-500 text-xs w-5 flex-shrink-0">{d}</span>
+                      <div className="flex-1 h-1 rounded-full bg-slate-700/60">
+                        <div className="h-1 rounded-full" style={{ width: `${pct}%`, background: '#a78bfa' }} />
+                      </div>
+                      <span className="text-slate-500 text-xs w-7 text-right">{pct}%</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        ) : currentNode.lensSnapshot && (
-          <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4 grid grid-cols-2 gap-2">
-            {[['Big Cycle', currentNode.lensSnapshot.bigCycle?.phase, currentNode.lensSnapshot.bigCycle?.note, '#f59e0b'],
-              ['STEEP', currentNode.lensSnapshot.steep?.primary ? `${currentNode.lensSnapshot.steep.primary}${currentNode.lensSnapshot.steep.secondary ? ' / ' + currentNode.lensSnapshot.steep.secondary : ''}` : '', currentNode.lensSnapshot.steep?.note, '#a78bfa'],
-              ['GeoEcon', currentNode.lensSnapshot.geoEcon?.tool, currentNode.lensSnapshot.geoEcon?.note, '#2dd4bf'],
-              ['Game Theory', currentNode.lensSnapshot.gameTheory?.type, currentNode.lensSnapshot.gameTheory?.note, '#60a5fa']
-            ].map(([label, val, note, color]) => val && (
-              <div key={label} className="rounded-lg bg-slate-800/60 p-2">
-                <div className="text-xs font-semibold mb-0.5" style={{ color }}>{label}</div>
-                <div className="text-white text-xs font-medium leading-snug">{val}</div>
-                {note && <div className="text-slate-500 text-xs leading-tight mt-0.5">{note}</div>}
+            {/* GeoEcon */}
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#2dd4bf' }}>GeoEcon</div>
+              <div className="text-white text-xs font-medium leading-snug">{ls.geoEcon.dominantTool || 'None yet'}</div>
+              {ls.geoEcon.toolsDeployed.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  {ls.geoEcon.toolsDeployed.map((t, i) => (
+                    <div key={i} className="text-slate-500 text-xs flex items-center gap-1">
+                      <span className="text-slate-700">-</span><span className="truncate">{t}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Game Theory */}
+            <div className="rounded-lg bg-slate-800/60 p-2">
+              <div className="text-xs font-semibold mb-0.5" style={{ color: '#60a5fa' }}>Game Theory</div>
+              <div className="text-white text-xs font-medium leading-snug">{ls.gameTheory.dominantPattern || 'Mixed'}</div>
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                <span className="text-slate-400">Cooperate</span>
+                <span className="font-semibold" style={{ color: '#4ade80' }}>{ls.gameTheory.cooperateCount}</span>
+                <span className="text-slate-600">/</span>
+                <span className="text-slate-400">Defect</span>
+                <span className="font-semibold" style={{ color: '#f87171' }}>{ls.gameTheory.defectCount}</span>
               </div>
-            ))}
+              {ls.gameTheory.moves.length > 0 && (
+                <div className="mt-1 text-xs text-slate-600 leading-tight">
+                  {ls.gameTheory.moves.slice(-3).join(', ')}
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          {/* Per-node snapshot note */}
+          {currentNode.lensSnapshot && (
+            <div className="border-t border-slate-700/30 pt-2 mt-1">
+              <div className="text-xs text-slate-600 font-semibold uppercase tracking-wide mb-1">This Node</div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {currentNode.lensSnapshot.bigCycle?.phase && <span className="text-slate-500"><span className="text-slate-400">BC:</span> {currentNode.lensSnapshot.bigCycle.phase}</span>}
+                {currentNode.lensSnapshot.steep?.primary && <span className="text-slate-500"><span className="text-slate-400">STEEP:</span> {currentNode.lensSnapshot.steep.primary}{currentNode.lensSnapshot.steep.secondary ? '/' + currentNode.lensSnapshot.steep.secondary : ''}</span>}
+                {currentNode.lensSnapshot.geoEcon?.tool && <span className="text-slate-500"><span className="text-slate-400">Tool:</span> {currentNode.lensSnapshot.geoEcon.tool}</span>}
+                {currentNode.lensSnapshot.gameTheory?.type && <span className="text-slate-500"><span className="text-slate-400">GT:</span> {currentNode.lensSnapshot.gameTheory.type}</span>}
+              </div>
+            </div>
+          )}
+        </div>
         {/* Second-order effects */}
         {currentNode.secondOrderEffects?.length > 0 && (
           <div className="mb-4">
@@ -9410,7 +9457,7 @@ function GeoEconScenarioEmulatorTool() {
         {currentNode.finalLensScores && (
           <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-3 mb-4">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Terminal Assessment</div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[['Big Cycle', currentNode.finalLensScores.bigCycle, '#f59e0b'],
                 ['GeoEcon', currentNode.finalLensScores.geoEcon, '#2dd4bf'],
                 ['Game Theory', currentNode.finalLensScores.gameTheory, '#60a5fa']
@@ -9420,6 +9467,27 @@ function GeoEconScenarioEmulatorTool() {
                   <div className="text-slate-300 text-xs leading-snug">{val}</div>
                 </div>
               ))}
+              {currentNode.finalLensScores.steep && typeof currentNode.finalLensScores.steep === 'object' && (
+                <div className="rounded-lg bg-slate-800/60 p-2">
+                  <div className="text-xs font-semibold mb-1" style={{ color: '#a78bfa' }}>STEEP</div>
+                  <div className="space-y-0.5">
+                    {GSE_STEEP_DIMENSIONS.map(d => {
+                      const val = currentNode.finalLensScores.steep[d];
+                      if (val === undefined) return null;
+                      const pct = Math.round(val * 100);
+                      return (
+                        <div key={d} className="flex items-center gap-1.5">
+                          <span className="text-slate-500 text-xs w-5 flex-shrink-0">{d}</span>
+                          <div className="flex-1 h-1 rounded-full bg-slate-700/60">
+                            <div className="h-1 rounded-full" style={{ width: `${pct}%`, background: '#a78bfa' }} />
+                          </div>
+                          <span className="text-slate-400 text-xs w-7 text-right">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
