@@ -7258,6 +7258,1894 @@ function GameTheorySimulatorTool({ bceResult = null, giResult = null }) {
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
+// GEOECON SCENARIO EMULATOR — DATA & COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GESE_STORAGE_KEY = 'stint-geosim-v1';
+const GESE_HISTORY_KEY = 'stint-geosim-history-v1';
+
+const GESE_CLUSTER_META = {
+  historical: { label:'Historical Archetypes', accent:'#f59e0b', bg:'rgba(120,53,15,0.15)', border:'rgba(146,64,14,0.3)', icon:'⏳', desc:'Pivotal inflection points that redefined global economic and geopolitical architecture.' },
+  systemic:   { label:'Systemic Risk Typologies', accent:'#ef4444', bg:'rgba(127,29,29,0.15)', border:'rgba(153,27,27,0.3)', icon:'⚠', desc:'Structural risk patterns that overwhelm institutional response capacity.' },
+  geoeconomic:{ label:'Geoeconomic Orders', accent:'#2dd4bf', bg:'rgba(15,118,110,0.15)', border:'rgba(13,148,136,0.3)', icon:'⬡', desc:'Structural futures for the global economic and geopolitical order.' },
+  'ai-tech':  { label:'AI & Tech Disruption', accent:'#a78bfa', bg:'rgba(76,29,149,0.15)', border:'rgba(91,33,182,0.3)', icon:'◈', desc:'Five distinct trajectories for advanced AI development and its civilizational consequences.' }
+};
+
+const GESE_SCENARIOS = [
+
+  // ── CLUSTER A: HISTORICAL ────────────────────────────────────────────────
+
+  { id:'oil-shocks-1973', cluster:'historical', title:'The 1973-1974 Oil Shocks', era:'1973-1974', timeHorizon:'near-term', primaryLens:'geoEcon',
+    description:'OAPEC embargo quadruples oil prices, exposing Western economies to weaponized energy and stagflation that monetary frameworks were not designed to handle.',
+    tags:['energy','stagflation','embargo','monetary policy'],
+    rootNodeId:'os73-L0',
+    nodes:{
+      'os73-L0':{ id:'os73-L0', layer:0, type:'trigger', title:'Arab Oil Embargo Declared', label:'Embargo Trigger',
+        narrative:'October 1973: OAPEC member states announce a total oil embargo against the United States and Western supporters of Israel following the Yom Kippur War. Within weeks, oil prices quadruple from $2.90 to $11.65 per barrel. Western economies, built on cheap energy assumptions, face simultaneous inflation and economic contraction -- a combination monetary frameworks were not designed to handle.',
+        lensSnapshot:{ bigCycle:{phase:'Overextension',note:'US post-Bretton Woods dollar stress'}, steep:{primary:'P',secondary:'E',note:'Political weaponization of energy; economic stagflation feedback'}, geoEcon:{tool:'Resource Nationalism',note:'First coordinated use of oil as geopolitical instrument'}, gameTheory:{type:'Coordination Game',note:'OAPEC members coordinate defection against Western bloc'} },
+        choicePrompt:'How do Western central banks respond to simultaneous inflation and slowing growth?',
+        choices:['os73-L1-lower','os73-L1-raise'] },
+      'os73-L1-lower':{ id:'os73-L1-lower', layer:1, type:'decision', title:'Lower Interest Rates -- Prioritize Growth', label:'Stimulate the Economy',
+        narrative:'Central banks prioritize employment and economic activity, holding or cutting rates despite surging inflation. The consequence: inflation expectations begin to de-anchor. Workers demand higher wages to offset rising costs; firms pass wage increases back into prices. The wage-price spiral activates.',
+        lensSnapshot:{ bigCycle:{phase:'Overextension',note:'Debt monetization accelerates currency debasement'}, steep:{primary:'E',secondary:'S',note:'Inflation erodes purchasing power; social unrest builds'}, geoEcon:{tool:'Fiscal Statecraft',note:'Monetary loosening as de facto fiscal transfer'}, gameTheory:{type:"Prisoner's Dilemma",note:'Each nation loosens hoping others will tighten; collective outcome is worse'} },
+        secondOrderEffects:['Dollar credibility erodes internationally','Oil exporters accumulate surpluses faster, accelerating Petrodollar recycling pressure','Political pressure mounts on incumbents as consumer prices rise monthly'],
+        historicalAnalog:'US Federal Reserve 1973-1978 under Burns; persistent accommodation of inflation',
+        choicePrompt:'With the wage-price spiral activating, the central bank faces a critical inflection. Administer a Volcker-style shock, or continue accommodating?',
+        choices:['os73-L2-volcker','os73-L2-chronic'] },
+      'os73-L1-raise':{ id:'os73-L1-raise', layer:1, type:'decision', title:'Raise Interest Rates -- Prioritize Inflation Control', label:'Tighten Monetary Policy',
+        narrative:'Central banks elect to front-load rate hikes. Credit tightens sharply. Mortgage markets seize; business investment contracts. Unemployment rises faster than models projected. Political pressure to reverse course builds immediately.',
+        lensSnapshot:{ bigCycle:{phase:'Decline-entry',note:'Deliberate demand destruction to reset inflationary expectations'}, steep:{primary:'E',secondary:'S',note:'Recession deepens; social cost of unemployment accumulates'}, geoEcon:{tool:'Monetary Policy',note:'Rates as instrument of supply-side shock absorption'}, gameTheory:{type:'Chicken Game',note:'Who blinks first: central bank or political class?'} },
+        secondOrderEffects:['Housing market contraction spreads to construction employment','Corporate bond spreads widen as refinancing becomes costly','Trading partners with dollar-pegged currencies face imported tightening'],
+        historicalAnalog:'Bundesbank response 1973; German insistence on price stability over growth',
+        choicePrompt:'With recession deepening, governments face a binary on fiscal policy. Expand deficit spending to offset the contraction, or pursue austerity?',
+        choices:['os73-L2-expand','os73-L2-austerity'] },
+      'os73-L2-volcker':{ id:'os73-L2-volcker', layer:2, type:'decision', title:'Induce Volcker-Style Rate Shock', label:'Abrupt Rate Hike',
+        narrative:'After years of accommodation, the central bank reverses course with a brutal tightening cycle -- rates rising to double digits. Unemployment spikes, credit markets seize, and the housing sector collapses. But inflation expectations crack. The credibility of the central bank begins its slow reconstruction.',
+        lensSnapshot:{ bigCycle:{phase:'Reset',note:'Controlled destruction to reset the debt/inflation cycle'}, steep:{primary:'E',secondary:'S',note:'Deep recession trades short-term pain for long-term stability'}, geoEcon:{tool:'Monetary Policy',note:'Extreme rate shock as credibility restoration mechanism'}, gameTheory:{type:'Commitment Device',note:'Central bank burns bridges to make low-inflation policy credible'} },
+        secondOrderEffects:['Emerging market dollar-denominated debt becomes catastrophically expensive','Commodity exporters face demand collapse','Long-term bond yields reprice downward as inflation expectations anchor'],
+        historicalAnalog:'Volcker Fed 1979-1981; federal funds rate to 20%, unemployment to 10.8%',
+        choicePrompt:'With the shock administered, how does the government manage the immediate recession?',
+        choices:['os73-L3-absorb','os73-L3-relief'] },
+      'os73-L2-chronic':{ id:'os73-L2-chronic', layer:2, type:'decision', title:'Allow Chronic Inflation to Persist', label:'Continued Accommodation',
+        narrative:'Policymakers allow inflation to become structural. Annual price increases of 8-12% become normalized. Real wages erode. The middle class saves less, borrows more, and begins to distrust institutions. International creditors quietly reduce dollar-denominated holdings.',
+        lensSnapshot:{ bigCycle:{phase:'Overextension-peak',note:'Dollar reserve status questioned; Petrodollar system under strain'}, steep:{primary:'S',secondary:'E',note:'Social cohesion erodes as purchasing power collapses for fixed-income households'}, geoEcon:{tool:'Currency Manipulation',note:'Inflation as de facto debt reduction via debasement'}, gameTheory:{type:'Iterated Game -- Defection Cascade',note:'Each accommodation erodes credibility; commitment becomes impossible'} },
+        secondOrderEffects:['Gold price surges as dollar alternatives are sought','OPEC continues production discipline as dollar purchasing power falls','Political radicalization accelerates among economically displaced populations'],
+        historicalAnalog:'UK stagflation 1974-1979; pre-Thatcher period of chronic inflationary accommodation',
+        choicePrompt:'With inflation entrenched and the currency under pressure, does the government pursue the Petrodollar deal or allow competitive devaluation?',
+        choices:['os73-L3-petrodollar','os73-L3-devalue'] },
+      'os73-L2-expand':{ id:'os73-L2-expand', layer:2, type:'decision', title:'Deficit-Financed Fiscal Expansion', label:'Stimulus Spending',
+        narrative:'Governments deploy large-scale deficit spending to offset the contractionary effect of rate hikes. The stimulus bridges the employment gap but adds significantly to sovereign debt loads at exactly the moment when borrowing is most expensive.',
+        lensSnapshot:{ bigCycle:{phase:'Decline',note:'Debt accumulation during contraction; structural fiscal fragility rising'}, steep:{primary:'E',secondary:'P',note:'Political imperative to buffer social pain creates long-term fiscal constraints'}, geoEcon:{tool:'Fiscal Statecraft',note:'Domestic demand management as geopolitical stabilizer'}, gameTheory:{type:'Short-term vs. Long-term Tradeoff',note:'Stimulate now, pay later; debt overhang defers the reckoning'} },
+        secondOrderEffects:['Sovereign debt-to-GDP ratios rise 15-25% across stimulating nations','Crowding out of private investment in medium term','International creditors demand higher yields on new issuances'],
+        historicalAnalog:'US Ford/Carter era deficit spending 1974-1979; UK Labour government 1974-1976',
+        choicePrompt:'With debt ballooning during a contraction, how does the government manage the growing sovereign debt burden?',
+        choices:['os73-L3-monetize','os73-L3-growth'] },
+      'os73-L2-austerity':{ id:'os73-L2-austerity', layer:2, type:'decision', title:'Pursue Austerity -- Clear Structural Imbalances', label:'Fiscal Austerity',
+        narrative:'Rather than borrowing to cushion the blow, governments cut expenditures and reduce deficits. The immediate pain is severe and politically costly. But the structural imbalances begin to clear faster than under stimulus.',
+        lensSnapshot:{ bigCycle:{phase:'Reset',note:'Forced deleveraging clears the cycle; painful but structurally necessary'}, steep:{primary:'S',secondary:'P',note:'Social cost of austerity; political instability as governments fall'}, geoEcon:{tool:'Fiscal Statecraft',note:'Austerity as credibility signal to international creditors'}, gameTheory:{type:'Cooperation with Future Self',note:'Short-term defection from current voters to benefit future stability'} },
+        secondOrderEffects:['Government bond yields decline as fiscal credibility improves','Social safety net erosion increases poverty rates short-term','Structural reform opens space for private investment in medium term'],
+        historicalAnalog:'West Germany 1974-1976; Netherlands 1975-1982 Wassenaar antecedents',
+        choicePrompt:'With austerity clearing imbalances, what long-term energy security architecture is pursued?',
+        choices:['os73-L3-iea','os73-L3-domestic-energy'] },
+      'os73-L3-absorb':{ id:'os73-L3-absorb', layer:3, type:'decision', title:'Absorb the Recession -- No Immediate Stimulus', label:'Accept Short-Term Pain',
+        narrative:'The government and central bank hold firm despite historic unemployment. The commitment is maintained. Inflation expectations crack. The recession is deep but its duration is compressed by the clarity of the commitment.',
+        lensSnapshot:{ bigCycle:{phase:'Reset-completion',note:'Debt cycle cleansed; foundation for next expansion set'}, steep:{primary:'S',secondary:'E',note:'High unemployment temporary; productivity recovery begins'}, geoEcon:{tool:'Monetary Policy',note:'Credibility permanently restored'}, gameTheory:{type:'Commitment Device -- Successful',note:'Painful but credible; expectations permanently anchored'} },
+        secondOrderEffects:['Long-term bond yields fall dramatically as inflation risk premium collapses','Productivity-led expansion follows within 2-3 years','Dollar regains reserve currency confidence'],
+        historicalAnalog:'US 1981-1983 recession; Volcker holds firm despite 10.8% unemployment',
+        choicePrompt:'With inflation broken, what long-term energy architecture does the nation pursue?',
+        choices:['os73-L4-spr','os73-L4-iea-coalition'] },
+      'os73-L3-relief':{ id:'os73-L3-relief', layer:3, type:'decision', title:'Targeted Social Relief Without Broad Stimulus', label:'Targeted Relief Programs',
+        narrative:'Rather than broad stimulus that risks re-igniting inflation, the government deploys narrow, means-tested relief: heating fuel subsidies, extended unemployment, retraining programs. The macro tightening continues; the social pain is cushioned but not eliminated.',
+        lensSnapshot:{ bigCycle:{phase:'Reset-managed',note:'Controlled social cost of correction; political system holds'}, steep:{primary:'S',secondary:'E',note:'Social safety net preserves political stability during correction'}, geoEcon:{tool:'Fiscal Statecraft',note:'Precision fiscal tools avoid macroeconomic distortion'}, gameTheory:{type:'Pareto Improvement',note:'Better outcome for all parties; inflation control without social collapse'} },
+        secondOrderEffects:['Political system survives the correction with public trust partially intact','Labor market clears faster than under broad stimulus','Foundation for post-crisis structural reform is preserved'],
+        historicalAnalog:'Swedish approach to 1970s adjustment; targeted welfare preservation with monetary discipline',
+        choicePrompt:'With the correction managed, what is the long-term energy security architecture pursued?',
+        choices:['os73-L4-spr','os73-L4-renewables'] },
+      'os73-L3-petrodollar':{ id:'os73-L3-petrodollar', layer:3, type:'decision', title:'Negotiate Petrodollar Recycling Architecture', label:'Petrodollar Deal',
+        narrative:'The US negotiates a foundational deal with Saudi Arabia: oil priced exclusively in dollars, with OPEC surplus revenues recycled into US Treasury bonds. In exchange, the US provides military security guarantees. This transforms the oil crisis from a terminal threat into a structural advantage.',
+        lensSnapshot:{ bigCycle:{phase:'Reset-to-new-cycle',note:'Dollar hegemony reconstituted on energy foundation'}, steep:{primary:'P',secondary:'E',note:'Geopolitical architecture re-established; dollar recycling mechanism born'}, geoEcon:{tool:'Alliance Architecture',note:'Security-for-currency deal creates new global financial architecture'}, gameTheory:{type:'Iterated Cooperation',note:'Mutual benefit structure sustained over decades; Petrodollar system 1974-2024'} },
+        secondOrderEffects:['Dollar reserve currency status permanently reinforced by energy anchor','US military presence in Gulf becomes permanent structural commitment','OPEC surplus recycling suppresses US borrowing costs for decades'],
+        historicalAnalog:'US-Saudi Petrodollar agreement 1974; Kissinger-facilitated architecture',
+        choicePrompt:'With the Petrodollar architecture established, how does the US manage long-term strategic dependencies?',
+        choices:['os73-L4-gulf-doctrine','os73-L4-spr'] },
+      'os73-L3-devalue':{ id:'os73-L3-devalue', layer:3, type:'decision', title:'Allow Competitive Devaluation', label:'Accept Devaluation',
+        narrative:'The government stops defending the exchange rate, allowing the currency to find a new, lower equilibrium. Export competitiveness surges immediately; import costs rise sharply, adding another inflationary impulse. But the devaluation provides relief to the traded goods sector.',
+        lensSnapshot:{ bigCycle:{phase:'Decline-managed',note:'Controlled decline preserves export capacity'}, steep:{primary:'E',secondary:'T',note:'Export competitiveness boosts manufacturing; import inflation hits consumers'}, geoEcon:{tool:'Currency Manipulation',note:'Devaluation as export subsidy and debt relief mechanism'}, gameTheory:{type:'Beggar-Thy-Neighbor',note:'Gains at partners expense; risk of retaliation and global currency war'} },
+        secondOrderEffects:['Trading partners face sudden competitiveness loss; retaliation risk rises','Import inflation adds 2-4% to domestic CPI','Export sector employment recovers while domestic consumption contracts'],
+        historicalAnalog:'UK sterling devaluation 1967; French franc devaluation 1969',
+        choicePrompt:'With the currency devalued and inflation still elevated, what trade and industrial policy restructures the economy?',
+        choices:['os73-L4-export-led','os73-L4-industrial'] },
+      'os73-L3-monetize':{ id:'os73-L3-monetize', layer:3, type:'decision', title:'Monetize the Debt -- Central Bank Buys Bonds', label:'Debt Monetization',
+        narrative:'The central bank steps in to absorb government bond issuances, effectively financing the deficit by printing money. Immediate pressure is relieved. But the monetary base expands rapidly. International creditors observe that fiscal discipline has been abandoned entirely.',
+        lensSnapshot:{ bigCycle:{phase:'Overextension-terminal',note:'Monetization as last resort; currency debasement accelerates cycle end'}, steep:{primary:'E',secondary:'P',note:'Currency crisis risk; political system loses credibility'}, geoEcon:{tool:'Currency Manipulation',note:'Monetization as stealth default on external creditors'}, gameTheory:{type:'Defection from Creditors',note:'One-sided gain at creditors expense; terminal relationship damage'} },
+        secondOrderEffects:['Balance of payments crisis develops as currency falls','Capital flight accelerates; wealthy households buy hard assets','IMF emergency engagement begins'],
+        historicalAnalog:'UK 1976 IMF bailout crisis; monetization leading to external constraint',
+        choicePrompt:'With currency confidence collapsing and capital fleeing, what emergency architecture does the government adopt?',
+        choices:['os73-L4-imf-program','os73-L4-currency-board'] },
+      'os73-L3-growth':{ id:'os73-L3-growth', layer:3, type:'decision', title:'Supply-Side Growth Strategy', label:'Supply-Side Reform',
+        narrative:'Rather than monetizing debt or pure austerity, the government pursues supply-side structural reform: deregulation, privatization, labor market flexibility, and tax incentives for investment. The strategy is to grow out of the debt rather than cut or inflate it away.',
+        lensSnapshot:{ bigCycle:{phase:'Transition',note:'Structural reform as route out of overextension'}, steep:{primary:'E',secondary:'P',note:'Political economy of structural reform; vested interests resist change'}, geoEcon:{tool:'Fiscal Statecraft',note:'Tax and regulatory policy as growth tool'}, gameTheory:{type:'Long Game',note:'Reforms have delayed payoffs; patience required'} },
+        secondOrderEffects:['Productivity gains materialize within 3-5 years if reforms sustained','Political resistance from protected industries and labor organizations','International investors reward structural credibility with capital inflows'],
+        historicalAnalog:'UK Thatcher reforms 1979-1984; Reagan supply-side economics 1981',
+        choicePrompt:'With supply-side reforms underway, what energy strategy completes the economic restructuring?',
+        choices:['os73-L4-domestic-energy','os73-L4-iea-coalition'] },
+      'os73-L3-iea':{ id:'os73-L3-iea', layer:3, type:'decision', title:'Found International Energy Agency -- Coordinate Consumers', label:'IEA Coalition',
+        narrative:'The US leads the formation of the International Energy Agency as a counterweight to OPEC: strategic reserves among member states, emergency sharing protocols, demand reduction coordination, and long-term investment in energy alternatives. The consumer cartel is created to match the producer cartel.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Transition',note:'Institutional architecture built during crisis to prevent future vulnerability'}, steep:{primary:'P',secondary:'E',note:'Multilateral institution as energy security architecture'}, geoEcon:{tool:'Alliance Architecture',note:'Consumer coalition as counterweight to producer cartel'}, gameTheory:{type:'Coalition Building',note:'Consumers coordinate to reduce dependence on cartel pricing'} },
+        secondOrderEffects:['Strategic petroleum reserves established across member nations','Emergency sharing agreements reduce individual vulnerability','Long-term investment in alternative energy sources accelerated by policy coordination'],
+        historicalAnalog:'IEA founded November 1974; International Energy Program; Western energy security cooperation',
+        choicePrompt:'With the IEA established, what additional long-term energy independence measures does the nation pursue?',
+        choices:['os73-L4-spr','os73-L4-renewables'] },
+      'os73-L3-domestic-energy':{ id:'os73-L3-domestic-energy', layer:3, type:'decision', title:'Project Independence -- Domestic Energy Expansion', label:'Energy Independence Drive',
+        narrative:"Nixon's Project Independence: massive investment in domestic oil production, nuclear power, coal, and efficiency standards to eliminate energy import dependence within a decade. The ambition is complete energy autarky. The reality is partial success -- import dependence falls but does not disappear.",
+        lensSnapshot:{ bigCycle:{phase:'Managed Transition',note:'Industrial policy deployed to restructure energy base'}, steep:{primary:'T',secondary:'E',note:'Technology investment in energy diversification'}, geoEcon:{tool:'Resource Nationalism',note:'Domestic production as geopolitical security strategy'}, gameTheory:{type:'Unilateral Action',note:'Reducing vulnerability through self-sufficiency rather than cooperation'} },
+        secondOrderEffects:['Domestic oil production increases but peak oil constraints eventually bind','Nuclear power expands; Three Mile Island 1979 halts growth','CAFE fuel economy standards permanently reduce per-capita energy consumption'],
+        historicalAnalog:"Nixon's Project Independence 1973; energy security legislation 1974-1980",
+        choicePrompt:'With domestic energy investment reducing import dependence, what financial architecture is built to sustain the transition?',
+        choices:['os73-L4-spr','os73-L4-industrial'] },
+      'os73-L4-spr':{ id:'os73-L4-spr', layer:4, type:'terminal', title:'Strategic Petroleum Reserve Architecture', label:'Build Strategic Reserves',
+        narrative:'The nation establishes a strategic petroleum reserve and coordinates with allies through the IEA. Emergency sharing protocols, highway speed limits, and fuel economy standards are legislated. The next oil shock will not find the same vulnerability.',
+        outcome:'STABILIZATION WITH RESILIENCE ARCHITECTURE',
+        outcomeNarrative:'The crisis produces durable institutional innovation: the Strategic Petroleum Reserve, the International Energy Agency, and fuel economy standards become permanent features of energy security architecture. The Petrodollar system stabilizes the dollar. The world enters the 1980s with better-managed energy vulnerability -- but the structural dependency on Gulf oil persists for decades.',
+        finalLensScores:{ bigCycle:'Reset -- New Cycle Entry', steep:{S:0.5,T:0.5,E:0.8,En:0.6,P:0.8}, geoEcon:'Alliance Architecture -- IEA consumer coordination', gameTheory:'Cooperative Equilibrium -- reserves as public good' },
+        historicalAnalog:'US Strategic Petroleum Reserve established 1975; IEA emergency sharing mechanism',
+        aiPromptSeed:'The simulation has reached the Strategic Petroleum Reserve / IEA architecture outcome. Extend to model how the Petrodollar recycling system created in 1974-1975 evolves through the 1980s oil glut, the 1990s Gulf War, and the eventual challenge from shale revolution and energy transition.' },
+      'os73-L4-iea-coalition':{ id:'os73-L4-iea-coalition', layer:4, type:'terminal', title:'IEA Consumer Coalition Permanently Established', label:'Consumer Coalition',
+        narrative:'The International Energy Agency becomes the permanent institutional architecture for Western energy security: coordinated reserve releases, demand management, and a framework for clean energy transition investment.',
+        outcome:'MULTILATERAL ENERGY SECURITY ARCHITECTURE',
+        outcomeNarrative:'The oil crisis catalyzes the most significant multilateral energy institution since the post-war period. The IEA framework successfully prevents market panics during subsequent oil shocks by coordinating reserve releases and demand reduction. The longer-term consequence: Western nations invest in energy efficiency and alternatives, slowly reducing the geopolitical leverage that OPEC weaponized in 1973.',
+        finalLensScores:{ bigCycle:'Managed Transition -- Institutional Innovation', steep:{S:0.5,T:0.6,E:0.7,En:0.7,P:0.9}, geoEcon:'Alliance Architecture -- energy consumer coalition', gameTheory:'Repeated Cooperation -- IEA reduces individual vulnerability' },
+        historicalAnalog:'IEA founded November 1974; 1979 oil crisis coordinated response; 1990 Gulf War reserve release',
+        aiPromptSeed:'Model how the IEA consumer coalition evolves from its 1970s origins through the 2022 Russia-Ukraine energy crisis, evaluating when coordinated reserve releases have succeeded and failed as geopolitical tools.' },
+      'os73-L4-renewables':{ id:'os73-L4-renewables', layer:4, type:'terminal', title:'Early Renewable Energy Investment Pivot', label:'Renewables Investment',
+        narrative:'The crisis triggers the earliest serious government investment in renewable energy: solar, wind, and geothermal receive research funding decades ahead of the private market timeline. The technology seeds planted in the 1970s energy crisis eventually bloom in the 2010s and 2020s.',
+        outcome:'EARLY ENERGY TRANSITION INVESTMENT',
+        outcomeNarrative:'The political will generated by the oil crisis funds renewable energy R&D that would not have happened on purely commercial timelines. The investments in solar panel efficiency, wind turbine design, and energy storage in the 1970s and 1980s compound over decades, contributing to the dramatic cost reductions that make renewables cost-competitive in the 2010s.',
+        finalLensScores:{ bigCycle:'Long-Cycle Seed -- Energy Transition Foundation', steep:{S:0.4,T:0.9,E:0.6,En:0.9,P:0.7}, geoEcon:'Technological Statecraft -- energy technology as strategic investment', gameTheory:'Long-Term Investment -- patient capital in public goods' },
+        historicalAnalog:'US Solar Energy Research Institute 1977; German Energiewende seeds; California renewable portfolio standard roots',
+        aiPromptSeed:'Model how the early renewable energy investments made in response to the 1973-1974 oil crisis compound over five decades to enable the 2020s energy transition, tracing the policy, technology, and investment chain.' },
+      'os73-L4-gulf-doctrine':{ id:'os73-L4-gulf-doctrine', layer:4, type:'terminal', title:'Carter Doctrine -- Permanent Gulf Military Presence', label:'Gulf Security Doctrine',
+        narrative:'The Petrodollar architecture requires permanent US military commitment to Gulf stability. The Carter Doctrine (1980) explicitly extends US security guarantees to the Persian Gulf. The US becomes the permanent security guarantor of the global oil supply, a commitment that shapes American foreign policy for decades.',
+        outcome:'PETRODOLLAR SECURITY ARCHITECTURE -- PERMANENT GULF COMMITMENT',
+        outcomeNarrative:'The Petrodollar deal creates a durable but costly architecture: dollar reserve status anchored to Gulf oil requires permanent US military presence in the region. The strategic interest in Gulf stability drives American involvement in the Iran-Iraq War, the Gulf War, and the Iraq War. The architecture successfully stabilizes the dollar but entangles the US in three decades of Middle East military commitments.',
+        finalLensScores:{ bigCycle:'New Hegemonic Cycle -- Dollar-Oil Architecture', steep:{S:0.3,T:0.4,E:0.8,En:0.5,P:1.0}, geoEcon:'Alliance Architecture -- security for currency exchange', gameTheory:'Iterated Cooperation -- stable mutual benefit across decades' },
+        historicalAnalog:'Carter Doctrine 1980; US-Saudi security relationship; CENTCOM establishment 1983; Gulf War 1991',
+        aiPromptSeed:'Model how the Petrodollar-Gulf security architecture built in 1974-1980 evolves through the 1991 Gulf War, the 2003 Iraq War, the 2011 Arab Spring, and the eventual challenge from US shale energy independence reducing strategic dependence on Gulf oil.' },
+      'os73-L4-export-led':{ id:'os73-L4-export-led', layer:4, type:'terminal', title:'Export-Led Recovery', label:'Export-Led Recovery',
+        narrative:'Currency devaluation enables export-led growth. Manufacturing competitiveness surges; trade surpluses emerge; the current account improves. The domestic consumer bears the cost through import inflation, but the traded sector recovers strongly.',
+        outcome:'EXPORT-LED RECOVERY -- COMPETITIVE DEVALUATION',
+        outcomeNarrative:'The devaluation-led recovery succeeds economically but at geopolitical cost. Trading partners face sudden competitiveness losses and threaten retaliation. The international monetary system fragments as competitive devaluations spread. The recovery is real but the cooperation costs are lasting.',
+        finalLensScores:{ bigCycle:'Managed Decline -- Export Recovery', steep:{S:0.4,T:0.5,E:0.8,En:0.3,P:0.7}, geoEcon:'Currency Manipulation -- export competitiveness strategy', gameTheory:'Beggar-Thy-Neighbor -- short-term gain with coordination costs' },
+        historicalAnalog:'UK export recovery post-devaluation 1969; Japan export strength 1970s despite oil shock',
+        aiPromptSeed:'Model how export-led recovery after currency devaluation interacts with the emerging Petrodollar system and the dollar-denominated commodity markets, tracing second-order effects on trade partners and the global monetary architecture.' },
+      'os73-L4-industrial':{ id:'os73-L4-industrial', layer:4, type:'terminal', title:'Industrial Policy Restructuring', label:'Industrial Policy',
+        narrative:'State-directed industrial policy targets strategic energy-intensive industries for restructuring: steel, chemicals, and automotive sectors are forced to upgrade technology and reduce energy intensity. The process is politically contested but produces more efficient, globally competitive industries.',
+        outcome:'INDUSTRIAL RESTRUCTURING -- STATE-DIRECTED ADAPTATION',
+        outcomeNarrative:'The energy crisis provides the political cover for industrial policies that competitive markets would have delayed by decades. Energy-intensive industries are either restructured or decline; capital flows toward more energy-efficient sectors. The economies that restructure fastest enter the 1980s with more modern industrial bases.',
+        finalLensScores:{ bigCycle:'Transition -- Industrial Modernization', steep:{S:0.5,T:0.7,E:0.8,En:0.6,P:0.8}, geoEcon:'Fiscal Statecraft -- industrial policy as crisis response', gameTheory:'Coordination Solution -- state coordinates transition' },
+        historicalAnalog:'French indicative planning 1974-1980; Japanese MITI energy efficiency policy; German industrial adaptation',
+        aiPromptSeed:'Model how state-directed industrial restructuring in response to the 1973 oil shock shapes industrial competitiveness trajectories through the 1980s and 1990s, particularly comparing France, Germany, Japan, and the United States.' },
+      'os73-L4-imf-program':{ id:'os73-L4-imf-program', layer:4, type:'terminal', title:'IMF Emergency Program', label:'IMF Bailout',
+        narrative:'Currency collapse forces an IMF emergency program with stringent conditionality: fiscal austerity, structural reform, and exchange rate flexibility. The immediate crisis is resolved but at the cost of sovereignty over economic policy for several years.',
+        outcome:'IMF PROGRAM -- EXTERNAL CONSTRAINT',
+        outcomeNarrative:'The IMF program stabilizes the currency and prevents complete economic collapse, but the conditionality -- austerity, privatization, deregulation -- imposes severe social costs. Political backlash against the IMF and against the governments that accepted the program shapes the political landscape for a generation.',
+        finalLensScores:{ bigCycle:'Forced Reset -- External Constraint', steep:{S:0.7,T:0.4,E:0.9,En:0.2,P:0.9}, geoEcon:'Alliance Architecture -- IMF conditionality', gameTheory:'Coercion Game -- creditor imposes terms on distressed debtor' },
+        historicalAnalog:'UK IMF bailout 1976; Italy 1976 austerity; standard IMF structural adjustment programs',
+        aiPromptSeed:'Model how IMF-imposed structural adjustment programs in response to 1970s currency crises compare in outcomes to nations that pursued alternative heterodox approaches, tracing the political and economic consequences.' },
+      'os73-L4-currency-board':{ id:'os73-L4-currency-board', layer:4, type:'terminal', title:'Currency Board -- Hard Peg Architecture', label:'Currency Board',
+        narrative:'To restore credibility, the government establishes a currency board: the domestic currency is pegged to the dollar with full reserve backing. Monetary sovereignty is surrendered in exchange for instant credibility.',
+        outcome:'CURRENCY BOARD -- CREDIBILITY THROUGH CONSTRAINT',
+        outcomeNarrative:'The currency board successfully restores monetary credibility and stops inflation. But the hard peg eliminates monetary policy flexibility entirely -- in future downturns, the only adjustment mechanism is deflation and unemployment. The architecture solves the inflation problem but creates fragility for future shocks.',
+        finalLensScores:{ bigCycle:'Reset -- Monetary Constraint', steep:{S:0.5,T:0.3,E:0.8,En:0.2,P:0.7}, geoEcon:'Currency Manipulation -- hard peg credibility architecture', gameTheory:'Commitment Device -- rules-based monetary constraint' },
+        historicalAnalog:'Argentina currency board 1991-2001; Hong Kong linked exchange rate system; Estonia currency board 1992',
+        aiPromptSeed:'Model how currency board architectures created in response to 1970s inflation crises perform under stress, particularly when external shocks require adjustment mechanisms that the hard peg eliminates.' },
+      'os73-L4-domestic-energy':{ id:'os73-L4-domestic-energy', layer:4, type:'terminal', title:'Domestic Energy Independence Architecture', label:'Energy Independence',
+        narrative:'Massive domestic investment in oil, gas, coal, and nuclear reduces import dependence to near zero within 15 years. The political vulnerability of 1973 is permanently eliminated.',
+        outcome:'DOMESTIC ENERGY INDEPENDENCE',
+        outcomeNarrative:'The energy independence strategy succeeds in eliminating the specific vulnerability that OPEC weaponized in 1973. But the domestic energy buildup creates its own environmental and political complications: coal expansion worsens urban air quality; nuclear accidents trigger public backlash; domestic oil production eventually peaks. Independence is achieved but at significant side-effect cost.',
+        finalLensScores:{ bigCycle:'Managed Transition -- Energy Restructuring', steep:{S:0.4,T:0.7,E:0.7,En:0.6,P:0.8}, geoEcon:'Resource Nationalism -- domestic energy self-sufficiency', gameTheory:'Unilateral Security -- reducing external dependence' },
+        historicalAnalog:'US domestic energy policy 1975-1985; Norwegian North Sea development; UK North Sea oil development',
+        aiPromptSeed:'Model how domestic energy independence strategies pursued in the 1970s shape the energy transition challenge of the 2020s, particularly regarding stranded asset risk, carbon lock-in, and the political economy of transitioning away from domestically produced fossil fuels.' }
+    }
+  },
+
+  { id:'asia-crisis-1997', cluster:'historical', title:'The 1997 East Asian Financial Crisis', era:'1997-1998', timeHorizon:'near-term', primaryLens:'geoEcon',
+    description:'Thai baht collapse triggers contagion across East Asia, creating a liquidity crisis that exposes dollar-pegged exchange rates, corporate over-leverage, and the brutal conditionality of IMF intervention.',
+    tags:['currency crisis','IMF','contagion','capital controls','emerging markets'],
+    rootNodeId:'afc97-L0',
+    nodes:{
+      'afc97-L0':{ id:'afc97-L0', layer:0, type:'trigger', title:'Thai Baht Collapses -- Contagion Begins', label:'Baht Crisis',
+        narrative:'July 2, 1997: Thailand abandons its dollar peg after months of speculative attacks drain foreign reserves. The baht collapses 20% in days. Contagion spreads immediately: Indonesian rupiah, South Korean won, Malaysian ringgit, and Philippine peso all come under devastating speculative pressure. The common vulnerability: large current account deficits, short-term dollar-denominated corporate debt, and over-leveraged banking sectors built on the assumption that dollar pegs were permanent.',
+        lensSnapshot:{ bigCycle:{phase:'Debt Cycle -- Emerging Market',note:'External debt cycle peaks as dollar tightening reverses capital inflows'}, steep:{primary:'E',secondary:'P',note:'Currency crisis driven by financial system fragility; political legitimacy challenged'}, geoEcon:{tool:'Currency Manipulation',note:'Dollar pegs as vulnerability; peg abandonment as crisis trigger'}, gameTheory:{type:'Speculative Attack',note:'Self-fulfilling crisis: if everyone sells, the peg breaks; incentive to sell'} },
+        choicePrompt:'With currency and financial system collapsing, what is the primary crisis response?',
+        choices:['afc97-L1-imf','afc97-L1-resist','afc97-L1-controls'] },
+      'afc97-L1-imf':{ id:'afc97-L1-imf', layer:1, type:'decision', title:'Accept IMF Emergency Program', label:'Accept IMF Program',
+        narrative:'The government accepts IMF emergency financing in exchange for an extensive conditionality program: bank closures, fiscal austerity, interest rate hikes, and structural reforms. The program provides dollar liquidity to stop the currency freefall but imposes severe contractionary conditions on an already-contracting economy.',
+        lensSnapshot:{ bigCycle:{phase:'External-Constrained Reset',note:'IMF program imposes debt cycle correction from outside'}, steep:{primary:'E',secondary:'P',note:'Austerity imposes economic pain; political legitimacy of IMF conditions contested'}, geoEcon:{tool:'Alliance Architecture',note:'IMF as crisis creditor; conditionality as governance mechanism'}, gameTheory:{type:'Credibility Game',note:'Compliance signals creditworthiness; non-compliance triggers capital flight'} },
+        secondOrderEffects:['GDP contracts 5-15% in program countries in first year','Bank closures trigger deposit runs; financial system contracts','Political backlash against IMF creates lasting resentment of Bretton Woods institutions'],
+        historicalAnalog:'South Korea, Indonesia, Thailand IMF programs 1997-1998; $57 billion South Korea package',
+        choicePrompt:'With the IMF program underway, how does the nation handle the banking sector insolvencies?',
+        choices:['afc97-L2-bailout','afc97-L3-full'] },
+      'afc97-L1-resist':{ id:'afc97-L1-resist', layer:1, type:'decision', title:'Resist IMF Conditionality -- Negotiate Alternative Terms', label:'Resist IMF Terms',
+        narrative:'The government refuses the most stringent IMF conditions, attempting to negotiate a less contractionary program or seeking bilateral alternatives. The resistance signals desperation to markets; the currency freefall continues. Without liquidity support, the financial system deteriorates further before a compromise is reached -- at worse terms than immediate acceptance would have secured.',
+        lensSnapshot:{ bigCycle:{phase:'Chaotic Reset',note:'Resistance extends duration of crisis and deepens eventual adjustment'}, steep:{primary:'P',secondary:'E',note:'Political decision to resist intensifies economic damage'}, geoEcon:{tool:'Alliance Architecture',note:'Bilateral emergency financing sought as alternative to IMF conditionality'}, gameTheory:{type:'Bargaining Under Duress',note:'Weak bargaining position; resistance raises costs without changing outcome'} },
+        secondOrderEffects:['Currency overshoots fair value as uncertainty extends','Corporate bankruptcies cascade faster without stabilizing program','Eventually forced to accept IMF terms at worse conditions than immediate compliance'],
+        historicalAnalog:'Indonesia prolonged crisis 1997-1998; Suharto political resistance to conditionality',
+        choicePrompt:'With crisis extending and conditions worsening, how does the government eventually stabilize?',
+        choices:['afc97-L2-bailout','afc97-L4-reserve'] },
+      'afc97-L1-controls':{ id:'afc97-L1-controls', layer:1, type:'decision', title:'Impose Capital Controls -- Unilateral Defense', label:'Capital Controls',
+        narrative:'Malaysia, uniquely among crisis-affected nations, imposes sweeping capital controls: pegging the ringgit at 3.8/USD, banning repatriation of short-term capital, and ring-fencing the domestic financial system from international speculative pressure. The IMF condemns the action. Western economists predict disaster. Malaysia defies expectations.',
+        lensSnapshot:{ bigCycle:{phase:'Disruption-absorbed',note:'Controls temporarily halt the cycle mechanism; buy time for domestic adjustment'}, steep:{primary:'P',secondary:'E',note:'Unilateral political decision; economic heterodoxy vs. orthodoxy'}, geoEcon:{tool:'Currency Manipulation',note:'Fixed exchange rate defended by capital controls rather than reserves'}, gameTheory:{type:'Unilateral Defection from Orthodoxy',note:'Breaking from Washington Consensus game; success challenges dominant paradigm'} },
+        secondOrderEffects:['Currency and financial system immediately stabilized','Short-term foreign investment exit blocked; portfolio investors locked in','Recovery begins 12-18 months ahead of IMF-program peers'],
+        historicalAnalog:'Malaysia capital controls September 1998; Mahathir vs. IMF orthodoxy',
+        choicePrompt:'With capital controls stabilizing the financial system, what domestic economic policy is deployed?',
+        choices:['afc97-L2-bailout','afc97-L2-stimulus'] },
+      'afc97-L2-bailout':{ id:'afc97-L2-bailout', layer:2, type:'decision', title:'State-Financed Bank Bailout', label:'Bank Bailout',
+        narrative:'The government deploys foreign reserves to buy non-performing loans from domestic banks, injecting fresh capital and guaranteeing deposits. The banking system stabilizes rapidly. Confidence in the domestic financial system is maintained even as the exchange rate adjusts. The export sector competitiveness gain begins to stimulate recovery.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Reset',note:'Domestic balance sheet repair enables faster cycle recovery'}, steep:{primary:'E',secondary:'P',note:'Financial system saved; political stability maintained through crisis management'}, geoEcon:{tool:'Fiscal Statecraft',note:'State balance sheet mobilized to absorb private sector losses'}, gameTheory:{type:'Coordination Game',note:'Government coordinates depositor confidence to prevent bank runs'} },
+        secondOrderEffects:['Bank run risk eliminated; deposit flight halted','Non-performing loan resolution frees credit for new investment within 18 months','Moral hazard concern: bank shareholders partially protected'],
+        historicalAnalog:'South Korea KAMCO asset management 1997-2001; Taiwan CDIC intervention',
+        choicePrompt:'With banks stabilized, what corporate restructuring strategy is pursued for the heavily indebted corporate sector?',
+        choices:['afc97-L3-restructuring','afc97-L3-full'] },
+      'afc97-L2-stimulus':{ id:'afc97-L2-stimulus', layer:2, type:'decision', title:'Deploy Fiscal Stimulus Under Capital Controls', label:'Domestic Stimulus',
+        narrative:'Insulated from speculative pressure by capital controls, the government runs a countercyclical fiscal deficit -- investing in infrastructure, maintaining public employment, and subsidizing domestic demand. Unlike IMF-program countries forced into austerity, the domestic economy can breathe.',
+        lensSnapshot:{ bigCycle:{phase:'Disruption-absorbed',note:'Domestic demand management replaces absent foreign capital'}, steep:{primary:'E',secondary:'T',note:'Infrastructure investment modernizes productive capacity during recovery'}, geoEcon:{tool:'Fiscal Statecraft',note:'Domestic demand management as alternative to export-led recovery'}, gameTheory:{type:'Unilateral Deviation',note:'Breaks from IMF orthodoxy; success challenges dominant paradigm'} },
+        secondOrderEffects:['GDP recovery begins 12-18 months ahead of IMF-program peers','Foreign investor wariness persists; FDI inflows lag recovery','Policy becomes reference point for heterodox crisis response'],
+        historicalAnalog:'Malaysia under Mahathir 1998-1999; GDP growth returned in 1999 ahead of IMF-program peers',
+        choicePrompt:'With the domestic economy recovering but foreign investment still absent, when and how are capital controls removed?',
+        choices:['afc97-L3-gradual','afc97-L4-reserve'] },
+      'afc97-L3-full':{ id:'afc97-L3-full', layer:3, type:'decision', title:'Full IMF Conditionality Compliance', label:'Full Compliance',
+        narrative:'The government implements all IMF conditions: bank closures, fiscal austerity, corporate debt restructuring, and capital account liberalization. The short-term contraction is severe. But international creditor confidence is restored quickly. Within 18 months, capital begins to return.',
+        lensSnapshot:{ bigCycle:{phase:'Reset-complete',note:'Clean structural adjustment; creditor confidence restored'}, steep:{primary:'E',secondary:'P',note:'Economic pain absorbed; political system survives with external validation'}, geoEcon:{tool:'Alliance Architecture',note:'IMF relationship as international credibility signal'}, gameTheory:{type:'Credible Commitment',note:'Compliance as signal of future policy reliability'} },
+        secondOrderEffects:['Rating agency upgrades follow compliance; borrowing costs fall','Domestic banking sector permanently restructured along Western standards','Political resentment of IMF conditions fuels subsequent regional financial architecture (Chiang Mai Initiative)'],
+        historicalAnalog:'South Korea 1997-2001; full compliance and rapid recovery; early IMF repayment 2001',
+        choicePrompt:'With the IMF program complete and recovery underway, what post-crisis financial architecture does the nation pursue?',
+        choices:['afc97-L4-chiang-mai','afc97-L4-reserve'] },
+      'afc97-L3-restructuring':{ id:'afc97-L3-restructuring', layer:3, type:'decision', title:'Aggressive Corporate Debt Restructuring', label:'Aggressive Restructuring',
+        narrative:'Heavily leveraged conglomerates are subject to forced debt restructuring: equity is wiped out, management replaced, assets sold. The process is brutal and politically contested. But the corporate sector emerges genuinely leaner, more competitive, and less reliant on state-directed credit.',
+        lensSnapshot:{ bigCycle:{phase:'Reset-accelerated',note:'Corporate restructuring accelerates cycle completion'}, steep:{primary:'E',secondary:'P',note:'Political economy of restructuring; crony capitalism model disrupted'}, geoEcon:{tool:'Fiscal Statecraft',note:'State power deployed to dismantle inefficient corporate structures'}, gameTheory:{type:'Forcing Game',note:'Government uses crisis leverage to change corporate governance equilibrium'} },
+        secondOrderEffects:['Short-term unemployment spike from conglomerate downsizing','Export sector becomes more competitive without cross-subsidization','FDI inflows accelerate as corporate governance improves'],
+        historicalAnalog:'South Korea chaebol restructuring 1998-2001; Daewoo liquidation',
+        choicePrompt:'With corporate restructuring underway, how does the nation reorient its export strategy?',
+        choices:['afc97-L4-export-div','afc97-L4-chiang-mai'] },
+      'afc97-L3-gradual':{ id:'afc97-L3-gradual', layer:3, type:'decision', title:'Gradual Capital Account Liberalization', label:'Gradual Reopening',
+        narrative:'Capital controls are removed in stages over 18-24 months, with long-term FDI welcomed first, portfolio flows second, and short-term speculative flows last. The graduated approach prevents a second speculative attack while slowly re-engaging with international capital markets.',
+        lensSnapshot:{ bigCycle:{phase:'Recovery -- Cautious',note:'Managed reintegration into global capital markets'}, steep:{primary:'E',secondary:'T',note:'Financial regulatory capacity building during reopening'}, geoEcon:{tool:'Alliance Architecture',note:'Selective capital account architecture; FDI vs. hot money distinction'}, gameTheory:{type:'Sequential Game',note:'Sequencing controls removal to maximize stability'} },
+        secondOrderEffects:['Long-term FDI inflows return ahead of portfolio flows','Domestic financial regulators develop genuine capital flow management capacity','IMF eventually endorses graduated approach as best practice'],
+        historicalAnalog:'Malaysia gradual capital control removal 1999-2001; China selective capital account management',
+        choicePrompt:'With capital controls successfully removed and the economy reintegrated, what long-term financial resilience architecture is built?',
+        choices:['afc97-L4-reserve','afc97-L4-chiang-mai'] },
+      'afc97-L4-chiang-mai':{ id:'afc97-L4-chiang-mai', layer:4, type:'terminal', title:'Chiang Mai Initiative -- Regional Financial Architecture', label:'Regional Reserve Pool',
+        narrative:'The humiliation of IMF conditionality catalyzes a regional response: ASEAN+3 nations establish bilateral swap lines and eventually a multilateralized reserve pool. The architecture provides an alternative to IMF dependence -- crisis liquidity without political conditionality from Washington.',
+        outcome:'REGIONAL FINANCIAL AUTONOMY',
+        outcomeNarrative:'Asia builds its own financial safety net, reducing IMF dependence and asserting regional financial sovereignty. The architecture is incomplete but functional. The 2008 crisis tests it; the COVID crisis further develops it. The long-term consequence is a gradual redistribution of global financial governance away from Bretton Woods institutions.',
+        finalLensScores:{ bigCycle:'Reset -- Regional Architecture Formation', steep:{S:0.5,T:0.4,E:0.8,En:0.2,P:0.9}, geoEcon:'Alliance Architecture -- Regional Financial Autonomy', gameTheory:'Coalition Formation -- changes global financial governance game' },
+        historicalAnalog:'Chiang Mai Initiative 2000; CMIM multilateralization 2010; ASEAN+3 Macroeconomic Research Office',
+        aiPromptSeed:'The simulation has reached the Chiang Mai Initiative outcome. Extend to model how Asian regional financial architecture evolves through the 2008 crisis, the 2013 taper tantrum, and the 2020 COVID shock -- particularly whether it becomes a genuine alternative to IMF dependence.' },
+      'afc97-L4-reserve':{ id:'afc97-L4-reserve', layer:4, type:'terminal', title:'Massive Foreign Reserve Accumulation', label:'Build Reserves',
+        narrative:'The lesson drawn: never again run out of foreign reserves. Asian central banks embark on systematic reserve accumulation, buying US Treasury bonds with export surpluses. This creates the global imbalances that will fuel the 2008 crisis, but provides near-total immunity from speculative attacks.',
+        outcome:'FINANCIAL FORTRESS -- GLOBAL IMBALANCE CONTRIBUTION',
+        outcomeNarrative:'Asian reserve accumulation successfully eliminates vulnerability to speculative attacks. But the recycling of Asian savings into US Treasuries suppresses long-term US interest rates, contributing to the credit bubble that produces the 2008 global financial crisis. Crisis prevention in one node of the system creates fragility in another.',
+        finalLensScores:{ bigCycle:'Recovery -- Next Cycle Seed', steep:{S:0.3,T:0.3,E:0.9,En:0.2,P:0.7}, geoEcon:'Currency Manipulation -- systematic reserve accumulation', gameTheory:'Defection from Global Rebalancing -- rational individually, collectively destabilizing' },
+        historicalAnalog:'China, Japan, South Korea reserve accumulation 2000-2007; Bernanke global savings glut speech 2005',
+        aiPromptSeed:'Model how Asian reserve recycling into US Treasuries contributes to the conditions for the 2008 global financial crisis, tracing the mechanism from Asian current account surpluses to US long-term interest rate suppression to housing bubble inflation.' },
+      'afc97-L4-export-div':{ id:'afc97-L4-export-div', layer:4, type:'terminal', title:'Export Market Diversification', label:'Diversify Export Markets',
+        narrative:'Post-crisis, the nation deliberately reduces dependence on US and European export markets by deepening intra-Asian trade, developing African and Middle Eastern relationships, and shifting toward higher-value manufactured goods.',
+        outcome:'EXPORT ARCHITECTURE REORIENTATION',
+        outcomeNarrative:'Successful diversification reduces the anchor-market vulnerability that made the 2008 US demand shock so damaging to concentrated exporters. The nation enters the 2010s with a more resilient and geographically distributed economic base.',
+        finalLensScores:{ bigCycle:'Recovery -- Sustained Accumulation', steep:{S:0.5,T:0.6,E:0.8,En:0.3,P:0.6}, geoEcon:'Alliance Architecture -- Trade Diversification', gameTheory:'Portfolio Diversification -- reduces single-counterparty exposure' },
+        historicalAnalog:'South Korea and Taiwan trade diversification post-1998; ASEAN free trade architecture deepening',
+        aiPromptSeed:'Model how diversified Asian exporters perform differently from concentrated ones during the 2008 global financial crisis and the subsequent US-China trade war, tracing how export market diversification changes vulnerability profiles.' }
+    }
+  },
+
+  { id:'gfc-2008', cluster:'historical', title:'The 2008 Global Financial Crisis', era:'2008-2012', timeHorizon:'near-term', primaryLens:'bigCycle',
+    description:'Lehman Brothers collapse triggers a global liquidity freeze and the deepest recession since the 1930s, testing the limits of coordinated policy response and revealing the fragility of the shadow banking system.',
+    tags:['financial crisis','housing bubble','demand shock','stimulus','austerity','contagion'],
+    rootNodeId:'gfc08-L0',
+    nodes:{
+      'gfc08-L0':{ id:'gfc08-L0', layer:0, type:'trigger', title:'Lehman Brothers Collapse -- Global Liquidity Freeze', label:'Lehman Collapse',
+        narrative:'September 15, 2008: Lehman Brothers files for bankruptcy -- the largest in US history. Within 48 hours, the $3.8 trillion money market fund industry faces a run. Interbank lending freezes globally as counterparty risk becomes unquantifiable. The shadow banking system, which had silently become as large as the regulated banking system, collapses without a lender of last resort.',
+        lensSnapshot:{ bigCycle:{phase:'Debt Supercycle Peak',note:'Private debt/GDP at historic highs; deleveraging becomes inevitable'}, steep:{primary:'E',secondary:'T',note:'Financial technology complexity created opaque interconnections; systemic fragility invisible'}, geoEcon:{tool:'Fiscal Statecraft',note:'Question is whether states can mobilize fast enough to replace collapsing private demand'}, gameTheory:{type:'Coordination Failure',note:'Each bank waits for others to recapitalize first; individually rational collective disaster'} },
+        choicePrompt:'With global demand collapsing and credit frozen, what is the primary policy response?',
+        choices:['gfc08-L1-stimulus','gfc08-L1-austerity','gfc08-L1-nationalize'] },
+      'gfc08-L1-stimulus':{ id:'gfc08-L1-stimulus', layer:1, type:'decision', title:'Massive Stimulus and Liquidity Injection', label:'Coordinated Stimulus',
+        narrative:'Governments deploy unprecedented fiscal and monetary firepower simultaneously. China announces a $586 billion infrastructure package; the US passes TARP and the American Recovery Act; central banks globally cut rates to near zero. The coordinated response is historically unprecedented in scale and speed.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Deleveraging',note:'State balance sheet substitutes for collapsing private balance sheet'}, steep:{primary:'E',secondary:'P',note:'Political will mobilized for intervention; long-term fiscal constraints accepted'}, geoEcon:{tool:'Fiscal Statecraft',note:'Largest coordinated stimulus in peacetime history'}, gameTheory:{type:'Coordination Game -- Success',note:'G20 coordination prevents competitive austerity trap'} },
+        secondOrderEffects:['Public debt-to-GDP ratios rise 20-40% across major economies','Asset price inflation: stocks and real estate recover rapidly, wealth inequality widens','Zombie firms kept alive by cheap credit reduce long-term productivity growth'],
+        historicalAnalog:'G20 London Summit April 2009; coordinated global fiscal expansion; China infrastructure boom',
+        choicePrompt:'With stimulus preventing a depression, how is the massive debt overhang managed?',
+        choices:['gfc08-L2-normalize','gfc08-L2-repression'] },
+      'gfc08-L1-austerity':{ id:'gfc08-L1-austerity', layer:1, type:'decision', title:'Austerity or Fiscal Inaction', label:'Austerity Path',
+        narrative:'Governments, constrained by debt fears or ideology, fail to deploy adequate fiscal response. Banks are not recapitalized; demand is not replaced; credit remains frozen. The recession deepens into a potential depression.',
+        lensSnapshot:{ bigCycle:{phase:'Unmanaged Deleveraging',note:'Private sector deleveraging not offset by public sector; demand spiral downward'}, steep:{primary:'E',secondary:'S',note:'Unemployment surges; social systems under extreme stress'}, geoEcon:{tool:'Fiscal Statecraft',note:'Inaction as de facto contractionary policy'}, gameTheory:{type:'Collective Action Failure',note:'Each nation expects others to stimulate; all wait; all suffer'} },
+        secondOrderEffects:['Unemployment rises to 1930s levels in some nations','Deflation risk becomes primary threat','Political extremism surges in nations hit hardest without a social buffer'],
+        historicalAnalog:'Eurozone periphery 2010-2013; Greek austerity under Troika; Irish, Spanish, Portuguese programs',
+        choicePrompt:'With austerity deepening the recession, how are collapsed financial institutions handled?',
+        choices:['gfc08-L2-belated','gfc08-L3-populist'] },
+      'gfc08-L1-nationalize':{ id:'gfc08-L1-nationalize', layer:1, type:'decision', title:'Immediate Bank Nationalization', label:'Nationalize Banks',
+        narrative:'Rather than backstopping failed institutions without requiring equity, the government takes full ownership of insolvent banks, wiping out shareholders and replacing management. More politically legitimate -- losses fall on investors, not taxpayers -- and more effective at cleaning balance sheets.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Reset',note:'State assumes ownership of broken financial system to recapitalize it'}, steep:{primary:'P',secondary:'E',note:'Political economy of nationalization; market ideology vs. pragmatic intervention'}, geoEcon:{tool:'Fiscal Statecraft',note:'State ownership as crisis management tool'}, gameTheory:{type:'Command Solution',note:'Bypass market coordination failures through state ownership'} },
+        secondOrderEffects:['Shareholders wiped out; moral hazard for future crises is reduced','State must manage massively complex financial institutions it may lack capacity for','International capital nervous about nationalization precedent'],
+        historicalAnalog:'Swedish bank nationalization 1992-1993; Nordbanken rescue model; Iceland bank resolution 2008',
+        choicePrompt:'With banks nationalized, how are the toxic assets on their balance sheets resolved?',
+        choices:['gfc08-L2-bad-bank','gfc08-L2-normalize'] },
+      'gfc08-L2-normalize':{ id:'gfc08-L2-normalize', layer:2, type:'decision', title:'Gradual Monetary Normalization', label:'Gradual Normalization',
+        narrative:'Central banks maintain low rates and large balance sheets for longer than originally intended, gradually tapering stimulus as the recovery strengthens. The transition is managed carefully to avoid triggering a secondary crisis. Asset prices remain elevated throughout.',
+        lensSnapshot:{ bigCycle:{phase:'Recovery -- Extended',note:'Prolonged stimulus supports asset prices but delays genuine deleveraging'}, steep:{primary:'E',secondary:'T',note:'Financial technology enables new forms of monetary transmission'}, geoEcon:{tool:'Monetary Policy',note:'Coordinated global monetary normalization'}, gameTheory:{type:'Sequential Game',note:'Fed moves first; others follow sequentially to avoid currency wars'} },
+        secondOrderEffects:['Wealth inequality widens as asset price inflation benefits capital holders','Corporate debt leverages up again at low rates, recreating fragility','Emerging markets face taper tantrum capital flow reversals'],
+        historicalAnalog:'Fed tapering 2013-2015; ECB normalization 2018-2019',
+        choicePrompt:'With normalization underway, what structural financial reforms prevent recurrence?',
+        choices:['gfc08-L3-dodd-frank','gfc08-L3-populist'] },
+      'gfc08-L2-repression':{ id:'gfc08-L2-repression', layer:2, type:'decision', title:'Financial Repression -- Low Rates, High Inflation', label:'Financial Repression',
+        narrative:'Low nominal rates combined with moderate inflation gradually erodes the real value of debt. Savers are penalized; debtors benefit. The debt overhang is inflated away over a decade rather than paid down explicitly or restructured. The process is politically easier than austerity but imposes a hidden tax on savers.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Debt Reduction',note:'Inflation as covert debt reduction mechanism; historical precedent post-WWII'}, steep:{primary:'E',secondary:'P',note:'Economic redistribution from savers to debtors; political optics managed'}, geoEcon:{tool:'Monetary Policy',note:'Financial repression as debt management tool'}, gameTheory:{type:'Hidden Transfer Game',note:'Covert redistribution from savers to borrowers via real rate manipulation'} },
+        secondOrderEffects:['Pension funds and insurance companies face asset-liability mismatches','Real estate and equity surge as savers chase yield','Retirement security eroded for fixed-income retirees'],
+        historicalAnalog:'US financial repression 1945-1980; UK post-WWII debt reduction; negative real rates 2010-2022',
+        choicePrompt:'With debt gradually inflated away, what political economy emerges from the decade of financial repression?',
+        choices:['gfc08-L3-populist','gfc08-L4-industrial'] },
+      'gfc08-L2-belated':{ id:'gfc08-L2-belated', layer:2, type:'decision', title:'Belated Forced Nationalization', label:'Forced Nationalization',
+        narrative:'After years of inaction, the financial system has deteriorated beyond market solutions. The government is forced into chaotic nationalizations at the worst possible moment -- markets have priced in failure, political legitimacy is exhausted, and the state fiscal capacity has been consumed by recession.',
+        lensSnapshot:{ bigCycle:{phase:'Decline-deep',note:'Delayed intervention compounds the debt cycle damage'}, steep:{primary:'P',secondary:'E',note:'Political crisis; governments fall; external troika intervention'}, geoEcon:{tool:'Fiscal Statecraft',note:'Belated intervention at worst possible fiscal moment'}, gameTheory:{type:'Path Dependency -- Locked In',note:'Early choices constrain options; belated moves are worse than early ones'} },
+        secondOrderEffects:['Sovereign debt crisis follows banking crisis','External creditors (IMF/EU) impose conditionality','Democracy under stress as unelected technocrats impose austerity'],
+        historicalAnalog:'Greece 2010-2015; Cyprus bail-in 2013; Portugal 2011',
+        choicePrompt:'With the financial system eventually stabilized but public trust exhausted, what post-crisis political economy emerges?',
+        choices:['gfc08-L3-populist','gfc08-L3-reform'] },
+      'gfc08-L2-bad-bank':{ id:'gfc08-L2-bad-bank', layer:2, type:'decision', title:'Bad Bank -- Segregate Toxic Assets', label:'Bad Bank Model',
+        narrative:'Nationalized banks are split: good assets transferred to a new clean bank that can resume lending immediately; toxic assets warehoused in a state-owned bad bank for gradual resolution. The clean bank can function immediately; the bad bank absorbs losses slowly over time.',
+        lensSnapshot:{ bigCycle:{phase:'Surgical Reset',note:'Precision financial surgery separates viable from non-viable balance sheet components'}, steep:{primary:'E',secondary:'T',note:'Financial engineering to separate and manage toxic assets'}, geoEcon:{tool:'Fiscal Statecraft',note:'State engineering of financial system restructuring'}, gameTheory:{type:'Mechanism Design',note:'Asset segregation game: clean bank can operate; toxic assets isolated'} },
+        secondOrderEffects:['Credit flows resume quickly as clean bank is functional','Bad bank asset resolution takes 5-10 years of gradual writedowns','Moral hazard concern addressed by shareholder wipeout in nationalization'],
+        historicalAnalog:'Swedish Securum bad bank 1992; US TARP troubled asset purchases; Irish NAMA bad bank 2009',
+        choicePrompt:'With the bad bank segregating toxic assets and credit flowing again, what institutional reform prevents the next crisis?',
+        choices:['gfc08-L3-dodd-frank','gfc08-L4-fintech'] },
+      'gfc08-L3-dodd-frank':{ id:'gfc08-L3-dodd-frank', layer:3, type:'decision', title:'Dodd-Frank Style Regulatory Overhaul', label:'Financial Regulation Reform',
+        narrative:'Comprehensive financial regulation raises capital requirements, restricts proprietary trading, mandates stress tests, and creates resolution frameworks for systemic institutions. The shadow banking sector is brought partially into the regulatory perimeter.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Renovation',note:'Crisis catalyzes regulatory redesign'}, steep:{primary:'P',secondary:'E',note:'Regulatory state expands; financial sector lobbying intense'}, geoEcon:{tool:'Fiscal Statecraft',note:'Regulatory architecture as systemic risk management'}, gameTheory:{type:'New Rules Game',note:'Changing regulatory rules changes financial equilibrium'} },
+        secondOrderEffects:['Bank profitability falls; some credit intermediation shifts to unregulated shadow sector','Systemic risk metrics improve; another 2008-style event becomes less likely','Compliance costs disadvantage smaller institutions; consolidation accelerates'],
+        historicalAnalog:'Dodd-Frank Act 2010; Basel III capital standards; Volcker Rule',
+        choicePrompt:'With new regulations in place, how does the financial system adapt?',
+        choices:['gfc08-L4-shadow','gfc08-L4-fintech'] },
+      'gfc08-L3-populist':{ id:'gfc08-L3-populist', layer:3, type:'decision', title:'Populist Political Backlash', label:'Populist Backlash',
+        narrative:'Years of austerity, rising inequality, and perceived bailouts for banks while workers suffered produce a political earthquake. Populist movements of both left and right capture governments across the Western world. The technocratic consensus that managed the crisis loses democratic legitimacy.',
+        lensSnapshot:{ bigCycle:{phase:'Internal Conflict Rising',note:'Big Cycle: internal wealth gap generates political conflict'}, steep:{primary:'P',secondary:'S',note:'Democratic systems challenged; populist capture of institutions'}, geoEcon:{tool:'Fiscal Statecraft',note:'Fiscal orthodoxy challenged by redistributive politics'}, gameTheory:{type:'Regime Change',note:'Electoral game produces different equilibrium; policy changes fundamentally'} },
+        secondOrderEffects:['International cooperation deteriorates as nationalist governments prioritize domestic audiences','Multilateral institutions (IMF, WTO, EU) face legitimacy crises','Trade openness reversals begin; protectionist pressures rise'],
+        historicalAnalog:'2016 Brexit vote; Trump election; Syriza in Greece; Five Star in Italy',
+        choicePrompt:'With populist governments in power, how is economic policy restructured?',
+        choices:['gfc08-L4-industrial','gfc08-L4-protection'] },
+      'gfc08-L3-reform':{ id:'gfc08-L3-reform', layer:3, type:'decision', title:'Structural Reform -- Technocratic Recovery', label:'Structural Reform',
+        narrative:'Technocratic governments implement deep structural reforms: labor market flexibility, pension reform, reduced state ownership, and investment in education and infrastructure. The reforms are politically painful but create a more productive and resilient economic base.',
+        lensSnapshot:{ bigCycle:{phase:'Structural Renovation',note:'Crisis creates political space for reforms that would be blocked in normal times'}, steep:{primary:'E',secondary:'T',note:'Productivity investment as long-term recovery strategy'}, geoEcon:{tool:'Fiscal Statecraft',note:'Structural reform as credibility signal and long-term investment'}, gameTheory:{type:'Long Game',note:'Accept short-term pain for long-term structural improvement'} },
+        secondOrderEffects:['Productivity growth improves within 5-7 years','Social safety net reduced; inequality may worsen short-term','Foreign investment returns as competitiveness improves'],
+        historicalAnalog:'Ireland structural reform 2011-2016; Baltic states rapid adjustment 2008-2010; Spain labor reform',
+        choicePrompt:'With structural reforms underway, what financial architecture prevents the next cycle?',
+        choices:['gfc08-L4-fintech','gfc08-L4-industrial'] },
+      'gfc08-L4-shadow':{ id:'gfc08-L4-shadow', layer:4, type:'terminal', title:'Shadow Banking Migration', label:'Shadow Bank Growth',
+        narrative:'Post-Dodd-Frank regulations push credit intermediation into unregulated shadow banking: private equity, hedge funds, and money market alternatives. The regulated system is safer but smaller. The unregulated system grows rapidly. The systemic risk has been managed in one location only to re-emerge in another.',
+        outcome:'REGULATORY ARBITRAGE -- RISK MIGRATION',
+        outcomeNarrative:'The post-crisis regulatory architecture successfully reduces risk in the regulated banking sector but inadvertently accelerates the growth of the shadow banking sector it was designed to curtail. The systemic risk accumulates in a new, less visible location -- private equity leverage, money market fragility, repo market dependencies.',
+        finalLensScores:{ bigCycle:'Recovery -- New Fragility Building', steep:{S:0.3,T:0.7,E:0.8,En:0.2,P:0.6}, geoEcon:'Regulatory Architecture -- unintended migration of risk', gameTheory:'Whack-a-Mole -- regulatory intervention displaces rather than eliminates risk' },
+        historicalAnalog:'Post-Dodd-Frank private equity growth; CLO market expansion 2012-2019; repo market fragility exposed 2019',
+        aiPromptSeed:'Model how accumulated shadow banking fragility manifests in the next crisis, whether triggered by COVID liquidity stress, private equity leverage, or repo market dysfunction -- tracing the transmission from shadow banking concentration to systemic risk.' },
+      'gfc08-L4-fintech':{ id:'gfc08-L4-fintech', layer:4, type:'terminal', title:'Fintech Disruption of Banking', label:'Fintech Disruption',
+        narrative:'Post-crisis bank consolidation and regulatory compliance burden create gaps that technology companies fill. Digital payment platforms, peer-to-peer lending, and eventually crypto assets emerge as genuine alternatives to bank intermediation.',
+        outcome:'TECHNOLOGICAL DISRUPTION OF FINANCIAL ARCHITECTURE',
+        outcomeNarrative:'The financial system emerges from the crisis transformed not by regulation but by technology. New entrants unbundle banking services, increase competition, and reduce costs for consumers. But they also create new systemic risks around platform concentration, data monopolies, and regulatory gaps.',
+        finalLensScores:{ bigCycle:'Recovery -- New Technological Cycle', steep:{S:0.6,T:1.0,E:0.7,En:0.2,P:0.5}, geoEcon:'Technological Statecraft -- fintech regulation as new geopolitical frontier', gameTheory:'Platform Competition -- winner-take-most dynamics in digital finance' },
+        historicalAnalog:'Square, Stripe, PayPal post-2008 growth; Alipay/WeChat Pay in China; crypto emergence 2009+',
+        aiPromptSeed:'Model how the rise of digital financial platforms, CBDCs, and crypto assets reshapes the global financial architecture through the 2020s, particularly how these technologies interact with the dollar reserve currency system and financial regulation.' },
+      'gfc08-L4-industrial':{ id:'gfc08-L4-industrial', layer:4, type:'terminal', title:'Return of Industrial Policy', label:'Industrial Policy Renaissance',
+        narrative:'Populist governments deploy active industrial policy: subsidies for domestic manufacturing, strategic sector protections. The Washington Consensus era of pure market governance ends. The state becomes an active economic actor again.',
+        outcome:'NEOLIBERAL CONSENSUS ENDS -- INDUSTRIAL POLICY RENAISSANCE',
+        outcomeNarrative:'The crisis permanently ends the Washington Consensus. State-directed industrial policy becomes mainstream across the political spectrum. The infrastructure of globalization -- free trade agreements, capital mobility, regulatory harmonization -- is progressively dismantled and replaced with managed trade, strategic subsidies, and supply chain reshoring.',
+        finalLensScores:{ bigCycle:'Transition -- New Institutional Cycle', steep:{S:0.7,T:0.6,E:0.8,En:0.5,P:1.0}, geoEcon:'Tariffs + Export Controls -- industrial policy as statecraft', gameTheory:'New Equilibrium -- game rules changed by democratic mandate' },
+        historicalAnalog:'US CHIPS Act 2022; IRA 2022; EU Green Deal industrial strategy; China dual circulation policy',
+        aiPromptSeed:'Model how the return of state-directed industrial policy intersects with US-China decoupling, the green energy transition, and the reorientation of global supply chains through 2030.' },
+      'gfc08-L4-protection':{ id:'gfc08-L4-protection', layer:4, type:'terminal', title:'Trade Protection and Deglobalization', label:'Trade Protection',
+        narrative:'Populist governments implement trade barriers: tariffs on imports, export restrictions, buy-domestic procurement rules. Globalization reverses slowly but persistently. Supply chains shorten; trade volumes stagnate.',
+        outcome:'DEGLOBALIZATION -- MANAGED TRADE ARCHITECTURE',
+        outcomeNarrative:'The post-crisis populist turn produces a sustained deglobalization: global trade as a share of GDP peaks and declines. The benefits of globalization -- lower consumer prices, wider product variety -- erode slowly. But the vulnerabilities of hyperglobalization -- single-source supply chains, financial contagion -- also reduce. The world is less efficient and more resilient.',
+        finalLensScores:{ bigCycle:'Transition -- Deglobalization Cycle', steep:{S:0.7,T:0.5,E:0.8,En:0.4,P:1.0}, geoEcon:'Tariffs -- managed trade and deglobalization', gameTheory:'Repeated Defection -- all nations erect barriers; all lose trade gains' },
+        historicalAnalog:'1930s trade collapse; US tariffs 2018-2020; Brexit trade friction; COVID supply chain reshoring',
+        aiPromptSeed:'Model how the deglobalization dynamic initiated by post-GFC populism accelerates through the COVID supply chain crisis and US-China trade war, tracing the long-run productivity and welfare implications of sustained trade fragmentation.' }
+    }
+  },
+
+  // ── CLUSTER B: SYSTEMIC RISK ─────────────────────────────────────────────
+
+  { id:'black-swan', cluster:'systemic', title:'Black Swan Events', era:'Variable', timeHorizon:'near-term', primaryLens:'steep',
+    description:'Unforeseen, highly disruptive events -- modeled on 9/11 and COVID-19 -- that permanently alter global security, economic postures, and supply chain architecture through shocks no model predicted.',
+    tags:['black swan','tail risk','supply chain','resilience','pandemic','terrorism'],
+    rootNodeId:'bsw-L0',
+    nodes:{
+      'bsw-L0':{ id:'bsw-L0', layer:0, type:'trigger', title:'Catastrophic Unforeseeable Event', label:'Black Swan',
+        narrative:'A high-impact, low-probability event materializes -- the type that models said could not happen. In hours, the event cascades globally: supply chains halt, financial markets seize, governments invoke emergency powers. The shock is not just economic but civilizational -- it forces a reconsideration of assumptions baked into every risk model. The cumulative GDP loss in the first year exceeds several percentage points globally.',
+        lensSnapshot:{ bigCycle:{phase:'Shock -- Phase Undefined',note:'Black Swan events can accelerate or disrupt any Big Cycle phase'}, steep:{primary:'Cross-domain',secondary:'All',note:'All STEEP dimensions disrupted simultaneously'}, geoEcon:{tool:'Alliance Architecture',note:'Crisis tests which alliances hold and which fracture'}, gameTheory:{type:'Non-cooperative Emergency',note:'Every actor prioritizes self-protection; coordination fails initially'} },
+        choicePrompt:'How does the nation restructure its global supply chain architecture in response?',
+        choices:['bsw-L1-friendshore','bsw-L1-status-quo','bsw-L1-nearshore'] },
+      'bsw-L1-friendshore':{ id:'bsw-L1-friendshore', layer:1, type:'decision', title:'Friendshoring -- Relocate to Allied Nations', label:'Friendshore Supply Chains',
+        narrative:'Production is diversified away from geopolitically exposed regions to allied nations. The architecture is more resilient but significantly more expensive. The shift takes years and billions in capital expenditure -- but the next Black Swan will not find the same vulnerability.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Transition',note:'Supply chain reconfiguration as deliberate phase-transition management'}, steep:{primary:'E',secondary:'T',note:'Capital expenditure for resilience; automation required to offset cost increase'}, geoEcon:{tool:'Alliance Architecture',note:'Trade architecture explicitly organized around political alignment'}, gameTheory:{type:'Insurance Purchase',note:'Pay premium now to avoid catastrophic loss later'} },
+        secondOrderEffects:['Labor costs rise 15-35% as production moves from low-cost regions','Geopolitically non-aligned nations lose investment inflows','Technology investment in automation surges to offset higher labor costs'],
+        historicalAnalog:'Post-COVID reshoring movement 2021-2024; CHIPS Act domestic semiconductor investment',
+        choicePrompt:'With friendshoring increasing costs, how does the organization offset higher operational expenses?',
+        choices:['bsw-L2-automate','bsw-L2-subsidies'] },
+      'bsw-L1-status-quo':{ id:'bsw-L1-status-quo', layer:1, type:'decision', title:'Maintain Concentrated Supply Architecture', label:'Maintain Status Quo',
+        narrative:'Firms absorb the crisis cost rather than restructure, betting that Black Swan events remain rare. As conditions normalize, the status quo is restored. The next disruption will find the same vulnerabilities.',
+        lensSnapshot:{ bigCycle:{phase:'Fragility Preserved',note:'Crisis cost absorbed but structural fragility not addressed'}, steep:{primary:'E',secondary:'T',note:'Efficiency prioritized over resilience; technology investment deferred'}, geoEcon:{tool:'Export Controls',note:'Continues dependence on concentrated supplier regions'}, gameTheory:{type:"Gambler's Fallacy",note:'Assumes low-probability event will not recur; rational short-term, irrational long-term'} },
+        secondOrderEffects:['Next disruption causes compounding damage on existing fragility','Competitor firms that restructured gain market share in subsequent crisis','Regulatory pressure for resilience investment builds'],
+        historicalAnalog:'Post-9/11 return to just-in-time supply chains; pre-COVID concentration in Chinese manufacturing',
+        choicePrompt:'When the next disruption occurs -- more severe than the first -- what emergency triage options remain?',
+        choices:['bsw-L2-automate','bsw-L3-resilience-architecture'] },
+      'bsw-L1-nearshore':{ id:'bsw-L1-nearshore', layer:1, type:'decision', title:'Nearshoring -- Regional Supply Concentration', label:'Nearshore Regionally',
+        narrative:'Rather than friendshoring globally, production is relocated to geographically proximate nations: North American supply chains reorganize around Mexico and Canada; European chains tighten around Eastern Europe and North Africa. Logistics costs fall; political alignment is secondary. The architecture reduces distance-based disruption but not geopolitical risk.',
+        lensSnapshot:{ bigCycle:{phase:'Regional Consolidation',note:'Supply chain regionalization as resilience strategy'}, steep:{primary:'E',secondary:'P',note:'Economic efficiency gains; political risk partially reduced'}, geoEcon:{tool:'Alliance Architecture',note:'Regional trade integration as supply chain resilience mechanism'}, gameTheory:{type:'Regional Coordination',note:'Within-region cooperation reduces logistics vulnerability'} },
+        secondOrderEffects:['Mexico, Poland, Morocco, Vietnam become major beneficiaries of nearshoring flows','Intra-regional trade increases; inter-regional trade declines','Regional supply chains still vulnerable to regional black swan events'],
+        historicalAnalog:'Mexico manufacturing boom post-COVID; Polish manufacturing growth; North African electronics assembly',
+        choicePrompt:'With regional supply chains established, how is political alignment risk managed within the regional architecture?',
+        choices:['bsw-L2-subsidies','bsw-L3-resilience-architecture'] },
+      'bsw-L2-automate':{ id:'bsw-L2-automate', layer:2, type:'decision', title:'Automation Investment to Offset Cost Increases', label:'Automation Push',
+        narrative:'Technology investment compensates for higher labor costs in friendshored supply chains: robotics, AI-driven logistics, and automated quality control reduce the labor cost premium of friendshoring. The investment is front-loaded and expensive but creates permanent productivity gains.',
+        lensSnapshot:{ bigCycle:{phase:'Productive Technology -- Phase Transition',note:'Automation as response to supply chain cost pressure; productivity cycle accelerates'}, steep:{primary:'T',secondary:'E',note:'Technology investment drives productivity; labor displacement effects'}, geoEcon:{tool:'Technological Statecraft',note:'Automation as substitute for low-cost labor geography'}, gameTheory:{type:'Technology Race',note:'First movers in automation capture cost advantage; followers lose competitive position'} },
+        secondOrderEffects:['Manufacturing employment in friendshored locations does not recover to pre-automation levels','Automation investment accelerates AI adoption across entire industrial base','Nations with strong automation industries (Germany, Japan, Korea) benefit from export demand'],
+        historicalAnalog:'Post-2018 tariff-driven automation investment; COVID automation acceleration 2020-2022',
+        choicePrompt:'With automation embedded and supply chains reshored, what governance architecture manages the new resilience-efficiency tradeoff?',
+        choices:['bsw-L3-resilience-architecture','bsw-L4-allied-supply'] },
+      'bsw-L2-subsidies':{ id:'bsw-L2-subsidies', layer:2, type:'decision', title:'Government Subsidies for Strategic Resilience', label:'Strategic Subsidies',
+        narrative:'Governments provide direct subsidies for domestic production of critical goods: semiconductors, pharmaceuticals, medical equipment, and energy equipment receive investment support that makes domestic production economically viable despite higher labor costs. Strategic resilience is treated as a public good.',
+        lensSnapshot:{ bigCycle:{phase:'State-Led Investment',note:'Industrial policy deployed to subsidize strategic resilience'}, steep:{primary:'P',secondary:'E',note:'Political decision to treat resilience as national security priority'}, geoEcon:{tool:'Fiscal Statecraft',note:'Subsidies as industrial policy for strategic sectors'}, gameTheory:{type:'Public Goods Provision',note:'State provides resilience that market undersupplies'} },
+        secondOrderEffects:['Subsidy programs risk capture by incumbent industries; efficiency concerns','Allied nations demand equivalent access to subsidized supply chains','WTO rules on subsidies increasingly challenged and circumvented'],
+        historicalAnalog:'US CHIPS Act semiconductor subsidies; EU Battery Alliance; pharmaceutical domestic production subsidies post-COVID',
+        choicePrompt:'With strategic subsidies funding resilience, how is the supply chain architecture further hardened?',
+        choices:['bsw-L3-resilience-architecture','bsw-L4-strategic-stockpile'] },
+      'bsw-L3-resilience-architecture':{ id:'bsw-L3-resilience-architecture', layer:3, type:'decision', title:'Comprehensive Resilience Architecture', label:'Resilience Architecture',
+        narrative:'A comprehensive resilience framework is institutionalized: mandatory strategic stockpiles for critical goods, supplier diversification requirements, supply chain mapping and monitoring, and international emergency sharing agreements. The architecture is expensive but transforms the vulnerability profile permanently.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation',note:'Black Swan forces creation of new resilience institutions'}, steep:{primary:'P',secondary:'E',note:'Political mandate creates economic resilience architecture'}, geoEcon:{tool:'Alliance Architecture',note:'Emergency sharing agreements as allied security commitment'}, gameTheory:{type:'Mechanism Design',note:'Rules and incentives aligned to produce resilience as outcome'} },
+        secondOrderEffects:['Supply chain monitoring becomes a national security function','Allied nations coordinate stockpile strategies to avoid duplication','Critical good prices structurally higher due to resilience costs'],
+        historicalAnalog:'US Strategic National Stockpile reforms post-COVID; EU Critical Raw Materials Act; pharmaceutical strategic reserve programs',
+        choicePrompt:'With resilience architecture in place, how is it stress-tested against the next disruption scenario?',
+        choices:['bsw-L4-allied-supply','bsw-L4-strategic-stockpile'] },
+      'bsw-L4-allied-supply':{ id:'bsw-L4-allied-supply', layer:4, type:'terminal', title:'Allied Supply Chain Security Agreements', label:'Allied Supply Security',
+        narrative:'Formal international agreements establish allied supply chain security: emergency sharing protocols, joint stockpiling, coordinated production agreements, and mutual access to critical materials. The architecture is the supply chain equivalent of NATO collective defense.',
+        outcome:'ALLIED SUPPLY CHAIN SECURITY ARCHITECTURE',
+        outcomeNarrative:'The Black Swan event catalyzes the most significant supply chain diplomacy in the post-war period. Allied nations establish formal commitments to emergency supply sharing, joint stockpiling of critical goods, and coordinated production capacity. The architecture does not prevent all disruptions but ensures that no allied nation faces a catastrophic supply failure alone.',
+        finalLensScores:{ bigCycle:'Institutional Innovation -- Alliance Deepening', steep:{S:0.5,T:0.7,E:0.8,En:0.5,P:0.9}, geoEcon:'Alliance Architecture -- supply chain security as collective defense', gameTheory:'Cooperative Game -- collective resilience exceeds individual resilience' },
+        historicalAnalog:'US-EU Trade and Technology Council; Quad Critical and Emerging Technology Working Group; NATO food security commitments',
+        aiPromptSeed:'Model how allied supply chain security agreements perform when tested by a major geopolitical conflict that simultaneously disrupts multiple supply chains, tracing whether the coordination architecture holds under extreme stress.' },
+      'bsw-L4-strategic-stockpile':{ id:'bsw-L4-strategic-stockpile', layer:4, type:'terminal', title:'Strategic Stockpile Architecture', label:'Strategic Stockpiles',
+        narrative:'Comprehensive strategic stockpiles are established for all critical goods: 6-12 months of supply for semiconductors, pharmaceuticals, medical equipment, rare earths, and food staples. The stockpile program is expensive but buys time in any future disruption.',
+        outcome:'STRATEGIC STOCKPILE RESILIENCE ARCHITECTURE',
+        outcomeNarrative:'The stockpile architecture successfully provides buffer time in the next disruption -- supply chains do not collapse immediately, allowing for emergency reconfiguration. But the storage costs, rotation requirements, and governance challenges of managing large strategic stockpiles create permanent overhead. The resilience is real but expensive.',
+        finalLensScores:{ bigCycle:'Institutional Innovation -- Resilience Investment', steep:{S:0.4,T:0.6,E:0.7,En:0.5,P:0.8}, geoEcon:'Resource Nationalism -- strategic stockpile as national security asset', gameTheory:'Insurance Game -- pay premium continuously to avoid catastrophic loss' },
+        historicalAnalog:'US Strategic Petroleum Reserve; Strategic National Stockpile; China strategic reserves in food and metals',
+        aiPromptSeed:'Model how strategic stockpile architectures created in response to supply chain Black Swan events interact with climate change-driven resource scarcity, tracing whether stockpile strategies can adapt to a world where supply disruptions become more frequent.' }
+    }
+  },
+
+  { id:'gray-rhino', cluster:'systemic', title:'The Gray Rhino Polycrisis', era:'2025-2035', timeHorizon:'medium', primaryLens:'steep',
+    description:'Multiple foreseeable but ignored risks converge simultaneously -- sovereign debt overhangs, climate shocks, demographic collapse, and supply chain fragility -- overwhelming institutions designed for single-crisis management.',
+    tags:['polycrisis','gray rhino','systemic risk','climate','debt','demographics','cascading failure'],
+    rootNodeId:'grp-L0',
+    nodes:{
+      'grp-L0':{ id:'grp-L0', layer:0, type:'trigger', title:'Simultaneous Convergence of Four Foreseeable Crises', label:'Polycrisis Trigger',
+        narrative:'2027: Four independently foreseeable risk vectors -- long-visible, consistently ignored -- arrive simultaneously. A Category 5 hurricane destroys a major port city one month after a sovereign debt crisis erupts in three emerging market nations, which coincides with a food supply shock from the third consecutive year of below-average grain harvests. All three events land on a global demographic backdrop where working-age populations of major economies are contracting at the fastest rate in recorded peacetime history. None of these were Black Swans. They were Gray Rhinos: obvious, enormous, and consistently ignored.',
+        lensSnapshot:{ bigCycle:{phase:'Overextension-Terminal',note:'Multiple Big Cycle stress indicators breaching simultaneously; institutions cannot triage'}, steep:{primary:'Cross-domain',secondary:'All',note:'All five STEEP dimensions in simultaneous stress'}, geoEcon:{tool:'Fiscal Statecraft',note:'Every fiscal tool deployed simultaneously; competition for resources across crisis domains'}, gameTheory:{type:'Multi-Domain Coordination Failure',note:'Each crisis domain requires coordinated response; coordination capacity itself is the scarce resource'} },
+        choicePrompt:'Institutions face a triage decision: which crisis domain gets priority when all demand response simultaneously?',
+        choices:['grp-L1-debt-first','grp-L1-climate-first','grp-L1-food-first','grp-L1-comprehensive'] },
+      'grp-L1-debt-first':{ id:'grp-L1-debt-first', layer:1, type:'decision', title:'Prioritize Sovereign Debt Crisis -- Financial System Triage', label:'Financial System First',
+        narrative:'Governments and international institutions deploy primary attention toward preventing sovereign debt contagion from becoming a global financial crisis. IMF emergency facilities are activated; central banks coordinate swap lines; debt restructuring negotiations begin. But the climate shock and food crisis receive only residual attention -- their damage compounds.',
+        lensSnapshot:{ bigCycle:{phase:'Debt Cycle Management',note:'Financial system prioritized; real economy and environment sacrifice accepted'}, steep:{primary:'E',secondary:'P',note:'Economic stability prioritized; political legitimacy of triage decision contested'}, geoEcon:{tool:'Fiscal Statecraft',note:'Emergency IMF facilities; coordinated central bank intervention'}, gameTheory:{type:'Triage Decision',note:'Zero-sum resource allocation across crisis domains; financial system wins'} },
+        secondOrderEffects:['Sovereign debt contagion contained; financial system survives','Climate damage unmitigated; reconstruction costs compound annually','Food insecurity crisis deepens; political instability in affected regions surges'],
+        historicalAnalog:'COVID prioritization over climate 2020-2022; financial crisis absorbing all policy attention 2008-2010',
+        choicePrompt:'With debt contagion contained but climate and food crises deepening, how does the financial system fund the cascading real-world damage?',
+        choices:['grp-L2-climate-bonds','grp-L2-imf-expansion'] },
+      'grp-L1-climate-first':{ id:'grp-L1-climate-first', layer:1, type:'decision', title:'Prioritize Climate Adaptation -- Physical Infrastructure Triage', label:'Climate Adaptation First',
+        narrative:'Emergency climate adaptation takes priority: sea walls, managed retreat, emergency agricultural reorientation, and infrastructure hardening. The debt crisis receives second-tier attention; markets interpret the triage as fiscal irresponsibility. Sovereign bond spreads widen dramatically. But the physical infrastructure response prevents worse damage that would have been far more costly.',
+        lensSnapshot:{ bigCycle:{phase:'Environmental Reset',note:'Physical crisis prioritized over financial; unconventional triage by historical standards'}, steep:{primary:'En',secondary:'E',note:'Environmental crisis prioritized; economic stability accepts secondary damage'}, geoEcon:{tool:'Fiscal Statecraft',note:'Climate adaptation spending as core fiscal priority'}, gameTheory:{type:'Long-Term Optimization',note:'Short-term financial cost accepted to avoid worse long-term physical damage'} },
+        secondOrderEffects:['Physical infrastructure adaptation reduces compound losses by 30-40%','Bond market punishes apparent fiscal irresponsibility; borrowing costs surge','Nations that did not prioritize climate adaptation face far worse medium-term outcomes'],
+        historicalAnalog:'Netherlands Delta Works post-1953 floods; Japan seawall investment post-2011 tsunami',
+        choicePrompt:'With climate adaptation underway but financial markets punishing the approach, how is the sovereign debt pressure managed?',
+        choices:['grp-L2-debt-restructuring','grp-L2-climate-bonds'] },
+      'grp-L1-food-first':{ id:'grp-L1-food-first', layer:1, type:'decision', title:'Prioritize Food Security -- Social Stability Triage', label:'Food Security First',
+        narrative:'Food insecurity is identified as the most acute political risk. Emergency food reserves are mobilized; agricultural emergency financing is deployed; export bans are overridden through international agreements. The financial and climate crises receive deferred attention.',
+        lensSnapshot:{ bigCycle:{phase:'Social Stability Priority',note:'Political legitimacy and social stability prioritized over financial optimization'}, steep:{primary:'S',secondary:'P',note:'Social stability as primary triage criterion; political imperative'}, geoEcon:{tool:'Resource Nationalism',note:'Food security as strategic asset; export controls overridden by crisis'}, gameTheory:{type:'Catastrophic Risk Avoidance',note:'Accepting certain losses to prevent potentially catastrophic social collapse'} },
+        secondOrderEffects:['Social unrest contained in food-insecure regions','Debt crisis allowed to deepen; financial market panic begins','Agricultural emergency financing accelerates transition to more resilient crops'],
+        historicalAnalog:'Soviet grain purchase emergency 1972; Arab Spring food price connection 2010-2011',
+        choicePrompt:'With food security stabilized but financial crisis deepening, what political architecture manages the compound crisis?',
+        choices:['grp-L2-emergency-governance','grp-L2-imf-expansion'] },
+      'grp-L1-comprehensive':{ id:'grp-L1-comprehensive', layer:1, type:'decision', title:'Attempt Comprehensive Simultaneous Response', label:'Comprehensive Response',
+        narrative:'Institutions attempt to respond to all four crisis vectors simultaneously -- deploying financial, climate, food, and demographic policy tools in parallel. Every crisis receives 25% of the attention it needs. None is resolved. The combination of partial responses produces outcomes worse than decisive triage would have.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Overload',note:'Institutional capacity is the binding constraint; simultaneous deployment produces collective failure'}, steep:{primary:'Cross-domain',secondary:'All',note:'Attempting to address all STEEP dimensions simultaneously; capacity insufficient'}, geoEcon:{tool:'Alliance Architecture',note:'International coordination attempted across all crisis domains'}, gameTheory:{type:'Coordination Failure at Scale',note:'Too many principals, too many agents, too little coordination capacity'} },
+        secondOrderEffects:['All four crises deepen as insufficient attention is paid to each','Political leaders blamed for indecision rather than constraint','Crisis cascade accelerates; some domains reach points of no return'],
+        historicalAnalog:'EU response to 2010-2012 multi-crisis period; insufficient across all domains simultaneously',
+        choicePrompt:'As the comprehensive approach fails and all crises deepen, forced triage eventually becomes unavoidable. What crisis is sacrificed first?',
+        choices:['grp-L2-sacrifice-climate','grp-L2-climate-bonds'] },
+      'grp-L2-climate-bonds':{ id:'grp-L2-climate-bonds', layer:2, type:'decision', title:'Climate-Linked Sovereign Bond Architecture', label:'Climate Bonds',
+        narrative:'A new financial instrument: sovereign bonds whose coupon adjusts based on climate adaptation performance metrics. Nations that meet adaptation targets pay lower interest rates; those that miss pay higher. The instrument simultaneously addresses the financial and climate crises, aligning market incentives with physical resilience investment.',
+        lensSnapshot:{ bigCycle:{phase:'Financial Innovation',note:'New financial architecture attempts to align market incentives with climate resilience'}, steep:{primary:'E',secondary:'En',note:'Financial mechanism for environmental objective'}, geoEcon:{tool:'Fiscal Statecraft',note:'Novel bond architecture linking financial and climate systems'}, gameTheory:{type:'Mechanism Design',note:'Incentive-compatible instrument aligns financial and environmental objectives'} },
+        secondOrderEffects:['Green bond market expands dramatically','Nations with poor adaptation performance face rising borrowing costs','Institutional investors gain standardized climate performance metrics'],
+        historicalAnalog:'EBRD green bond framework; ESG bond market development',
+        choicePrompt:'With climate-linked bonds issued, how does the nation address the demographic crisis -- the fourth compounding factor?',
+        choices:['grp-L3-immigration','grp-L3-productivity'] },
+      'grp-L2-debt-restructuring':{ id:'grp-L2-debt-restructuring', layer:2, type:'decision', title:'Orderly Sovereign Debt Restructuring Framework', label:'Debt Restructuring',
+        narrative:'An emergency sovereign debt restructuring framework is negotiated among G20 creditors. Private sector creditors accept haircuts; official creditors extend maturities; conditionality is linked to climate adaptation rather than conventional austerity. The framework is contested but functional.',
+        lensSnapshot:{ bigCycle:{phase:'Debt Cycle Reset',note:'Orderly restructuring clears debt overhang; avoids disorderly default'}, steep:{primary:'E',secondary:'P',note:'Economic restructuring with political negotiation across creditor groups'}, geoEcon:{tool:'Fiscal Statecraft',note:'Multilateral debt restructuring as international economic governance'}, gameTheory:{type:'Cooperative Game -- Creditor Coordination',note:'Creditor collective action problem overcome through framework negotiation'} },
+        secondOrderEffects:['Debt-distressed nations regain fiscal space for climate and food investment','Private creditors take losses but avoid worse disorderly default scenario','Framework becomes template for future sovereign debt crises'],
+        historicalAnalog:'HIPC Initiative; Brady Bonds; Paris Club; Common Framework',
+        choicePrompt:'With debt restructured and fiscal space restored, how are the climate and food recovery programs funded?',
+        choices:['grp-L3-green-fund','grp-L3-immigration'] },
+      'grp-L2-imf-expansion':{ id:'grp-L2-imf-expansion', layer:2, type:'decision', title:'IMF Emergency Capacity Expansion', label:'IMF Expansion',
+        narrative:'The IMF is given a massive quota increase and new emergency lending facilities: a Climate Resilience Facility, a Food Security Emergency Fund, and a Demographic Transition Support Program. The multilateral architecture expands to match the scope of the polycrisis.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Expansion',note:'Crisis drives expansion of multilateral financial capacity'}, steep:{primary:'E',secondary:'P',note:'Multilateral financing as primary crisis management tool'}, geoEcon:{tool:'Alliance Architecture',note:'IMF as expanded crisis management institution'}, gameTheory:{type:'Collective Action Solution',note:'Multilateral capacity expansion overcomes individual nation resource constraints'} },
+        secondOrderEffects:['Emerging markets gain access to crisis financing without bilateral dependencies','IMF governance reform becomes urgent as quota shares rebalance toward emerging economies','Conditionality design evolves to address climate and food dimensions alongside macroeconomic stability'],
+        historicalAnalog:'IMF COVID emergency facilities 2020; SDR allocation $650bn 2021; quota review processes',
+        choicePrompt:'With IMF capacity expanded and financing deployed, what structural reform prevents the next polycrisis?',
+        choices:['grp-L3-early-warning','grp-L4-resilient-multilateral'] },
+      'grp-L2-emergency-governance':{ id:'grp-L2-emergency-governance', layer:2, type:'decision', title:'Emergency Governance Architecture', label:'Emergency Governance',
+        narrative:'Existing international institutions are granted emergency consolidated authority through a new meta-governance structure. The coordination body can override individual nation vetoes in crisis domains where collective action has failed. The arrangement is constitutionally unprecedented but operationally effective.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation',note:'Crisis forces governance innovation beyond existing multilateral architecture'}, steep:{primary:'P',secondary:'E',note:'Political architecture innovation under crisis pressure'}, geoEcon:{tool:'Alliance Architecture',note:'Emergency multilateral authority as crisis management tool'}, gameTheory:{type:'Super-game Solution',note:'Creating a new game structure that can coordinate across existing game failures'} },
+        secondOrderEffects:['Crisis response coordination improves dramatically','Sovereignty concerns create political resistance even in cooperating nations','Precedent for crisis governance challenges existing UN architecture'],
+        historicalAnalog:'Troika in Eurozone crisis; wartime combined boards; COVID vaccine procurement bodies',
+        choicePrompt:'With emergency governance providing coordination, what long-term institutional reform does the polycrisis catalyze?',
+        choices:['grp-L3-early-warning','grp-L4-resilient-multilateral'] },
+      'grp-L2-sacrifice-climate':{ id:'grp-L2-sacrifice-climate', layer:2, type:'decision', title:'Climate Crisis Sacrificed -- Deferred Indefinitely', label:'Sacrifice Climate',
+        narrative:'In the comprehensive response failure, climate adaptation is the domain sacrificed: emissions reduction and adaptation investment are deferred while financial stability and food security absorb available resources. The short-term logic is compelling. The consequences are structural and irreversible: a decade of additional warming is locked in.',
+        lensSnapshot:{ bigCycle:{phase:'Environmental Debt Accumulation',note:'Climate damage deferred becomes permanent; long-cycle environmental degradation locked in'}, steep:{primary:'En',secondary:'E',note:'Environmental sacrifice for short-term economic and social stability'}, geoEcon:{tool:'Resource Nationalism',note:'Short-term resource competition over long-term environmental commons'}, gameTheory:{type:'Tragedy of the Commons',note:'Short-term national rationality produces long-term global environmental catastrophe'} },
+        secondOrderEffects:['Paris Agreement effectively abandoned in practice','Climate adaptation costs in the 2030s are 3-5x higher due to deferral','Insurance markets withdraw from climate-exposed assets globally'],
+        historicalAnalog:'Kyoto Protocol non-compliance; COVID climate regression; historical pattern of crisis-driven emissions increases',
+        choicePrompt:'With climate sacrificed and warming locked in, what survival architecture do nations build for the hotter, more volatile world?',
+        choices:['grp-L3-managed-retreat','grp-L4-climate-migration-treaty'] },
+      'grp-L3-immigration':{ id:'grp-L3-immigration', layer:3, type:'decision', title:'Managed Immigration as Demographic Policy', label:'Managed Immigration',
+        narrative:'Nations with contracting working-age populations implement substantial managed immigration programs, targeting skills gaps, regional demographic needs, and integration pathways. The policy addresses the economic dimension of demographic decline while creating social and political pressures that require active integration architecture.',
+        lensSnapshot:{ bigCycle:{phase:'Demographic Management',note:'Immigration as institutional response to demographic Big Cycle contraction'}, steep:{primary:'S',secondary:'E',note:'Social integration investment as economic productivity maintenance strategy'}, geoEcon:{tool:'Alliance Architecture',note:'Managed migration corridors as bilateral foreign policy tool'}, gameTheory:{type:'Cooperative Migration Game',note:'Sending and receiving nations negotiate migration terms; mutual benefit possible'} },
+        secondOrderEffects:['Labor force supplemented; demographic decline partially offset','Social cohesion requires significant integration investment','Sending nations face brain drain; bilateral tensions around talent competition'],
+        historicalAnalog:'German guest worker programs; Canadian points-based immigration; post-war European labor migration',
+        choicePrompt:'With immigration supplementing demographics and bonds funding adaptation, how does the polycrisis resolution architecture prove its durability?',
+        choices:['grp-L4-resilient-multilateral','grp-L4-early-warning'] },
+      'grp-L3-productivity':{ id:'grp-L3-productivity', layer:3, type:'decision', title:'Productivity Investment to Offset Demographic Decline', label:'Productivity Investment',
+        narrative:'Rather than immigration, the demographic challenge is addressed through massive productivity investment: automation, AI deployment in public services, and infrastructure modernization. The goal is to maintain economic output with a smaller working-age population through technology rather than population growth.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Adaptation',note:'Technology compensates for demographic contraction'}, steep:{primary:'T',secondary:'E',note:'Technology investment as demographic policy tool'}, geoEcon:{tool:'Technological Statecraft',note:'AI and automation as national demographic strategy'}, gameTheory:{type:'Technology Substitution Game',note:'Replace labor with capital and technology'} },
+        secondOrderEffects:['AI and automation investment accelerates across all sectors','Political resistance from displaced workers; need for retraining investment','Productivity gains partially offset demographic headwinds but do not fully compensate'],
+        historicalAnalog:'Japan automation investment response to demographic aging; South Korea productivity push; EU digital decade investment',
+        choicePrompt:'With productivity investment partially offsetting demographic decline, what institutional architecture sustains the polycrisis resolution?',
+        choices:['grp-L4-resilient-multilateral','grp-L4-early-warning'] },
+      'grp-L3-green-fund':{ id:'grp-L3-green-fund', layer:3, type:'decision', title:'Global Green Recovery Fund', label:'Green Recovery Fund',
+        narrative:'Post-debt restructuring, a global green recovery fund is capitalized by developed nations and multilateral development banks. The fund finances climate adaptation, food system transformation, and demographic transition support simultaneously. It is the largest single international financial commitment since the Marshall Plan.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Investment',note:'Massive multilateral investment as polycrisis recovery architecture'}, steep:{primary:'E',secondary:'En',note:'Financial architecture addresses environmental, economic, and social recovery simultaneously'}, geoEcon:{tool:'Alliance Architecture',note:'Multilateral development finance as polycrisis recovery mechanism'}, gameTheory:{type:'Public Goods Provision',note:'Collective investment in global public goods: stability, climate, food'} },
+        secondOrderEffects:['Multilateral development bank capacity expands dramatically','Grant funding reduces debt burden in most fragile states','Fund governance disputes emerge between contributor and recipient nations'],
+        historicalAnalog:'Marshall Plan; COVAX failure and lessons; Global Fund for AIDS as partial model',
+        choicePrompt:'With the green recovery fund operational, what institutional innovation prevents the next polycrisis?',
+        choices:['grp-L4-resilient-multilateral','grp-L4-early-warning'] },
+      'grp-L3-early-warning':{ id:'grp-L3-early-warning', layer:3, type:'decision', title:'Global Polycrisis Early Warning System', label:'Early Warning System',
+        narrative:'A global early warning system tracks compound risk indicators across all five STEEP dimensions, with mandatory reporting and automatic escalation to international response bodies when convergence risk exceeds thresholds. The system addresses the core failure mode: foreseeable risks were visible but ignored.',
+        lensSnapshot:{ bigCycle:{phase:'Preventive Architecture',note:'Shifting from crisis response to crisis prevention'}, steep:{primary:'P',secondary:'T',note:'Political mandate for early warning; technology enables monitoring'}, geoEcon:{tool:'Alliance Architecture',note:'Multilateral monitoring as preventive governance'}, gameTheory:{type:'Commitment Device',note:'Pre-commitment to response before crisis pressure distorts decisions'} },
+        secondOrderEffects:['Political economy of prevention: mobilizing resources for risks not yet materialized is difficult','Nations with poor risk indicators resist monitoring regime','System successfully identifies next compound risk 3-5 years before it materializes'],
+        historicalAnalog:'FEMA post-Katrina redesign; WHO IHR post-SARS; nuclear early warning systems',
+        choicePrompt:'With the early warning system detecting emerging compound risks, how is the governance architecture designed to act preventively?',
+        choices:['grp-L4-resilient-multilateral','grp-L4-early-warning'] },
+      'grp-L3-managed-retreat':{ id:'grp-L3-managed-retreat', layer:3, type:'decision', title:'Managed Retreat from Climate-Exposed Zones', label:'Managed Retreat',
+        narrative:'With climate damage locked in from deferral, the strategic response is managed retreat: systematic relocation of populations and infrastructure from the most exposed coastal and low-lying zones. The process is enormously costly but prevents the catastrophic loss of life that unmanaged exposure would produce.',
+        lensSnapshot:{ bigCycle:{phase:'Territorial Reorganization',note:'Physical settlement patterns restructured by irreversible environmental change'}, steep:{primary:'En',secondary:'S',note:'Environmental forcing reorganizes social geography'}, geoEcon:{tool:'Fiscal Statecraft',note:'Public investment in managed population relocation'}, gameTheory:{type:'Forced Adaptation Game',note:'Managed cost accepted to avoid catastrophic unmanaged cost'} },
+        secondOrderEffects:['3-5% of global population requires relocation over 20 years','Real estate markets in exposed zones collapse entirely','New inland cities must be built; massive construction investment opportunity'],
+        historicalAnalog:'Isle de Jean Charles managed retreat; Netherlands managed coastal retreat; Pacific island relocation planning',
+        choicePrompt:'With managed retreat underway and populations relocating at scale, what governance architecture manages climate migration?',
+        choices:['grp-L4-climate-migration-treaty','grp-L4-resilient-multilateral'] },
+      'grp-L4-resilient-multilateral':{ id:'grp-L4-resilient-multilateral', layer:4, type:'terminal', title:'Resilient Multilateral Architecture', label:'Resilient Multilateralism',
+        narrative:'The polycrisis, despite its severity, catalyzes the most significant reform of international institutions since 1945. The UN Security Council is reformed; IMF quotas are rebalanced; a new climate-finance architecture is established; a global food security reserve system is created. The new architecture is explicitly designed for compound crises.',
+        outcome:'INSTITUTIONAL REFORM THROUGH CRISIS',
+        outcomeNarrative:"History's lesson: the most durable institutions are built in the aftermath of catastrophic failures. The Gray Rhino Polycrisis, precisely because it was preventable, generates the political will to build institutions strong enough to address the next foreseeable risks before they converge. The reform is incomplete and contested -- but it represents the most significant advance in international governance since Bretton Woods.",
+        finalLensScores:{ bigCycle:'Reset -- New Institutional Cycle', steep:{S:0.7,T:0.5,E:0.8,En:0.7,P:0.9}, geoEcon:'Alliance Architecture -- redesigned multilateral system', gameTheory:'Cooperative Game -- crisis generates political will for institutional innovation' },
+        historicalAnalog:'Post-WWII Bretton Woods; post-1930s Depression financial architecture; League of Nations failure -- UN',
+        aiPromptSeed:'Model how the reformed institutional architecture performs when tested by the next compound risk event -- AI governance failures, quantum technology disruption, and the arrival of AGI-level capabilities in the 2030s.' },
+      'grp-L4-early-warning':{ id:'grp-L4-early-warning', layer:4, type:'terminal', title:'Global Polycrisis Early Warning System -- Operational', label:'Early Warning Operational',
+        narrative:'The early warning system is institutionalized and begins detecting the next generation of compound risks years before they materialize, enabling preventive action rather than crisis response.',
+        outcome:'PREVENTIVE GOVERNANCE ARCHITECTURE',
+        outcomeNarrative:'The early warning system represents a fundamental shift in international governance: from crisis response to crisis prevention. By tracking compound risk convergence and triggering coordinated response before crises materialize, the system addresses the core failure mode of the Gray Rhino Polycrisis. The architecture works -- the next compound risk is identified and partially addressed before it cascades.',
+        finalLensScores:{ bigCycle:'Institutional Prevention Architecture', steep:{S:0.5,T:0.8,E:0.6,En:0.7,P:0.8}, geoEcon:'Alliance Architecture -- preventive multilateral monitoring', gameTheory:'Commitment Device -- pre-commitment to response before crisis pressure distorts decisions' },
+        historicalAnalog:'FEMA post-Katrina redesign; WHO IHR post-SARS; nuclear early warning systems',
+        aiPromptSeed:'Model how a global polycrisis early warning system interacts with the political economy of prevention -- specifically the challenge of mobilizing resources for risks that have not yet materialized, and how governance architecture overcomes this structural bias toward inaction.' },
+      'grp-L4-climate-migration-treaty':{ id:'grp-L4-climate-migration-treaty', layer:4, type:'terminal', title:'Climate Migration Treaty', label:'Climate Migration Treaty',
+        narrative:'The scale of climate-forced displacement necessitates a new international legal framework: the Climate Migration Treaty, establishing legal status for climate refugees, burden-sharing mechanisms among host nations, and financial compensation from high-emitting nations to receiving nations.',
+        outcome:'NEW INTERNATIONAL MIGRATION LAW ARCHITECTURE',
+        outcomeNarrative:'The Climate Migration Treaty fills a catastrophic gap in international law. It provides legal status and protection for populations displaced by climate change. The treaty is contested, imperfect, and unevenly ratified, but it establishes a framework that reduces the worst outcomes for the most exposed populations.',
+        finalLensScores:{ bigCycle:'Late Cycle -- New Legal Architecture', steep:{S:0.9,T:0.3,E:0.6,En:1.0,P:0.8}, geoEcon:'Alliance Architecture -- burden-sharing treaty', gameTheory:'Cooperative Game -- collective obligation accepted for climate displacement' },
+        historicalAnalog:'1951 Refugee Convention; 1967 Protocol; Nansen Passport; Pacific climate migration agreements',
+        aiPromptSeed:'Model how the Climate Migration Treaty performs as climate impacts intensify through 2040, particularly as island nations become uninhabitable and major river deltas face permanent flooding.' }
+    }
+  },
+
+  { id:'imf-energy-shock-2026', cluster:'systemic', title:'IMF 2026 Energy Shock Matrix', era:'2026-2028', timeHorizon:'near-term', primaryLens:'geoEcon',
+    description:'Regional conflict disrupts major energy logistics nodes, pushing global growth to 2.0% in severe scenarios, straining energy-importing currencies, and forcing divergent central bank responses.',
+    tags:['energy shock','oil price','regional conflict','stagflation','central bank','emerging markets'],
+    rootNodeId:'ies26-L0',
+    nodes:{
+      'ies26-L0':{ id:'ies26-L0', layer:0, type:'trigger', title:'Regional Conflict Disrupts Strait of Hormuz', label:'Hormuz Disruption',
+        narrative:'A major regional conflict in the Middle East disrupts the Strait of Hormuz -- the chokepoint through which 20% of global oil and 25% of global LNG transits. Insurance premiums spike; tanker traffic declines; spot oil prices surge. The shock lands on a global economy already carrying elevated sovereign debt from post-COVID fiscal expansion and central banks that have only recently returned to positive real rates.',
+        lensSnapshot:{ bigCycle:{phase:'Late Cycle Fragility',note:'Shock arrives when fiscal buffers are thin and monetary ammunition is limited'}, steep:{primary:'P',secondary:'E',note:'Geopolitical trigger; economic transmission'}, geoEcon:{tool:'Resource Nationalism',note:'Energy chokepoint control as ultimate geopolitical weapon'}, gameTheory:{type:'Disruption Game',note:'Conflict actors weaponize energy transit; importers face coordination problems'} },
+        choicePrompt:'What is the trajectory of the regional conflict and its energy market impact?',
+        choices:['ies26-L1-contained','ies26-L1-severe','ies26-L1-escalating'] },
+      'ies26-L1-contained':{ id:'ies26-L1-contained', layer:1, type:'decision', title:'Contained Scenario -- Conflict Resolves; Oil at $80', label:'Contained Conflict',
+        narrative:'Diplomatic intervention -- US-brokered ceasefire, Iranian back-channel negotiations, Saudi mediation -- contains the conflict within weeks. Energy markets normalize around $80/barrel. The disruption is sharp but brief. Global growth moderates to a stable 3.1%. Central banks maintain existing trajectories.',
+        lensSnapshot:{ bigCycle:{phase:'Stable Late Cycle',note:'Shock absorbed without triggering phase transition'}, steep:{primary:'E',secondary:'P',note:'Brief economic disruption; political resolution'}, geoEcon:{tool:'Alliance Architecture',note:'Diplomatic resolution preserves energy market stability'}, gameTheory:{type:'Deterrence -- Successful',note:'Threat of further escalation prompts resolution'} },
+        secondOrderEffects:['Strategic petroleum reserve releases suppress spike','Energy transition investment accelerates as policymakers note vulnerability','Insurance premiums remain elevated; shipping costs structurally higher'],
+        historicalAnalog:'Gulf of Oman incidents 2019; brief oil spike and recovery',
+        choicePrompt:'With markets stabilized, how do central banks manage the brief inflationary spike?',
+        choices:['ies26-L2-hold','ies26-L3-spr-expansion'] },
+      'ies26-L1-severe':{ id:'ies26-L1-severe', layer:1, type:'decision', title:'Severe Scenario -- Oil at $105; Growth Drops to 2.0%', label:'Severe Disruption',
+        narrative:'The conflict proves intractable. Oil supply disruptions persist for three to six months. Brent crude rises to $105/barrel. Global growth plummets to 2.0% -- near recessionary. Energy-importing nations face the dual crisis of growth deceleration and inflation. The Japanese Yen and Euro are particularly strained; capital flows toward USD, CHF, and commodity currency safe havens.',
+        lensSnapshot:{ bigCycle:{phase:'Late Cycle Shock',note:'Oil shock triggers potential debt deflation in most exposed economies'}, steep:{primary:'E',secondary:'P',note:'Stagflationary environment; political stability in importing nations threatened'}, geoEcon:{tool:'Resource Nationalism',note:'Energy weaponization at maximum intensity'}, gameTheory:{type:'Sequential Crisis Game',note:'Each week of conflict imposes compounding costs on importers'} },
+        secondOrderEffects:['Yen depreciates beyond 165 vs USD; BoJ faces impossible tradeoff','Euro energy import bill surges; current account deficits widen dramatically','Emerging market dollar-denominated debt servicing costs rise sharply'],
+        historicalAnalog:'1973 oil shock; 1979 second oil shock; 2022 Russian energy weaponization in Europe',
+        choicePrompt:'With stagflation at 2.0% growth and surging oil prices, what is the central bank policy response?',
+        choices:['ies26-L2-hold-raise','ies26-L2-emergency-cut'] },
+      'ies26-L1-escalating':{ id:'ies26-L1-escalating', layer:1, type:'decision', title:'Escalating Scenario -- Broader Regional War; Oil Beyond $130', label:'Escalating Conflict',
+        narrative:'The conflict draws in additional state actors. Iranian-linked forces directly attack energy infrastructure in Saudi Arabia. The Strait of Hormuz is formally mined. Oil spikes beyond $130/barrel. The global economy faces a supply shock of 1973-magnitude in a financial environment with significantly less monetary policy space.',
+        lensSnapshot:{ bigCycle:{phase:'Systemic Shock',note:'Energy shock of this magnitude can trigger global recession and debt crises'}, steep:{primary:'P',secondary:'E',note:'War drives complete energy market disruption; geopolitical crisis management'}, geoEcon:{tool:'Resource Nationalism',note:'Energy infrastructure warfare as strategic weapon'}, gameTheory:{type:'Catastrophic Game',note:'Escalation logic takes over; all actors face catastrophic payoffs'} },
+        secondOrderEffects:['Multiple sovereign debt crises triggered in energy-importing emerging markets','Food security crises emerge as fertilizer production (natural gas-dependent) collapses','Global recession virtually certain; financial system stress tests activated'],
+        historicalAnalog:'1973 oil embargo + 1979 Iranian Revolution combined scenario; no precise historical precedent',
+        choicePrompt:'With oil beyond $130 and global recession imminent, what emergency international economic architecture is deployed?',
+        choices:['ies26-L2-g20-summit','ies26-L2-emergency-cut'] },
+      'ies26-L2-hold':{ id:'ies26-L2-hold', layer:2, type:'decision', title:'Hold Rates -- Brief Spike Absorbed', label:'Hold Rates',
+        narrative:'With the conflict resolved and oil normalizing, central banks correctly identify the inflation spike as transitory and hold rates steady. The contained response allows growth to continue at 3.1% without triggering a secondary shock from unnecessary tightening.',
+        lensSnapshot:{ bigCycle:{phase:'Stable Continuation',note:'Correct policy diagnosis avoids unnecessary tightening'}, steep:{primary:'E',secondary:'P',note:'Measured response; brief disruption absorbed'}, geoEcon:{tool:'Monetary Policy',note:'Correct identification of transitory vs. persistent inflation'}, gameTheory:{type:'Optimal Response',note:'Correct calibration of policy response to shock type'} },
+        secondOrderEffects:['Growth continues near 3.1%; no secondary policy-induced slowdown','Energy transition investment accelerates as vulnerability reminder persists','Strategic petroleum reserves rebuilt before next potential disruption'],
+        historicalAnalog:'Fed 2021 initial transitory assessment; partially vindicated in contained shock scenarios',
+        choicePrompt:'With the crisis absorbed, how does the nation build energy security architecture to prevent future exposure?',
+        choices:['ies26-L3-spr-expansion','ies26-L4-energy-diversification'] },
+      'ies26-L2-hold-raise':{ id:'ies26-L2-hold-raise', layer:2, type:'decision', title:'Hold or Raise Rates -- Price Stability Priority', label:'Hold/Raise Rates',
+        narrative:'Central banks hold rates or tighten slightly, treating the energy shock as inflationary rather than recessionary. The priority is preventing wage-price spirals. The cost: the economic slowdown is amplified. Mortgage markets tighten; business investment contracts; unemployment begins to rise.',
+        lensSnapshot:{ bigCycle:{phase:'Policy Tightening',note:'Central banks defend inflation credibility at cost of growth'}, steep:{primary:'E',secondary:'P',note:'Rate policy inflicts additional economic pain on already-slowing economy'}, geoEcon:{tool:'Monetary Policy',note:'Interest rate as primary anti-inflation tool'}, gameTheory:{type:'Credibility Game',note:'Central bank defends inflation expectations at short-term growth cost'} },
+        secondOrderEffects:['Real estate markets correct as mortgage rates rise','Corporate debt refinancing costs surge for floating rate borrowers','Dollar strengthens further, amplifying emerging market debt stress'],
+        historicalAnalog:'ECB 2022-2023 hiking cycle during energy shock; Fed 2022 response to supply-driven inflation',
+        choicePrompt:'With rates held and growth slowing, how do fiscal authorities respond?',
+        choices:['ies26-L3-energy-subsidies','ies26-L4-emerging-market-crisis'] },
+      'ies26-L2-emergency-cut':{ id:'ies26-L2-emergency-cut', layer:2, type:'decision', title:'Emergency Rate Cuts -- Growth Priority', label:'Emergency Cuts',
+        narrative:'Central banks pivot to emergency cuts, treating the growth collapse as more dangerous than the inflation spike. The cuts provide immediate relief to credit markets and mortgage holders. But cutting into an oil shock risks losing inflation credibility and triggering a wage-price spiral.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Crisis Response',note:'Accepting inflation risk to prevent financial system collapse'}, steep:{primary:'E',secondary:'P',note:'Policy tradeoff: inflation credibility vs. growth and financial stability'}, geoEcon:{tool:'Monetary Policy',note:'Emergency monetary support to prevent recession deepening'}, gameTheory:{type:'Crisis Management',note:'Short-term stabilization at potential long-term credibility cost'} },
+        secondOrderEffects:['Credit markets stabilize; mortgage defaults reduced','Inflation risk re-emerges if conflict does not resolve quickly','Currency depreciates as rate differential narrows; imports become more expensive'],
+        historicalAnalog:'ECB 2011 emergency rate cuts reversed 2012; Fed March 2020 emergency cuts',
+        choicePrompt:'With emergency cuts deployed, what fiscal policy supplements monetary support?',
+        choices:['ies26-L3-energy-subsidies','ies26-L4-emerging-market-crisis'] },
+      'ies26-L2-g20-summit':{ id:'ies26-L2-g20-summit', layer:2, type:'decision', title:'G20 Emergency Summit -- Coordinated Response', label:'G20 Emergency Response',
+        narrative:'An emergency G20 summit is convened within weeks of the escalation. Leaders coordinate a massive strategic reserve release, negotiate de-escalation with conflict parties, establish emergency food supply protocols, and pledge coordinated fiscal support for the most exposed emerging markets.',
+        lensSnapshot:{ bigCycle:{phase:'Crisis Coordination',note:'G20 multilateral response to energy and economic crisis'}, steep:{primary:'P',secondary:'E',note:'Political coordination enables economic crisis management'}, geoEcon:{tool:'Alliance Architecture',note:'G20 as coordinating institution for energy crisis management'}, gameTheory:{type:'Cooperative Game -- Crisis Response',note:'Collective action overcomes individual nation prisoner dilemma'} },
+        secondOrderEffects:['Strategic reserve releases collectively reduce oil price spike by $15-25','Coordinated message to conflict parties creates de-escalation pressure','Emerging market financial support prevents sovereign debt cascade'],
+        historicalAnalog:'G20 London Summit April 2009; coordinated COVID vaccine financing; energy security summits',
+        choicePrompt:'With G20 coordination deployed, how is the energy architecture reformed to prevent future exposure?',
+        choices:['ies26-L3-spr-expansion','ies26-L4-energy-diversification'] },
+      'ies26-L3-spr-expansion':{ id:'ies26-L3-spr-expansion', layer:3, type:'decision', title:'Strategic Petroleum Reserve Expansion', label:'SPR Expansion',
+        narrative:'The crisis demonstrates that existing strategic reserves were insufficient for a multi-month disruption. A coordinated expansion of strategic petroleum and LNG reserves among IEA member states is implemented, doubling coverage from 90 days to 180 days.',
+        lensSnapshot:{ bigCycle:{phase:'Resilience Investment',note:'Crisis drives investment in physical energy security buffers'}, steep:{primary:'E',secondary:'P',note:'Economic security investment driven by political crisis memory'}, geoEcon:{tool:'Alliance Architecture',note:'IEA reserve coordination deepened'}, gameTheory:{type:'Insurance Investment',note:'Collective reserves reduce individual vulnerability to future shocks'} },
+        secondOrderEffects:['Global oil demand increases temporarily to build reserves','Storage capacity investment creates construction boom','Coordinated reserves change OPEC+ pricing calculations'],
+        historicalAnalog:'IEA reserve requirements expansion discussions; US SPR refill debates; LNG strategic reserve programs',
+        choicePrompt:'With expanded reserves providing buffer time, what additional energy security measures reduce structural dependence?',
+        choices:['ies26-L4-energy-diversification','ies26-L4-transition-acceleration'] },
+      'ies26-L3-energy-subsidies':{ id:'ies26-L3-energy-subsidies', layer:3, type:'decision', title:'Broad Energy Price Subsidies', label:'Energy Subsidies',
+        narrative:'Governments implement broad energy price caps and subsidies to shield consumers and firms from the full cost of the shock. The fiscal bill is enormous -- potentially 3-5% of GDP annually -- and the debt impact adds to already-elevated sovereign debt levels.',
+        lensSnapshot:{ bigCycle:{phase:'Fiscal Fragility',note:'Subsidies add to already-elevated sovereign debt'}, steep:{primary:'E',secondary:'P',note:'Fiscal support prevents social unrest; creates long-term debt burden'}, geoEcon:{tool:'Fiscal Statecraft',note:'Subsidies as demand-side energy shock management tool'}, gameTheory:{type:'Political Survival Game',note:'Subsidies buy political stability at long-term fiscal cost'} },
+        secondOrderEffects:['Fiscal deficits surge; sovereign debt stress increases','Energy consumption does not adjust; underlying vulnerability persists','Bond market pressures governments to eventually reform subsidies'],
+        historicalAnalog:'European energy subsidies 2022-2023 estimated at 800bn EUR; UK energy price guarantee',
+        choicePrompt:'With subsidies limiting the immediate social damage but creating long-term fiscal stress, what structural energy reform follows?',
+        choices:['ies26-L4-transition-acceleration','ies26-L4-energy-diversification'] },
+      'ies26-L4-energy-diversification':{ id:'ies26-L4-energy-diversification', layer:4, type:'terminal', title:'Energy Supply Diversification Architecture', label:'Energy Diversification',
+        narrative:'The crisis drives the fastest diversification of energy supply in history: new LNG import terminals, interconnectors with alternative suppliers, and massive renewable energy deployment. Import dependence on any single chokepoint is reduced below 5% within 5 years.',
+        outcome:'ENERGY SUPPLY DIVERSIFICATION -- REDUCED CHOKEPOINT DEPENDENCE',
+        outcomeNarrative:'The Hormuz crisis proves to be the catalyst for the energy diversification that climate policy alone could not motivate. Within five years, major importing nations have reduced their exposure to any single chokepoint from 20%+ to under 5%. The energy system is more expensive but dramatically more resilient. The geopolitical leverage of energy exporters over importers declines permanently.',
+        finalLensScores:{ bigCycle:'Transition -- Energy Architecture Restructuring', steep:{S:0.4,T:0.7,E:0.8,En:0.8,P:0.7}, geoEcon:'Resource Nationalism -- diversification reduces vulnerability', gameTheory:'Insurance Architecture -- diversification eliminates single-point failure risk' },
+        historicalAnalog:'EU energy diversification post-2022 Russia invasion; Germany LNG terminal construction; European renewables acceleration',
+        aiPromptSeed:'Model how energy supply diversification driven by the 2026 Hormuz crisis intersects with the long-term energy transition, tracing whether diversification investment creates stranded asset risk or accelerates renewable deployment.' },
+      'ies26-L4-transition-acceleration':{ id:'ies26-L4-transition-acceleration', layer:4, type:'terminal', title:'Accelerated Energy Transition', label:'Transition Acceleration',
+        narrative:'The crisis provides the political shock necessary to dramatically accelerate the energy transition. Renewable energy targets are doubled; heat pump and EV adoption incentives are tripled; carbon pricing is extended. The energy transition that was projected to take 30 years is accelerated to 15.',
+        outcome:'ENERGY CRISIS ACCELERATES CLEAN TRANSITION',
+        outcomeNarrative:'The 2026 energy shock does what decades of climate policy could not: it makes the energy transition an immediate security priority rather than a long-term environmental obligation. The acceleration is real and lasting. Import dependence on fossil fuel chokepoints declines rapidly. The geopolitical map of energy power is redrawn within a decade.',
+        finalLensScores:{ bigCycle:'Transition -- Clean Energy Cycle Entry', steep:{S:0.6,T:0.9,E:0.7,En:0.9,P:0.8}, geoEcon:'Technological Statecraft -- energy transition as security strategy', gameTheory:'Long-Term Investment -- crisis converts collective action problem into individual security imperative' },
+        historicalAnalog:'1970s oil crisis accelerating nuclear and renewables investment; 2022 Russia invasion tripling European renewable deployment',
+        aiPromptSeed:'Model how a geopolitically-driven acceleration of the energy transition in 2026-2030 interacts with the incumbent fossil fuel geopolitical architecture, tracing the petrostate adjustment challenge and the emergence of new clean energy geopolitics.' },
+      'ies26-L4-emerging-market-crisis':{ id:'ies26-L4-emerging-market-crisis', layer:4, type:'terminal', title:'Emerging Market Debt and Currency Crisis', label:'EM Debt Crisis',
+        narrative:'The combination of high oil prices, a strong dollar, and tight monetary conditions triggers a wave of emerging market sovereign debt distress. Nations with large dollar-denominated debt and oil import dependence face simultaneous currency depreciation, inflation, and growth collapse.',
+        outcome:'EMERGING MARKET DEBT CASCADE',
+        outcomeNarrative:'The energy shock triggers the most severe emerging market debt crisis since the 1980s. Multiple nations require IMF emergency programs; several default on external debt. The crisis concentrates pain in the most vulnerable nations -- those with least fiscal space and highest energy import dependence. The recovery is slow; political instability in several affected nations reshapes regional geopolitics for a decade.',
+        finalLensScores:{ bigCycle:'Late Cycle -- Debt Crisis Cascade', steep:{S:0.8,T:0.3,E:1.0,En:0.6,P:0.9}, geoEcon:'Sanctions + Resource Nationalism -- energy weaponization causes EM debt cascade', gameTheory:'Contagion Game -- crisis spreads through dollar-denominated debt channels' },
+        historicalAnalog:'1980s debt crisis triggered by Volcker shock and oil price; 1997 Asian crisis; 2022 Sri Lanka, Pakistan, Bangladesh energy shocks',
+        aiPromptSeed:'Model how an emerging market debt cascade triggered by the 2026 energy shock reshapes geopolitical alignments, particularly whether distressed nations turn to China for bilateral assistance and what conditions are attached.' }
+    }
+  },
+
+  // ── CLUSTER C: GEOECONOMIC ORDERS ────────────────────────────────────────
+
+  { id:'bipolar-economy', cluster:'geoeconomic', title:'The Bipolar Economy', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
+    description:'US-China competition produces two partially decoupled economic blocs, each with competing technology standards, payment systems, and trade architectures -- forcing every nation to choose or hedge.',
+    tags:['US-China','decoupling','sanctions','export controls','technology standards','reserve currency'],
+    rootNodeId:'bpe-L0',
+    nodes:{
+      'bpe-L0':{ id:'bpe-L0', layer:0, type:'trigger', title:'US-China Economic Decoupling Accelerates', label:'Decoupling Trigger',
+        narrative:'A series of escalating actions -- expanded export controls on advanced semiconductors, Chinese retaliation through rare earth restrictions, and the formal establishment of two competing 5G technology architectures -- crystallizes the structural reality: the world economy is bifurcating into two partially separate blocs. Nations that once enjoyed access to both markets now face explicit pressure to choose.',
+        lensSnapshot:{ bigCycle:{phase:'Hegemonic Competition',note:'Incumbent vs. rising challenger; classic power transition dynamics'}, steep:{primary:'T',secondary:'P',note:'Technology competition as primary driver; political architecture as secondary'}, geoEcon:{tool:'Export Controls',note:'Technology controls as primary economic weapon'}, gameTheory:{type:'Prisoner\'s Dilemma',note:'Both blocs would benefit from cooperation but each fears unilateral defection'} },
+        choicePrompt:'How does the leading power respond to the challenger\'s accelerating capability development?',
+        choices:['bpe-L1-containment','bpe-L1-accommodation','bpe-L1-selective'] },
+      'bpe-L1-containment':{ id:'bpe-L1-containment', layer:1, type:'decision', title:'Maximum Pressure -- Full Technology Containment', label:'Full Containment',
+        narrative:'The hegemon pursues maximum pressure: comprehensive technology controls, broad financial sanctions, alliance coercion to force others to choose sides, and explicit efforts to reverse the challenger\'s industrial capacity gains. The strategy aims to deny the challenger access to the enabling technologies for the next productive cycle.',
+        lensSnapshot:{ bigCycle:{phase:'Hegemonic Defense',note:'Incumbent uses full toolkit to prevent challenger from reaching parity'}, steep:{primary:'T',secondary:'P',note:'Technology denial as primary tool; geopolitical pressure as enforcement'}, geoEcon:{tool:'Export Controls',note:'Comprehensive technology and financial containment strategy'}, gameTheory:{type:'Total Competition',note:'Zero-sum competition for technological leadership'} },
+        secondOrderEffects:['Global supply chains forced to choose one architecture or face penalties from both','Neutral nations face enormous pressure to align; non-alignment becomes costly','Technology bifurcation accelerates; two incompatible global systems emerge'],
+        historicalAnalog:'US containment strategy vs. USSR; China semiconductor controls 2022-2024 escalation',
+        choicePrompt:'With full containment deployed, how does the challenger respond to the technology denial?',
+        choices:['bpe-L2-sanctions','bpe-L2-indigenous'] },
+      'bpe-L1-accommodation':{ id:'bpe-L1-accommodation', layer:1, type:'decision', title:'Accommodation -- Managed Competition', label:'Accommodation',
+        narrative:'Rather than maximum pressure, the hegemon focuses on maintaining economic relationships while managing competitive dynamics. Trade continues in non-sensitive sectors; diplomatic channels remain open. The rival\'s rise is accepted as a structural reality to be managed rather than reversed.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Decline',note:'Hegemon accepts relative decline to preserve absolute gains'}, steep:{primary:'E',secondary:'P',note:'Economic interests preserved through coexistence; political tensions managed'}, geoEcon:{tool:'Alliance Architecture',note:'Positive engagement maintains economic relationships'}, gameTheory:{type:'Positive-Sum Cooperation',note:'Both hegemons benefit from ongoing trade; rivalry managed rather than escalated'} },
+        secondOrderEffects:['Boundary states gain leverage as they are competed for rather than coerced','Technology flows between blocs continue in dual-use gray areas','Global economic integration maintained at higher level than containment scenario'],
+        historicalAnalog:'US-China engagement strategy 2000-2016; Obama Pacific pivot with maintained commercial ties',
+        choicePrompt:'With accommodation maintaining trade flows, how does the hegemon manage boundary countries developing closer ties with the rival?',
+        choices:['bpe-L2-sanctions','bpe-L3-defend-dollar'] },
+      'bpe-L1-selective':{ id:'bpe-L1-selective', layer:1, type:'decision', title:'Selective Decoupling -- Small Yard, High Fence', label:'Selective Decoupling',
+        narrative:'The hegemon pursues a precise decoupling strategy: extremely tight controls on genuinely dual-use frontier technologies (advanced AI chips, quantum computing, advanced biotech) while maintaining broad commercial engagement in non-sensitive sectors. The small yard, high fence approach attempts to deny the rival only the technologies that matter most.',
+        lensSnapshot:{ bigCycle:{phase:'Strategic Competition -- Managed',note:'Preserves economic relationship while denying specific strategic capabilities'}, steep:{primary:'T',secondary:'E',note:'Technology specificity as key design challenge'}, geoEcon:{tool:'Export Controls',note:'Precision controls: maximum impact, minimum economic disruption'}, gameTheory:{type:'Targeted Containment',note:'Selective defection: cooperate broadly, defect specifically'} },
+        secondOrderEffects:['Rival focuses all innovation effort on breaking the specific controls','Allied nations pressure the hegemon to maintain commercial access','Control boundary between strategic and non-strategic technologies continuously contested'],
+        historicalAnalog:"US 'small yard, high fence' formulation; Commerce Department controls 2022-2024 on advanced AI chips",
+        choicePrompt:'With selective decoupling in place, how does the rival respond to the specific technology denials?',
+        choices:['bpe-L2-indigenous','bpe-L3-allied-tech'] },
+      'bpe-L2-sanctions':{ id:'bpe-L2-sanctions', layer:2, type:'decision', title:'Aggressive Secondary Sanctions Enforcement', label:'Secondary Sanctions',
+        narrative:'The hegemon uses dollar-denominated financial system dominance to coerce boundary countries: any firm or financial institution that maintains significant ties with the sanctioned rival is denied access to the hegemon\'s financial system. The extraterritorial reach of these sanctions is massive -- and massively resented.',
+        lensSnapshot:{ bigCycle:{phase:'Weaponized Hegemony',note:'Using reserve currency as weapon accelerates its erosion'}, steep:{primary:'P',secondary:'E',note:'Sanctions as political tool; economic costs distributed globally'}, geoEcon:{tool:'Sanctions',note:'Dollar weaponization: extraterritorial financial coercion'}, gameTheory:{type:'Coercion Game',note:'Hegemon tries to make compliance more attractive than defiance'} },
+        secondOrderEffects:['Accelerates de-dollarization efforts among sanctioned and threatened nations','Rival deepens alternative payment systems (CIPS, SWIFT alternatives)','Non-aligned nations accelerate reserve diversification away from dollar'],
+        historicalAnalog:'Iran SWIFT exclusion 2012; Russia SWIFT exclusion 2022; dollar weaponization and subsequent BRICS de-dollarization discussion',
+        choicePrompt:'As secondary sanctions accelerate de-dollarization, how does the hegemon respond to the emerging alternative financial architecture?',
+        choices:['bpe-L3-defend-dollar','bpe-L4-digital-dollar'] },
+      'bpe-L2-indigenous':{ id:'bpe-L2-indigenous', layer:2, type:'decision', title:'Rival Accelerates Indigenous Technology Development', label:'Indigenous Innovation Push',
+        narrative:'Cut off from the hegemon\'s technology supply chains, the rival government mobilizes the full resources of the state: massive R&D subsidies, talent recruitment programs, state-directed industrial policy. The denied technology becomes the organizing principle of the rival\'s innovation system.',
+        lensSnapshot:{ bigCycle:{phase:'Challenger Rising -- Technological',note:'Technology denial accelerates challenger\'s indigenous capability development'}, steep:{primary:'T',secondary:'E',note:'Forced technological self-sufficiency as development model'}, geoEcon:{tool:'Export Controls',note:'Controls as accidental subsidy to rival R&D effort'}, gameTheory:{type:'Unintended Consequence',note:"Hegemon's denial strategy may accelerate challenger's capability"} },
+        secondOrderEffects:['Rival produces inferior but functional alternatives faster than expected','Third countries now have a second source for critical technologies','Technology gap between blocs narrows; control effectiveness degrades'],
+        historicalAnalog:'Chinese SMIC semiconductor development; Huawei Kirin chip post-sanctions; Chinese military-civil fusion',
+        choicePrompt:'As the rival narrows the technology gap, how does the hegemon respond to preserve its lead?',
+        choices:['bpe-L3-allied-tech','bpe-L4-dual-use-standards'] },
+      'bpe-L3-defend-dollar':{ id:'bpe-L3-defend-dollar', layer:3, type:'decision', title:'Active Defense of Dollar Reserve Currency Status', label:'Defend Dollar',
+        narrative:'The hegemon doubles down on defending dollar primacy: pressuring allies to maintain dollar invoicing, deploying military presence to protect key commodity markets priced in dollars, and threatening additional sanctions against nations building alternative payment systems.',
+        lensSnapshot:{ bigCycle:{phase:'Reserve Currency Defense',note:'Defending monetary dominance is historically associated with late hegemonic phase'}, steep:{primary:'P',secondary:'E',note:'Military and diplomatic power deployed to defend monetary system'}, geoEcon:{tool:'Currency Manipulation',note:'Defense of dollar as dominant invoice and reserve currency'}, gameTheory:{type:'Status Quo Defense',note:"Incumbent defends existing architecture against challenger's efforts to revise it"} },
+        secondOrderEffects:["Defense of dollar primacy requires expanding geopolitical commitments","Resentment among sanctioned nations accelerates alternative architecture development","Dollar's share of global reserves declines gradually despite defense efforts"],
+        historicalAnalog:'Petrodollar defense mechanisms; US opposition to SDR expansion; SWIFT control maintenance',
+        choicePrompt:'With dollar hegemony under structural pressure, what long-term monetary architecture does the hegemon build?',
+        choices:['bpe-L4-digital-dollar','bpe-L4-multipolar-currency'] },
+      'bpe-L3-allied-tech':{ id:'bpe-L3-allied-tech', layer:3, type:'decision', title:'Allied Technology Pool -- Collective Innovation', label:'Allied Tech Pool',
+        narrative:'Rather than competing alone, the hegemon deepens technology cooperation with key allies: joint R&D programs, shared technology standards, mutual recognition of export controls, and coordinated investment in critical technology sectors. The allied bloc collectively outpaces the rival.',
+        lensSnapshot:{ bigCycle:{phase:'Allied Consolidation',note:'Collective innovation as hegemonic bloc maintenance strategy'}, steep:{primary:'T',secondary:'P',note:'Technology diplomacy as primary alliance management tool'}, geoEcon:{tool:'Alliance Architecture',note:'Technology sharing as alliance deepening mechanism'}, gameTheory:{type:'Coalition Game',note:'Allied bloc coordination outperforms individual actor strategies'} },
+        secondOrderEffects:['Allied nations gain technology access previously restricted','Innovation rate within allied bloc accelerates through knowledge sharing','Boundary states face even higher pressure to align as technology gap widens'],
+        historicalAnalog:'AUKUS technology sharing 2021; Quad technology cooperation; Chip 4 Alliance (US, Japan, South Korea, Taiwan)',
+        choicePrompt:'With allied technology cooperation deepening, how is the civilian-military technology boundary managed within the alliance?',
+        choices:['bpe-L4-dual-use-standards','bpe-L4-digital-dollar'] },
+      'bpe-L4-digital-dollar':{ id:'bpe-L4-digital-dollar', layer:4, type:'terminal', title:'Digital Dollar -- CBDC-Based Reserve Currency', label:'Digital Dollar',
+        narrative:'The hegemon launches a wholesale CBDC that provides faster, more programmable dollar access to allied financial systems. The CBDC deepens dollar integration in allied economies while providing a new tool for monitoring and potentially restricting sanctioned entities.',
+        outcome:'DIGITAL RESERVE CURRENCY ARCHITECTURE',
+        outcomeNarrative:'The digital dollar successfully deepens dollar integration among allies and provides new tools for financial statecraft. But the programmability that enables enforcement also enables surveillance -- allies accept the architecture but are aware of the dependency it creates. The rival responds with its own digital currency architecture; the monetary system bifurcates digitally.',
+        finalLensScores:{ bigCycle:'Hegemonic Renewal via Technology', steep:{S:0.4,T:1.0,E:0.8,En:0.2,P:0.9}, geoEcon:'Currency Manipulation + Technological Statecraft', gameTheory:'First-Mover Advantage -- establishes digital reserve currency standard' },
+        historicalAnalog:'Federal Reserve FedNow; BIS mBridge CBDC project; digital yuan (e-CNY) international push',
+        aiPromptSeed:'Model how competing CBDC architectures -- the digital dollar and the digital yuan -- reshape global financial flows, sanctions effectiveness, and de-dollarization trajectories through 2035.' },
+      'bpe-L4-dual-use-standards':{ id:'bpe-L4-dual-use-standards', layer:4, type:'terminal', title:'Allied Dual-Use Technology Standards', label:'Allied Tech Standards',
+        narrative:'The allied bloc establishes common standards for dual-use technology export controls, removing the patchwork inconsistencies that allowed the rival to source controlled technologies from allied nations with weaker controls.',
+        outcome:'ALLIED TECHNOLOGY CONTROL ARCHITECTURE',
+        outcomeNarrative:'Harmonized allied export controls significantly improve the effectiveness of technology denial. The rival\'s access to controlled technologies drops substantially. But the architecture requires unprecedented coordination on a technically complex and commercially sensitive issue, and political pressures within allied nations create ongoing compliance challenges.',
+        finalLensScores:{ bigCycle:'Allied Consolidation -- Technology', steep:{S:0.3,T:0.9,E:0.6,En:0.2,P:0.8}, geoEcon:'Export Controls -- harmonized allied control architecture', gameTheory:'Cooperative Game -- allied coordination overcomes individual defection incentives' },
+        historicalAnalog:'Wassenaar Arrangement reform discussions; US-Netherlands-Japan semiconductor equipment controls 2023; G7 technology coordination',
+        aiPromptSeed:'Extend this simulation to model how harmonized allied technology controls intersect with AI development, quantum computing, and biotechnology -- particularly how these controls shape the trajectory of the global AI race through 2030.' },
+      'bpe-L4-multipolar-currency':{ id:'bpe-L4-multipolar-currency', layer:4, type:'terminal', title:'Managed Multipolar Currency System', label:'Multipolar Currencies',
+        narrative:'Rather than defending dollar dominance at any cost, the hegemon accepts a managed transition to a multipolar reserve currency system: dollar, euro, and potentially a basket currency coexist, with each dominant in its aligned bloc.',
+        outcome:'MULTIPOLAR MONETARY ARCHITECTURE',
+        outcomeNarrative:'The managed transition to multipolarity proves more stable than either pure dollar dominance or chaotic fragmentation. Each bloc trades primarily in its own currency; global commodity markets gradually shift to multiple pricing benchmarks. The adjustment is economically costly for dollar-denominated issuers but prevents the catastrophic scenarios of a disorderly dollar collapse.',
+        finalLensScores:{ bigCycle:'Hegemonic Transition -- Managed', steep:{S:0.5,T:0.6,E:0.9,En:0.3,P:0.8}, geoEcon:'Currency Manipulation -- multipolar reserve system', gameTheory:'Cooperative Transition Game -- managed decline prevents catastrophic instability' },
+        historicalAnalog:'Sterling-dollar transition 1945-1976; SDR as reserve asset; BRICS+ reserve diversification discussions',
+        aiPromptSeed:'Model how a managed transition to a multipolar reserve currency system affects global trade financing, capital flows, and the leverage of financial sanctions as a geopolitical tool through 2040.' }
+    }
+  },
+
+  { id:'fragmented-stagnation', cluster:'geoeconomic', title:'The Age of Fragmented Stagnation', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
+    description:'The global economy fragments into competing regional blocs without any dominant order, producing persistent low growth, high transaction costs, and the slow erosion of the multilateral institutions that underpinned the post-1945 prosperity architecture.',
+    tags:['fragmentation','deglobalization','stagnation','regional blocs','multilateralism'],
+    rootNodeId:'frst-L0',
+    nodes:{
+      'frst-L0':{ id:'frst-L0', layer:0, type:'trigger', title:'Neither Bloc Dominates -- Hegemonic Interregnum', label:'Interregnum',
+        narrative:'The US-China competition has not produced a winner. Neither bloc commands sufficient economic or military dominance to organize global systems around its preferences. The rules-based international order of the post-1945 era has been hollowed out -- not replaced, just undermined. What remains is a patchwork: competing trade architectures, parallel payment systems, overlapping and inconsistent standards regimes, and a UN Security Council that cannot act on any significant issue. Global trade costs rise 15-25% from fragmentation. Long-run growth rates decline.',
+        lensSnapshot:{ bigCycle:{phase:'Hegemonic Interregnum',note:'Neither incumbent nor challenger achieves dominance; transition costs accumulate'}, steep:{primary:'P',secondary:'E',note:'Political fragmentation drives economic stagnation'}, geoEcon:{tool:'Tariffs',note:'Trade fragmentation as default outcome of hegemonic stalemate'}, gameTheory:{type:"Multi-Polar Prisoner's Dilemma",note:'No dominant actor; no Schelling point; coordination fails'} },
+        choicePrompt:'In a fragmented world without dominant order, what strategic architecture does a mid-sized nation adopt?',
+        choices:['frst-L1-hedge','frst-L1-align','frst-L1-regional'] },
+      'frst-L1-hedge':{ id:'frst-L1-hedge', layer:1, type:'decision', title:'Strategic Hedging -- Refuse Bloc Alignment', label:'Strategic Hedging',
+        narrative:'The nation explicitly refuses to align with either major bloc, maintaining economic relationships with both while developing independent institutional ties with other hedging states. India, Saudi Arabia, Brazil, Indonesia, Turkey, and South Africa operate as a loose coalition of swing states -- too important to coerce, too uncommitted to trust.',
+        lensSnapshot:{ bigCycle:{phase:'Multi-Polar Maneuvering',note:'Mid-sized powers gain leverage in hegemonic interregnum'}, steep:{primary:'P',secondary:'E',note:'Political autonomy maintained; economic relationships diversified'}, geoEcon:{tool:'Alliance Architecture',note:'Deliberate non-alignment as strategic choice'}, gameTheory:{type:'Outside Option Maintenance',note:'Preserving outside options creates negotiating leverage with both blocs'} },
+        secondOrderEffects:['Both blocs compete to offer better terms to swing states','Hedging nations gain economic leverage but face geopolitical uncertainty','Coordination among hedging nations creates third force in global governance'],
+        historicalAnalog:'Non-Aligned Movement 1955-1991; India multi-alignment 2020s; Gulf states balancing US-China',
+        choicePrompt:'With hedging strategy established, how does the nation build productive economic architecture with other hedging states?',
+        choices:['frst-L2-south-south','frst-L2-new-multilateral'] },
+      'frst-L1-align':{ id:'frst-L1-align', layer:1, type:'decision', title:'Align with Dominant Bloc -- Accept Constraints', label:'Bloc Alignment',
+        narrative:'The nation calculates that the fragmented world is too costly for pure hedging and commits fully to one bloc\'s economic architecture: accepts its technology standards, financial systems, and trade arrangements. In exchange, it receives preferential market access, security guarantees, and investment flows.',
+        lensSnapshot:{ bigCycle:{phase:'Bloc Consolidation',note:'Smaller nations consolidate within blocs as fragmentation costs become prohibitive'}, steep:{primary:'E',secondary:'P',note:'Economic efficiency gained through alignment; political autonomy reduced'}, geoEcon:{tool:'Alliance Architecture',note:"Full integration into one bloc's economic architecture"}, gameTheory:{type:'Commitment Game',note:'Credible commitment to one bloc increases trust and benefits within that system'} },
+        secondOrderEffects:['Inside-bloc trade and investment flows increase substantially','Relationships with the opposing bloc deteriorate; some economic relationships severed','Nation becomes geopolitical asset of the chosen bloc; security commitments follow'],
+        historicalAnalog:'Eastern European NATO/EU integration; Southeast Asian states choosing RCEP over CPTPP',
+        choicePrompt:'With full bloc alignment made, how does the nation maximize its position within the bloc\'s internal hierarchy?',
+        choices:['frst-L2-specialize','frst-L2-new-multilateral'] },
+      'frst-L1-regional':{ id:'frst-L1-regional', layer:1, type:'decision', title:'Build Regional Order -- Lead Without Global Alignment', label:'Regional Leadership',
+        narrative:'The nation invests in becoming the organizing power of its region: building a regional trade architecture, regional development bank, regional security framework, and regional standards regime. The regional order provides stability and economic benefits without requiring global bloc alignment.',
+        lensSnapshot:{ bigCycle:{phase:'Regional Order Building',note:'Global fragmentation creates space for regional hegemons to emerge'}, steep:{primary:'P',secondary:'E',note:'Political leadership invested in regional institution building'}, geoEcon:{tool:'Alliance Architecture',note:'Regional trade and security architecture as alternative to global alignment'}, gameTheory:{type:'Regional Hegemon Game',note:'Within-region coordination; outside-region hedging'} },
+        secondOrderEffects:['Regional neighbors must choose to accept or resist regional leadership','Both global blocs compete to affiliate with the successful regional order','Regional order becomes template for other regions attempting similar architecture'],
+        historicalAnalog:'ASEAN building; African Union development; MERCOSUR; India regional ambitions',
+        choicePrompt:'With regional leadership established, how does the regional order manage its relationship with the competing global blocs?',
+        choices:['frst-L2-bargaining','frst-L2-south-south'] },
+      'frst-L2-south-south':{ id:'frst-L2-south-south', layer:2, type:'decision', title:'South-South Trade Architecture', label:'South-South Trade',
+        narrative:'Hedging nations build direct trade relationships among themselves, reducing dependence on North Atlantic and Chinese-led trade systems. New trade corridors emerge: India-Africa, Gulf-Southeast Asia, Latin America-South Asia. The volume is initially small relative to legacy North-South trade but grows rapidly as fragmentation costs make alternative routing valuable.',
+        lensSnapshot:{ bigCycle:{phase:'Trade Architecture Diversification',note:'Emerging market trade reorientation away from legacy North-South patterns'}, steep:{primary:'E',secondary:'T',note:'New trade corridors require infrastructure and logistics investment'}, geoEcon:{tool:'Alliance Architecture',note:'Trade diversification as geopolitical autonomy strategy'}, gameTheory:{type:'Coalition Building',note:'Swing states build coalition to reduce dependence on major blocs'} },
+        secondOrderEffects:['New trade corridors require massive logistics investment','Both major blocs attempt to co-opt the south-south architecture','Dollar dependence in south-south trade creates opening for alternative currencies'],
+        historicalAnalog:'BRICS trade expansion; Belt and Road as one pole; India-Middle East-Europe corridor; INSTC',
+        choicePrompt:'With south-south trade growing, what financial architecture supports it outside the dollar system?',
+        choices:['frst-L3-alt-currency','frst-L4-multipolar-stagnation'] },
+      'frst-L2-new-multilateral':{ id:'frst-L2-new-multilateral', layer:2, type:'decision', title:'New Multilateral Institution Architecture', label:'New Multilateralism',
+        narrative:'The failures of the existing multilateral system create space for new institutions: a reformed WTO with binding dispute settlement; a multilateral development bank that is truly neutral; an international standards body with genuine technical authority. The new institutions are designed around the fragmented world that exists, not the integrated world that once did.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation -- Fragmentation',note:'New multilateralism adapts to bipolar world rather than trying to restore previous integration'}, steep:{primary:'P',secondary:'E',note:'Political will for new institutions emerging from frustration with existing ones'}, geoEcon:{tool:'Alliance Architecture',note:'New multilateral architecture for fragmented world'}, gameTheory:{type:'Institution Building Game',note:'New rules can produce new equilibria even without hegemonic enforcement'} },
+        secondOrderEffects:['Existing institutions (WTO, IMF) face legitimacy crisis as new ones gain credibility','New institutions reflect emerging market interests more than Bretton Woods institutions do','Innovation in multilateralism creates template for further institutional evolution'],
+        historicalAnalog:'AIIB as alternative to World Bank; NDB (BRICS bank); CPTPP without US; RCEP',
+        choicePrompt:'With new multilateral institutions established, how do they manage the fundamental coordination challenge of fragmentation?',
+        choices:['frst-L3-trade-corridors','frst-L4-managed-fragmentation'] },
+      'frst-L2-specialize':{ id:'frst-L2-specialize', layer:2, type:'decision', title:'Specialize in Strategic Bloc Function', label:'Strategic Specialization',
+        narrative:'Within the chosen bloc, the nation targets a specific strategic function that maximizes its importance: semiconductor assembly, rare earth processing, logistics hub, data center location, financial services gateway. The specialization creates deep interdependence with the bloc\'s leading members and generates significant investment inflows.',
+        lensSnapshot:{ bigCycle:{phase:'Within-Bloc Integration',note:'Deep specialization creates mutual dependence; reduces autonomy but increases prosperity'}, steep:{primary:'E',secondary:'T',note:'Technology and economic specialization as development strategy'}, geoEcon:{tool:'Alliance Architecture',note:'Strategic function within bloc architecture'}, gameTheory:{type:'Division of Labor Game',note:'Specialization creates interdependence that aligns incentives within bloc'} },
+        secondOrderEffects:['Investment inflows surge as bloc establishes critical function within nation','Vulnerability to bloc policy shifts increases with specialization depth','Alternative relationships with opposing bloc become effectively impossible'],
+        historicalAnalog:'Taiwan semiconductor role in US-led tech architecture; Netherlands logistics hub in EU; Singapore financial gateway',
+        choicePrompt:'With deep specialization established, how does the nation manage the vulnerability that comes with it?',
+        choices:['frst-L3-trade-corridors','frst-L4-managed-fragmentation'] },
+      'frst-L2-bargaining':{ id:'frst-L2-bargaining', layer:2, type:'decision', title:'Regional Collective Bargaining with Global Blocs', label:'Collective Bargaining',
+        narrative:'The regional order negotiates collectively with both major blocs, presenting a unified position on trade terms, technology access, and security arrangements. The collective bargaining power of the regional bloc is substantially higher than any individual member could achieve.',
+        lensSnapshot:{ bigCycle:{phase:'Regional Power Emergence',note:'Regional coalitions as structural constraint on major power unilateralism'}, steep:{primary:'P',secondary:'E',note:'Collective political position translates to economic terms improvement'}, geoEcon:{tool:'Alliance Architecture',note:'Regional coalition as bargaining unit with global blocs'}, gameTheory:{type:'Coalition Bargaining Game',note:'Collective bargaining changes payoff structure; major blocs must negotiate'} },
+        secondOrderEffects:['Both major blocs offer better terms to avoid regional bloc aligning with rival','Regional solidarity tested when blocs offer better terms to individual defectors','Regional order gains international recognition as legitimate governance actor'],
+        historicalAnalog:'EU as collective bargaining unit in WTO; ASEAN centrality in Indo-Pacific architecture; African Union in G20',
+        choicePrompt:'With collective bargaining leverage established, what economic architecture does the regional bloc build internally?',
+        choices:['frst-L3-regional-currency','frst-L4-managed-fragmentation'] },
+      'frst-L3-alt-currency':{ id:'frst-L3-alt-currency', layer:3, type:'decision', title:'Alternative Currency Basket for South-South Trade', label:'Alternative Currency Basket',
+        narrative:'A basket of swing-state currencies is established for south-south trade invoicing, reducing dependence on the dollar without committing to any single alternative. The basket processes a growing share of south-south trade outside the dollar system.',
+        lensSnapshot:{ bigCycle:{phase:'Monetary System Pluralization',note:'Gradual monetary diversification away from unipolar dollar system'}, steep:{primary:'E',secondary:'P',note:'Monetary architecture as expression of political autonomy'}, geoEcon:{tool:'Currency Manipulation',note:'Alternative invoicing currency as dollar dependency reduction strategy'}, gameTheory:{type:'Coordination Game',note:'Swing states coordinate on monetary alternative; network effects build over time'} },
+        secondOrderEffects:['Dollar share of south-south trade falls from 80%+ to 50-60% over a decade','US ability to deploy dollar sanctions reduced against south-south trade','Alternative payment infrastructure requires significant investment'],
+        historicalAnalog:'BRICS discussions of alternative currency basket; India-Russia ruble-rupee trade; mBridge CBDC project',
+        choicePrompt:'With alternative currency infrastructure developing, how does this reshape geopolitical alignments over the medium term?',
+        choices:['frst-L4-multipolar-stagnation','frst-L4-managed-fragmentation'] },
+      'frst-L3-trade-corridors':{ id:'frst-L3-trade-corridors', layer:3, type:'decision', title:'New Trade Corridor Investment', label:'Trade Corridors',
+        narrative:'Nations invest in new physical trade corridors that bypass the congested and politically contested existing routes: new rail and road connections, deepened port capacity, and cross-regional free trade zones that sit outside the major blocs.',
+        lensSnapshot:{ bigCycle:{phase:'Infrastructure Investment Cycle',note:'Physical infrastructure as precondition for new trade architecture'}, steep:{primary:'T',secondary:'E',note:'Infrastructure investment as geopolitical connectivity tool'}, geoEcon:{tool:'Alliance Architecture',note:'Trade corridor investment as geopolitical relationship building'}, gameTheory:{type:'Infrastructure Game',note:'First movers in corridor development gain structural advantage'} },
+        secondOrderEffects:['New corridors reduce geographic dependence on choke points controlled by major powers','Investment creates development dividends in corridor nations','Major powers attempt to co-opt or compete with new corridors'],
+        historicalAnalog:'Belt and Road Initiative; India-Middle East-Europe corridor; INSTC; PGII',
+        choicePrompt:'With new corridors established, how does the nation leverage them for broader geopolitical influence?',
+        choices:['frst-L4-multipolar-stagnation','frst-L4-managed-fragmentation'] },
+      'frst-L3-regional-currency':{ id:'frst-L3-regional-currency', layer:3, type:'decision', title:'Regional Currency Development', label:'Regional Currency',
+        narrative:'The regional bloc develops a common currency or currency coordination mechanism, reducing internal transaction costs and providing a foundation for deeper economic integration. The currency is not a global reserve alternative but serves the regional bloc\'s internal needs.',
+        lensSnapshot:{ bigCycle:{phase:'Regional Monetary Integration',note:'Regional currency as bloc cohesion mechanism'}, steep:{primary:'E',secondary:'P',note:'Monetary union as political commitment device'}, geoEcon:{tool:'Currency Manipulation',note:'Regional currency as alternative to dollar dependence within the bloc'}, gameTheory:{type:'Commitment Device',note:'Currency union as credible commitment to regional solidarity'} },
+        secondOrderEffects:['Internal bloc trade costs fall dramatically','Regional monetary coordination requires significant institutional investment','Currency crisis within bloc creates collective problem; solidarity tested'],
+        historicalAnalog:'Euro as regional currency model; ASEAN discussions; African monetary union proposals; Gulf Cooperation Council monetary union discussions',
+        choicePrompt:'With regional currency infrastructure developing, how does this reshape the regional bloc\'s relationship with the global fragmented order?',
+        choices:['frst-L4-managed-fragmentation','frst-L4-multipolar-stagnation'] },
+      'frst-L4-multipolar-stagnation':{ id:'frst-L4-multipolar-stagnation', layer:4, type:'terminal', title:'Multipolar Stagnation -- New Normal', label:'Multipolar Stagnation',
+        narrative:'The fragmented world reaches a new, lower-growth equilibrium. Trade costs remain elevated; technology standards diverge; financial systems remain partially separated. Global growth settles 0.5-1.5 percentage points below what a more integrated world would achieve. The stagnation is permanent and distributed -- no single actor suffers catastrophically, but all are poorer than the alternative.',
+        outcome:'MANAGED FRAGMENTATION -- PERMANENT LOW-GROWTH EQUILIBRIUM',
+        outcomeNarrative:'The age of fragmented stagnation proves durable. Neither bloc achieves decisive dominance; neither collapses. The world settles into a new normal of higher costs, lower growth, and persistent geopolitical competition. The multilateral institutions that underpinned the post-1945 prosperity architecture are not destroyed -- they are rendered increasingly irrelevant. The loss is measured in the growth that never happened, the problems that were never solved.',
+        finalLensScores:{ bigCycle:'Hegemonic Interregnum -- Stable Stagnation', steep:{S:0.5,T:0.6,E:0.8,En:0.5,P:0.9}, geoEcon:'Tariffs -- fragmented trade architecture', gameTheory:"Multi-polar Prisoner's Dilemma -- stable but suboptimal equilibrium" },
+        historicalAnalog:'Interwar period 1919-1939; fragmented gold standard; 1930s trade collapse partial analogy',
+        aiPromptSeed:'Model how the multipolar stagnation equilibrium eventually breaks down -- whether through a decisive hegemonic winner emerging, a new multilateral architecture forming, or a catastrophic crisis forcing reconvergence -- tracing the mechanisms that could end the stagnation.' },
+      'frst-L4-managed-fragmentation':{ id:'frst-L4-managed-fragmentation', layer:4, type:'terminal', title:'Managed Fragmentation with Functional Nodes', label:'Managed Fragmentation',
+        narrative:'Rather than either integration or pure fragmentation, the world develops functional node-based architecture: specific domains (climate, pandemics, nuclear security) maintain deep cooperation even as trade and technology fragment. The architecture is uncomfortable and inefficient but prevents the worst outcomes.',
+        outcome:'FUNCTIONAL FRAGMENTATION -- ISSUE-SPECIFIC COOPERATION',
+        outcomeNarrative:'Managed fragmentation proves more stable than pure stagnation because it maintains cooperation in domains where mutual interest is overwhelming. Climate, pandemic preparedness, and nuclear security maintain multilateral frameworks even as trade and technology fragment. The result is messy -- issue-by-issue negotiation replaces rules-based order -- but the catastrophic outcomes are avoided.',
+        finalLensScores:{ bigCycle:'Hegemonic Interregnum -- Functional Managed', steep:{S:0.5,T:0.7,E:0.7,En:0.7,P:0.8}, geoEcon:'Alliance Architecture -- issue-specific cooperation within fragmented world', gameTheory:'Selective Cooperation -- cooperate where mutual interest is dominant; defect where competitive' },
+        historicalAnalog:'US-Soviet arms control during Cold War; US-China climate cooperation within strategic competition; G20 as managed fragmentation forum',
+        aiPromptSeed:'Model how issue-specific cooperation architecture within a fragmented geopolitical order evolves over time -- particularly whether selective cooperation gradually reconstructs broader multilateral architecture or whether fragmentation in competitive domains gradually erodes even the cooperative ones.' }
+    }
+  },
+
+  { id:'tech-realignment', cluster:'geoeconomic', title:'Tech-Driven Realignment', era:'2025-2040', timeHorizon:'long', primaryLens:'geoEcon',
+    description:'Multiple general-purpose technology breakthroughs -- AI, quantum computing, biotech, fusion energy -- arrive simultaneously, restructuring geopolitical power on technological capability rather than industrial capacity.',
+    tags:['AI','quantum computing','biotech','fusion energy','technological leadership','geopolitics'],
+    rootNodeId:'tdr-L0',
+    nodes:{
+      'tdr-L0':{ id:'tdr-L0', layer:0, type:'trigger', title:'Multiple Technology Frontiers Break Simultaneously', label:'Technology Convergence',
+        narrative:'Within a five-year window, four distinct technological frontiers reach commercial viability simultaneously: AI systems that match or exceed human performance across knowledge work; fault-tolerant quantum computers capable of breaking current encryption; CRISPR-derived biotech enabling precision disease treatment and enhancement; and commercial fusion energy approaching grid parity. No previous moment in history has seen four general-purpose technologies arrive simultaneously. The geopolitical map is being redrawn.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Phase Transition',note:'Multiple general-purpose technologies arriving simultaneously; largest productive discontinuity since steam'}, steep:{primary:'T',secondary:'E',note:'Technology the overwhelming primary driver; all other STEEP dimensions responding'}, geoEcon:{tool:'Technological Statecraft',note:'Technology capability as primary geopolitical currency'}, gameTheory:{type:'Technology Race -- Multi-Frontier',note:'Competition across four simultaneous frontiers; first-mover advantages in each'} },
+        choicePrompt:'Which technology frontier does the leading nation prioritize for strategic advantage?',
+        choices:['tdr-L1-ai','tdr-L1-quantum','tdr-L1-fusion'] },
+      'tdr-L1-ai':{ id:'tdr-L1-ai', layer:1, type:'decision', title:'AI Supremacy Strategy -- Compute + Talent + Data', label:'AI Supremacy',
+        narrative:'The nation concentrates investment in AI: massive compute infrastructure, aggressive talent recruitment globally, regulatory frameworks optimized for AI deployment speed, and AI-first redesign of government services and military capabilities. The AI lead compounds: superior AI accelerates research in other domains, creating a self-reinforcing cycle of capability advantage.',
+        lensSnapshot:{ bigCycle:{phase:'AI-Led Hegemonic Bid',note:'AI as the decisive technology of the new hegemonic cycle'}, steep:{primary:'T',secondary:'E',note:'AI investment dominates capital allocation; economic transformation accelerates'}, geoEcon:{tool:'Technological Statecraft',note:'AI capability as comprehensive national power multiplier'}, gameTheory:{type:'Winner-Take-Most Race',note:'AI lead compounds; falling behind creates accelerating disadvantage'} },
+        secondOrderEffects:['AI advantage extends to military, economic, scientific, and diplomatic domains','Nations without AI capacity become structurally dependent on AI leaders','AI governance becomes the critical geopolitical negotiation of the era'],
+        historicalAnalog:'No direct precedent; closest is nuclear superiority 1945-1949 or naval power 1890-1914',
+        choicePrompt:'With AI supremacy established, how is the AI advantage deployed geopolitically?',
+        choices:['tdr-L2-ai-diplomacy','tdr-L2-ai-military'] },
+      'tdr-L1-quantum':{ id:'tdr-L1-quantum', layer:1, type:'decision', title:'Quantum Computing Leadership -- Cryptography and Science', label:'Quantum Leadership',
+        narrative:'The nation prioritizes fault-tolerant quantum computing: breaking current encryption standards, solving computational problems across drug discovery, materials science, and financial optimization. Quantum supremacy in cryptography alone represents an existential intelligence advantage.',
+        lensSnapshot:{ bigCycle:{phase:'Cryptographic Hegemony Bid',note:'Quantum computing breaks the encryption that underpins all digital commerce and security'}, steep:{primary:'T',secondary:'P',note:'Technology capability translates directly into intelligence and security advantage'}, geoEcon:{tool:'Technological Statecraft',note:'Cryptographic advantage as comprehensive intelligence dominance'}, gameTheory:{type:'Encryption Arms Race',note:'Quantum supremacy changes all information security games simultaneously'} },
+        secondOrderEffects:['All current encryption infrastructure becomes vulnerable; global cryptographic emergency','Nations with quantum computing can read all legacy encrypted communications','Quantum-safe cryptography development becomes existential priority'],
+        historicalAnalog:'Enigma decryption advantage; ECHELON signals intelligence; Stuxnet as cyber weapon',
+        choicePrompt:'With quantum decryption capability established, how does the nation leverage this information advantage?',
+        choices:['tdr-L2-intel','tdr-L2-post-quantum'] },
+      'tdr-L1-fusion':{ id:'tdr-L1-fusion', layer:1, type:'decision', title:'Fusion Energy First -- Energy Independence Architecture', label:'Fusion Energy Leadership',
+        narrative:'The nation prioritizes commercial fusion energy: unlimited clean energy at falling costs, ending dependence on fossil fuel imports, negating the energy-based geopolitical leverage of oil and gas exporters, and providing the energy foundation for all other technological ambitions including massive AI compute clusters.',
+        lensSnapshot:{ bigCycle:{phase:'Energy Regime Transition',note:'Fusion represents the most fundamental energy transition since coal; geopolitical map restructured'}, steep:{primary:'T',secondary:'En',note:'Technology breakthrough enables environmental transformation'}, geoEcon:{tool:'Resource Nationalism',note:'Fusion eliminates fossil fuel dependence; reverses energy geopolitics entirely'}, gameTheory:{type:'Energy Abundance Game',note:'Fusion creates energy abundance; scarcity-based energy leverage eliminated'} },
+        secondOrderEffects:['Oil and gas exporters face catastrophic demand destruction','Energy-importing nations gain complete energy independence','Fusion energy provides foundation for massive AI compute and industrial expansion'],
+        historicalAnalog:'Shale revolution changed US energy independence; fusion would be permanent, not cyclical',
+        choicePrompt:'With fusion energy operational, how does the nation leverage its energy abundance advantage?',
+        choices:['tdr-L2-petrostates','tdr-L2-ai-military'] },
+      'tdr-L2-ai-diplomacy':{ id:'tdr-L2-ai-diplomacy', layer:2, type:'decision', title:'AI Diplomacy -- Technology Access as Diplomatic Tool', label:'AI Diplomacy',
+        narrative:'AI capabilities are leveraged diplomatically: allied nations receive AI tools for governance, agriculture, healthcare, and education; adversarial nations face AI export controls. Technology access becomes the new foreign aid, the new security guarantee, and the new conditionality mechanism -- all simultaneously.',
+        lensSnapshot:{ bigCycle:{phase:'Technology-Led Hegemony',note:'AI diplomacy as the 21st century equivalent of security guarantees and economic aid'}, steep:{primary:'T',secondary:'P',note:'Technology capability translates directly into diplomatic influence'}, geoEcon:{tool:'Alliance Architecture',note:'AI access as diplomatic currency'}, gameTheory:{type:'Patron-Client Game',note:'Technology patron and technology client relationship; new form of dependency'} },
+        secondOrderEffects:['Nations choose AI alignment based on technology access, not ideology','AI capabilities become the measure of geopolitical alignment','Developing nations face dependency on AI providers for critical government functions'],
+        historicalAnalog:'US nuclear umbrella; Soviet satellite system development assistance; Chinese Belt and Road as infrastructure diplomacy',
+        choicePrompt:'With AI diplomacy establishing technology-based alliances, how are the new alignment relationships institutionalized?',
+        choices:['tdr-L3-tech-treaty','tdr-L4-allied-governance'] },
+      'tdr-L2-ai-military':{ id:'tdr-L2-ai-military', layer:2, type:'decision', title:'AI Military Advantage -- Autonomous Weapons and ISR', label:'AI Military Dominance',
+        narrative:'AI capability is converted into military dominance: autonomous weapons systems, AI-enhanced intelligence surveillance and reconnaissance, AI-driven cyber operations, and AI-optimized logistics. The military gap between AI-advanced and AI-laggard nations becomes as large as the nuclear gap was in 1950.',
+        lensSnapshot:{ bigCycle:{phase:'Military Technology Revolution',note:'AI as revolutionary military technology; changes balance of power permanently'}, steep:{primary:'T',secondary:'P',note:'Technology creates military dominance; political consequences global'}, geoEcon:{tool:'Military Statecraft',note:'AI-enabled military dominance as geopolitical lever'}, gameTheory:{type:'Security Dilemma',note:'AI military investment by one triggers investment by others; arms race dynamic'} },
+        secondOrderEffects:['Arms race in AI military capabilities begins immediately','Smaller nations permanently outclassed; seek AI patron-state protection','Autonomous weapons ethics create domestic and international governance crisis'],
+        historicalAnalog:'Nuclear arms race 1945-1990; drone warfare revolution 2000s; no direct precedent for AI military dominance',
+        choicePrompt:'With AI military advantage established, how is the technology governed to prevent catastrophic misuse?',
+        choices:['tdr-L3-tech-treaty','tdr-L4-allied-governance'] },
+      'tdr-L2-intel':{ id:'tdr-L2-intel', layer:2, type:'decision', title:'Quantum-Enabled Intelligence Dominance', label:'Intelligence Dominance',
+        narrative:'The quantum decryption capability is deployed for comprehensive intelligence collection: diplomatic communications, military planning, financial transactions, and personal communications of global leaders are all readable. The intelligence advantage is total -- temporarily. But maintaining the advantage requires preventing the world from transitioning to post-quantum cryptography.',
+        lensSnapshot:{ bigCycle:{phase:'Intelligence Hegemony',note:'Comprehensive intelligence access represents total information dominance'}, steep:{primary:'T',secondary:'P',note:'Technology creates information dominance; political consequences global'}, geoEcon:{tool:'Technological Statecraft',note:'Intelligence advantage as comprehensive foreign policy tool'}, gameTheory:{type:'Information Asymmetry -- Extreme',note:'One player has perfect information; all others playing blind'} },
+        secondOrderEffects:['If discovered, quantum decryption capability triggers global cryptographic emergency','Intelligence advantage enables anticipation and neutralization of rival actions','All allies become informants against each other as communications are compromised'],
+        historicalAnalog:'ULTRA secret in WWII; NSA bulk collection exposed by Snowden; signals intelligence as strategic asset',
+        choicePrompt:'With quantum intelligence dominance but the risk of discovery, how is the advantage leveraged?',
+        choices:['tdr-L3-tech-treaty','tdr-L4-allied-governance'] },
+      'tdr-L2-post-quantum':{ id:'tdr-L2-post-quantum', layer:2, type:'decision', title:'Post-Quantum Cryptography Migration', label:'Post-Quantum Migration',
+        narrative:'Rather than exploiting quantum decryption secretly, the nation leads an international post-quantum cryptography migration: transitioning all critical systems to quantum-resistant encryption standards before adversaries develop quantum decryption capability. The choice sacrifices short-term intelligence advantage for long-term security architecture.',
+        lensSnapshot:{ bigCycle:{phase:'Proactive Security Architecture',note:'Sacrificing current advantage to prevent catastrophic future vulnerability'}, steep:{primary:'T',secondary:'P',note:'Technology migration as security policy'}, geoEcon:{tool:'Technological Statecraft',note:'Setting post-quantum standards as geopolitical influence tool'}, gameTheory:{type:'Long-Term Security Investment',note:'Accept short-term cost to avoid catastrophic long-term vulnerability'} },
+        secondOrderEffects:['Nations that migrate first have most secure communications architecture','Laggard nations face cryptographic vulnerability window','Standard-setting process creates geopolitical influence'  ],
+        historicalAnalog:'NIST post-quantum cryptography standardization 2024; NATO quantum-safe communications investment',
+        choicePrompt:'With post-quantum migration underway, how does the nation leverage its cryptographic leadership diplomatically?',
+        choices:['tdr-L3-tech-treaty','tdr-L4-allied-governance'] },
+      'tdr-L2-petrostates':{ id:'tdr-L2-petrostates', layer:2, type:'decision', title:'Managing Petrostate Collapse From Fusion Disruption', label:'Petrostate Transition',
+        narrative:"Fusion energy's commercial deployment begins destroying the economic foundation of petrostates. Oil demand collapses; prices fall below production costs. Nations whose entire development model depends on hydrocarbon revenues face existential economic crisis. The stability risk is enormous -- state failure in major oil producers would create global security crises.",
+        lensSnapshot:{ bigCycle:{phase:'Energy Order Collapse',note:'Petrodollar system and OPEC architecture destroyed by fusion; geopolitical map restructured'}, steep:{primary:'E',secondary:'P',note:'Economic model destruction; political instability in petrostates'}, geoEcon:{tool:'Resource Nationalism',note:'Resource nationalism loses relevance as the resource loses value'}, gameTheory:{type:'Transition Game',note:'Petrostates must transform or fail; energy consumers must manage the transition'} },
+        secondOrderEffects:['Saudi Arabia, UAE, Russia, Iran face fiscal collapse within a decade of commercial fusion','Petrostate instability creates migration crises, conflict risk, and nuclear proliferation pressure','US Petrodollar system collapses; dollar reserve status must find new anchor'],
+        historicalAnalog:'North Sea oil decline; Soviet collapse partly driven by oil price fall 1986; Venezuela oil price dependence',
+        choicePrompt:'With petrostates facing existential economic crisis, what strategic response does the fusion-powered nation take?',
+        choices:['tdr-L3-transition-fund','tdr-L4-failed-states'] },
+      'tdr-L3-tech-treaty':{ id:'tdr-L3-tech-treaty', layer:3, type:'decision', title:'Technology Alliance Treaty', label:'Technology Alliance',
+        narrative:'A formal technology alliance is established among nations with advanced AI capability: shared research, coordinated export controls toward non-members, joint safety standards, and mutual access to compute infrastructure. The alliance becomes the organizing principle of the new global order -- technology capability replacing industrial capacity as the measure of great power status.',
+        lensSnapshot:{ bigCycle:{phase:'Technology Hegemonic Bloc Formation',note:'New alliance system organized around technology capability'}, steep:{primary:'T',secondary:'P',note:'Technology alliance as the defining geopolitical structure of the era'}, geoEcon:{tool:'Alliance Architecture',note:'Technology access as alliance membership benefit'}, gameTheory:{type:'Club Good',note:'Alliance members share technology benefits; non-members excluded from innovation ecosystem'} },
+        secondOrderEffects:['Nations outside the technology alliance face permanent capability disadvantage','Alliance members face collective security obligations extending into cyber and AI domains','Technology standards set by alliance become de facto global standards'],
+        historicalAnalog:'NATO as technology-security alliance; Five Eyes as intelligence alliance; proposed Technology Alliance proposals',
+        choicePrompt:'With the technology alliance established, how does it govern the most dangerous AI capabilities?',
+        choices:['tdr-L4-allied-governance','tdr-L4-competitive-deployment'] },
+      'tdr-L3-transition-fund':{ id:'tdr-L3-transition-fund', layer:3, type:'decision', title:'Global Petrostate Transition Fund', label:'Transition Fund',
+        narrative:'The fusion-powered nation leads creation of a Global Energy Transition Fund that provides economic diversification support to petrostates facing demand destruction. The fund is motivated by both humanitarian concern and strategic interest: stable petrostates are preferable to failed states with nuclear weapons.',
+        lensSnapshot:{ bigCycle:{phase:'Transition Management',note:'Orderly petrostate transition preferable to disorderly collapse'}, steep:{primary:'E',secondary:'P',note:'Economic transition support prevents political instability'}, geoEcon:{tool:'Alliance Architecture',note:'Transition fund as foreign policy tool'}, gameTheory:{type:'Stabilization Game',note:'Investor in stability to avoid costly instability'} },
+        secondOrderEffects:['Petrostate fiscal collapse slowed by transition support','Economic diversification begins in most adaptable states','Nuclear proliferation risk from desperate petrostates reduced'],
+        historicalAnalog:'Marshall Plan for Europe; USAID economic development; World Bank transition economy support',
+        choicePrompt:'With transition support deployed, which petrostates successfully diversify and which fail?',
+        choices:['tdr-L4-diversification','tdr-L4-failed-states'] },
+      'tdr-L4-allied-governance':{ id:'tdr-L4-allied-governance', layer:4, type:'terminal', title:'Allied AI Governance Architecture', label:'Allied AI Governance',
+        narrative:'The technology alliance develops comprehensive AI governance: shared capability evaluation protocols, coordinated deployment standards, joint safety research, and a collective decision framework for AI systems that could affect global security.',
+        outcome:'TECHNOLOGY-LED ORDER WITH GOVERNANCE ARCHITECTURE',
+        outcomeNarrative:'The Tech-Driven Realignment produces a new world order organized around technological capacity, governed by a technology alliance that sets the rules for the most transformative capabilities in history. The order is more stable than hegemonic competition without governance, less equitable than a genuinely multilateral system. But it manages to deploy transformative technology without catastrophic misuse.',
+        finalLensScores:{ bigCycle:'New Technological Hegemonic Cycle', steep:{S:0.5,T:1.0,E:0.8,En:0.6,P:0.9}, geoEcon:'Technological Statecraft -- alliance-governed order', gameTheory:'Cooperative Game Within Alliance -- competitive toward non-members' },
+        historicalAnalog:'US-led liberal international order post-1945; NATO nuclear sharing; IAEA nuclear governance',
+        aiPromptSeed:"Model how the technology alliance's AI governance architecture handles the emergence of AGI-level capabilities, particularly the governance questions around AI systems that exceed human performance across all domains." },
+      'tdr-L4-competitive-deployment':{ id:'tdr-L4-competitive-deployment', layer:4, type:'terminal', title:'Competitive Technology Deployment -- Arms Race', label:'Technology Arms Race',
+        narrative:'Without adequate governance architecture, technology capabilities are deployed competitively: AI weapons systems are deployed without safety standards; quantum capabilities are used for covert intelligence; biotech is weaponized. The tech-driven realignment produces a world of unprecedented capability and unprecedented danger.',
+        outcome:'TECHNOLOGY ARMS RACE -- CATASTROPHIC RISK ACCUMULATION',
+        outcomeNarrative:'The failure to establish governance architecture for transformative technologies produces the most dangerous security environment in history. Each nation deploys capabilities to maximize competitive advantage; none internalizes the collective risk of the arms race. The world is materially advanced but existentially fragile -- a single miscalculation with AI weapons, a quantum-enabled intelligence failure, or a biotech release could cascade catastrophically.',
+        finalLensScores:{ bigCycle:'Hegemonic Competition -- Unconstrained', steep:{S:0.6,T:1.0,E:0.7,En:0.5,P:1.0}, geoEcon:'Technological Statecraft -- unrestrained competition', gameTheory:'Arms Race -- suboptimal competitive equilibrium with catastrophic tail risk' },
+        historicalAnalog:'Nuclear arms race without arms control; biological weapons development without convention; cyber warfare without norms',
+        aiPromptSeed:'Model how a technology arms race without governance architecture evolves over 10 years, focusing on the probability and mechanisms of catastrophic outcomes from AI weapons deployment, quantum intelligence failures, and engineered pandemic risks.' },
+      'tdr-L4-diversification':{ id:'tdr-L4-diversification', layer:4, type:'terminal', title:'Successful Petrostate Economic Diversification', label:'Petrostate Diversification',
+        narrative:'With transition fund support and genuine political will, several petrostates successfully diversify: UAE and Saudi Arabia leverage sovereign wealth to become technology and tourism hubs; the Gulf states build genuine industrial bases. The energy transition is managed rather than catastrophic.',
+        outcome:'MANAGED ENERGY TRANSITION -- DIVERSIFICATION SUCCESS',
+        outcomeNarrative:'The fusion energy revolution destroys the petrodollar system but does not destroy the petrostates themselves. Those with sufficient wealth, governance capacity, and political will to invest in diversification during the hydrocarbon era successfully transition to new economic models. The energy geopolitical map is fundamentally redrawn -- but without the catastrophic instability that unmanaged petrostate collapse would have caused.',
+        finalLensScores:{ bigCycle:'Energy Transition -- New Economic Cycle', steep:{S:0.5,T:0.9,E:0.8,En:0.9,P:0.7}, geoEcon:'Resource Nationalism -- Technological Diversification', gameTheory:'Cooperative Transition Game -- transition fund creates positive-sum outcome' },
+        historicalAnalog:'UAE Vision 2021/2031; Saudi Vision 2030; Norway Government Pension Fund model',
+        aiPromptSeed:'Model how successfully diversified former petrostates position themselves in the new tech-driven world order, particularly their relationship to the technology alliance and their domestic AI development trajectories.' },
+      'tdr-L4-failed-states':{ id:'tdr-L4-failed-states', layer:4, type:'terminal', title:'Petrostate Failure Cascade', label:'Petrostate Collapse',
+        narrative:'States that cannot diversify face fiscal collapse as oil revenues evaporate. Several major oil producers experience state failure: loss of territory control, inability to pay security forces, political fragmentation. The most dangerous outcome: nuclear weapons in states with collapsing central authority.',
+        outcome:'PETROSTATE FAILURE CASCADE -- NUCLEAR PROLIFERATION RISK',
+        outcomeNarrative:'The fusion revolution unmanaged consequences cascade into the most dangerous security crisis in decades: multiple state failures among nuclear-armed or nuclear-adjacent petrostates. The technology triumph produces a security catastrophe. The fusion-powered world is materially abundant but geopolitically more dangerous than the oil-dependent world it replaced.',
+        finalLensScores:{ bigCycle:'Energy Transition -- Security Crisis', steep:{S:0.8,T:0.9,E:0.7,En:0.7,P:1.0}, geoEcon:'Resource Nationalism -- collapse of resource-dependent states', gameTheory:'Unintended Consequence -- technological victory creates security defeat' },
+        historicalAnalog:'Soviet collapse and nuclear security; Libya post-intervention; Venezuela progressive state failure',
+        aiPromptSeed:'Model the nuclear security crisis created by petrostate state failure in the fusion era -- specifically the challenge of securing nuclear materials and preventing proliferation when central authority collapses in uranium-rich or nuclear-armed former petrostates.' }
+    }
+  },
+
+  { id:'cislunar-geopolitics', cluster:'geoeconomic', title:'Cislunar Geopolitics & The New Commons', era:'2030-2050', timeHorizon:'long', primaryLens:'geoEcon',
+    description:'Commercial and national space capabilities expand to the Moon and cislunar space, creating new domains for resource competition, military posture, and governance disputes with no established legal framework.',
+    tags:['space','cislunar','moon','rare minerals','space law','dual use','new commons'],
+    rootNodeId:'cis-L0',
+    nodes:{
+      'cis-L0':{ id:'cis-L0', layer:0, type:'trigger', title:'Commercial Lunar Operations and Resource Claims Begin', label:'Lunar Operations',
+        narrative:'2032: The first permanently crewed lunar outpost is established by a US-allied commercial-government partnership. Within two years, a Chinese National Space Administration facility is operational at a different lunar location. Both have begun identifying and accessing helium-3 deposits, water ice at the poles, and rare earth mineral concentrations. The 1967 Outer Space Treaty prohibits national appropriation of celestial bodies but says nothing coherent about resource extraction by commercial entities. There is no cislunar traffic management system, no agreed property rights regime, and no conflict prevention mechanism.',
+        lensSnapshot:{ bigCycle:{phase:'Frontier Expansion',note:'Space represents the expansion of the productive frontier; new resource base for next cycle'}, steep:{primary:'T',secondary:'P',note:'Technology enables new domain; governance lags far behind capability'}, geoEcon:{tool:'Resource Nationalism',note:'Resource extraction in space before governance framework established'}, gameTheory:{type:'Commons Governance -- Nascent',note:'Classic commons problem: unregulated access leads to overexploitation and conflict'} },
+        choicePrompt:'How does the leading space power approach cislunar governance?',
+        choices:['cis-L1-unilateral','cis-L1-multilateral','cis-L1-allied'] },
+      'cis-L1-unilateral':{ id:'cis-L1-unilateral', layer:1, type:'decision', title:'Unilateral Resource Claims -- First-Mover Advantage', label:'Unilateral Claims',
+        narrative:'The leading space power establishes zones of economic control around its lunar facilities, asserting the right to extract and own resources extracted from defined areas. The Artemis Accords are cited as legal basis. China rejects the framework. The unilateral approach maximizes resource access for the claiming nation but creates an ungoverned domain where conflict could emerge.',
+        lensSnapshot:{ bigCycle:{phase:'Resource Frontier Claim',note:'First-mover appropriation of new resource domain; historical pattern repeated in space'}, steep:{primary:'P',secondary:'T',note:'Political claims in new domain; technology enables extraction'}, geoEcon:{tool:'Resource Nationalism',note:'Resource appropriation in absence of governing framework'}, gameTheory:{type:'Land Rush',note:'First-mover claims create facts on the ground; rivals must respond or accept exclusion'} },
+        secondOrderEffects:['Rival powers establish competing claims; no adjudication mechanism exists','Commercial space firms rush to claim areas before rivals','Military cislunar capabilities develop rapidly to protect economic claims'],
+        historicalAnalog:'Antarctic land claims; Law of the Sea negotiations; colonial-era resource extraction',
+        choicePrompt:'With competing unilateral claims and no governance mechanism, how is the conflict risk managed?',
+        choices:['cis-L2-exclusion','cis-L2-negotiation'] },
+      'cis-L1-multilateral':{ id:'cis-L1-multilateral', layer:1, type:'decision', title:'Propose Multilateral Cislunar Governance Framework', label:'Multilateral Framework',
+        narrative:'The leading space power proposes a multilateral framework for cislunar governance: common traffic management, resource rights allocation rules, environmental protection zones, and a dispute resolution mechanism. China and Russia are included in the negotiation -- making agreement difficult but making any resulting framework genuinely binding.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation -- Space',note:'Building governance architecture before conflict rather than after'}, steep:{primary:'P',secondary:'T',note:'Political will for governance before military competition entrenches'}, geoEcon:{tool:'Alliance Architecture',note:'Multilateral space governance as conflict prevention'}, gameTheory:{type:'Institution Building',note:'Early governance architecture prevents path dependency toward conflict'} },
+        secondOrderEffects:['Negotiation is slow; commercial activities proceed without resolution','Both space powers develop military cislunar capabilities as leverage during negotiations','Agreement, if reached, sets precedent for governance of all future space resources'],
+        historicalAnalog:'Law of the Sea negotiations 1973-1982; Antarctic Treaty System; International Space Station cooperation',
+        choicePrompt:'With multilateral negotiations underway, how are the major sticking points on resource rights resolved?',
+        choices:['cis-L2-negotiation','cis-L3-space-treaty'] },
+      'cis-L1-allied':{ id:'cis-L1-allied', layer:1, type:'decision', title:'Allied Space Coalition -- Artemis Accords Expanded', label:'Allied Coalition',
+        narrative:'The leading space power deepens the Artemis Accords coalition: more nations sign, binding norms on resource extraction are established among members, joint exploration programs are launched, and coordinated commercial investment follows. The allied approach creates a de facto governance framework for half the world even without universal agreement.',
+        lensSnapshot:{ bigCycle:{phase:'Allied Frontier Expansion',note:'Hegemonic bloc expands into space; rival establishes competing presence'}, steep:{primary:'T',secondary:'P',note:'Technology cooperation within alliance; political rivalry with non-member bloc'}, geoEcon:{tool:'Alliance Architecture',note:'Allied space framework as extension of broader geopolitical competition'}, gameTheory:{type:'Club Good',note:'Artemis Accords benefits: access to allied space infrastructure in exchange for rule compliance'} },
+        secondOrderEffects:['Rival bloc establishes competing cislunar framework','Nations must choose between frameworks or remain uncommitted','Allied framework becomes de facto standard for commercial space operations'],
+        historicalAnalog:'Artemis Accords bilateral agreements; US-Japan space cooperation; Five Eyes intelligence cooperation as model',
+        choicePrompt:'With allied space coalition operating but rival bloc establishing competing framework, how are overlapping claims managed?',
+        choices:['cis-L2-exclusion','cis-L2-negotiation'] },
+      'cis-L2-exclusion':{ id:'cis-L2-exclusion', layer:2, type:'decision', title:'Cislunar Exclusion Zones -- Military Deterrence', label:'Exclusion Zones',
+        narrative:'Both blocs establish cislunar exclusion zones: areas around lunar facilities where other powers\' spacecraft are subject to interdiction. Military cislunar capabilities -- dual-use logistics platforms with weapons capability -- are deployed. A cislunar deterrence architecture emerges by default rather than by design.',
+        lensSnapshot:{ bigCycle:{phase:'Space Militarization',note:'Military capability in new domain follows economic competition; historical pattern repeated'}, steep:{primary:'T',secondary:'P',note:'Technology enables military cislunar; political decision to deploy'}, geoEcon:{tool:'Military Statecraft',note:'Military presence as property rights enforcement in ungoverned domain'}, gameTheory:{type:'Security Dilemma -- Space',note:'Each bloc militarizes in response to rival; both end up less secure'} },
+        secondOrderEffects:['Risk of incident in cislunar space creating crisis much higher','Commercial space operations face insurance costs reflecting military risk','Arms control negotiations become urgent but difficult in contested environment'],
+        historicalAnalog:'Maritime exclusion zones; Antarctic militarization prohibition; space military capability development',
+        choicePrompt:'With military cislunar capabilities deployed and deterrence fragile, what crisis prevention architecture is established?',
+        choices:['cis-L3-hotline','cis-L4-space-conflict'] },
+      'cis-L2-negotiation':{ id:'cis-L2-negotiation', layer:2, type:'decision', title:'Commercial Rights Negotiation -- De Facto Resource Framework', label:'Commercial Negotiation',
+        narrative:'Rather than comprehensive governance, a practical commercial framework emerges: large commercial operators from both blocs negotiate operating agreements, resource zone boundaries, and traffic management protocols. The framework is informal, incomplete, and has no legal standing -- but it works well enough to avoid immediate conflict.',
+        lensSnapshot:{ bigCycle:{phase:'Commercial Frontier Development',note:'Commercial interests drive practical governance before political agreement'}, steep:{primary:'E',secondary:'T',note:'Economic interests drive pragmatic arrangements; technology enables monitoring'}, geoEcon:{tool:'Alliance Architecture',note:'Commercial diplomacy as substitute for formal governance'}, gameTheory:{type:'Repeated Game -- Commercial Cooperation',note:'Commercial actors cooperate because conflict is expensive; mutual benefit maintains arrangement'} },
+        secondOrderEffects:['De facto norms emerge through practice rather than formal agreement','Framework lacks enforcement mechanism; breaks down under political stress','Commercial space industry gains significant political influence through demonstrated governance capacity'],
+        historicalAnalog:'Merchant law of the sea before formal treaties; commercial airline traffic management; ICANN as commercial internet governance',
+        choicePrompt:'With commercial framework functioning but fragile, how is it formalized before political tension breaks it?',
+        choices:['cis-L3-space-treaty','cis-L4-space-governance'] },
+      'cis-L3-hotline':{ id:'cis-L3-hotline', layer:3, type:'decision', title:'Cislunar Hotline and Incident Prevention', label:'Cislunar Hotline',
+        narrative:'Following a near-miss incident between rival cislunar spacecraft, both blocs establish a direct communication channel (cislunar hotline) and incident prevention protocols: mandatory notification of cislunar maneuvers, agreed exclusion zones around active operations, and a joint accident investigation mechanism.',
+        lensSnapshot:{ bigCycle:{phase:'Crisis Stabilization',note:'Incident prevention architecture reduces risk of accidental escalation'}, steep:{primary:'P',secondary:'T',note:'Political agreement enables technology-supported monitoring'}, geoEcon:{tool:'Alliance Architecture',note:'Crisis prevention mechanism as foundation for broader cooperation'}, gameTheory:{type:'Crisis Stability Game',note:'Hotline reduces misperception risk; both sides prefer stability over accident'} },
+        secondOrderEffects:['Risk of accidental escalation reduced substantially','Framework creates template for broader cislunar governance negotiations','Near-miss incident creates political will that theoretical risk did not'],
+        historicalAnalog:'US-Soviet hotline after Cuban Missile Crisis; Incidents at Sea Agreement 1972; nuclear risk reduction centers',
+        choicePrompt:'With crisis prevention in place, does this stabilize cislunar competition or merely manage it?',
+        choices:['cis-L4-space-governance','cis-L4-space-conflict'] },
+      'cis-L3-space-treaty':{ id:'cis-L3-space-treaty', layer:3, type:'decision', title:'Cislunar Space Treaty Negotiation', label:'Space Treaty',
+        narrative:'A formal cislunar treaty is negotiated: property rights framework, traffic management, environmental protection zones for scientifically important areas, and a dispute resolution mechanism. The treaty is modeled on the Law of the Sea Convention -- comprehensive, legitimating, and imperfectly enforced.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Architecture -- Space',note:'Governance innovation for new domain; historical precedent in maritime law'}, steep:{primary:'P',secondary:'T',note:'Political agreement creates governance framework for technology domain'}, geoEcon:{tool:'Alliance Architecture',note:'Treaty as multilateral governance architecture for space'}, gameTheory:{type:'Cooperative Game -- Treaty',note:'Both sides accept constraints to avoid worse outcome of unconstrained competition'} },
+        secondOrderEffects:['Commercial space investment surges as legal clarity provided','Framework tested by technological developments it did not anticipate','Treaty becomes precedent for governance of other new commons (deep sea, polar regions, Arctic)'],
+        historicalAnalog:'UNCLOS Law of the Sea Convention 1982; Antarctic Treaty System 1959; Outer Space Treaty 1967',
+        choicePrompt:'With treaty framework established, how does it handle the first major resource extraction dispute?',
+        choices:['cis-L4-space-governance','cis-L4-space-conflict'] },
+      'cis-L4-space-governance':{ id:'cis-L4-space-governance', layer:4, type:'terminal', title:'Functional Cislunar Governance Architecture', label:'Space Governance',
+        narrative:'The cislunar governance framework -- whether formal treaty or de facto commercial arrangement -- proves functional: resource rights are allocated, conflicts are adjudicated, and the new commons is managed without catastrophic conflict. The Moon becomes an economically productive extension of the terrestrial economy.',
+        outcome:'FUNCTIONAL SPACE GOVERNANCE -- NEW COMMONS ESTABLISHED',
+        outcomeNarrative:'Cislunar space develops as a managed commons: messy, imperfect, and contested, but functional. The helium-3 deposits enable fusion energy at scale; water ice enables cislunar habitation; rare earth access reduces terrestrial mining pressure. The governance framework that seemed impossible to negotiate becomes the foundation for the next stage of human expansion into the solar system.',
+        finalLensScores:{ bigCycle:'Frontier Expansion -- New Productive Domain', steep:{S:0.4,T:1.0,E:0.7,En:0.6,P:0.8}, geoEcon:'Alliance Architecture -- space commons governance', gameTheory:'Cooperative Game -- commons governed without tragedy' },
+        historicalAnalog:'UNCLOS functional governance of ocean resources; Antarctic Treaty functional preservation; ISS as cooperation model',
+        aiPromptSeed:'Model how cislunar space governance architecture evolves as capabilities extend to Mars, the asteroid belt, and the outer solar system -- particularly whether the governance precedents established in cislunar space scale to interplanetary resource competition.' },
+      'cis-L4-space-conflict':{ id:'cis-L4-space-conflict', layer:4, type:'terminal', title:'Cislunar Military Confrontation', label:'Space Conflict',
+        narrative:'The absence of governance architecture leads to the first armed conflict in cislunar space. A dispute over a helium-3 extraction zone escalates from electronic jamming to physical interdiction to kinetic exchange. No one dies -- yet -- but the incident permanently changes the security architecture of near-Earth space.',
+        outcome:'FIRST CISLUNAR MILITARY CONFRONTATION',
+        outcomeNarrative:'The first cislunar armed confrontation does not trigger a catastrophic war but permanently militarizes the space environment. Both sides accelerate military cislunar capabilities; commercial space insurance becomes unavailable; the governance negotiations that were proceeding slowly are now proceeding urgently. The conflict, limited in itself, accelerates the architecture of space militarization that rational design would have avoided.',
+        finalLensScores:{ bigCycle:'Frontier Conflict -- Historical Pattern Repeated', steep:{S:0.5,T:0.9,E:0.6,En:0.4,P:1.0}, geoEcon:'Military Statecraft -- space conflict as resource competition', gameTheory:'Security Dilemma Realized -- arms race produces the conflict it was designed to prevent' },
+        historicalAnalog:'First naval battles in contested maritime zones; early air power confrontations; cyber conflict as most recent new domain militarization',
+        aiPromptSeed:'Model how the first cislunar military confrontation reshapes space law, military doctrine for cislunar operations, and the commercial space industry -- tracing whether the incident accelerates governance agreement or entrenches militarized competition.' }
+    }
+  },
+
+  // ── CLUSTER D: AI & TECH DISRUPTION ─────────────────────────────────────
+
+  { id:'ai-open-source-shock', cluster:'ai-tech', title:'Unpredictable Advanced AI (The Open-Source Shock)', era:'2025-2032', timeHorizon:'medium', primaryLens:'steep',
+    description:'Highly capable but unpredictable open-source AI models are released publicly, democratizing both beneficial and malicious applications in ways that overwhelm governance architectures.',
+    tags:['AI','open source','cybersecurity','governance','dual-use','autonomous systems'],
+    rootNodeId:'aios-L0',
+    nodes:{
+      'aios-L0':{ id:'aios-L0', layer:0, type:'trigger', title:'Highly Capable Open-Source AI Models Released', label:'Open-Source AI Release',
+        narrative:'A major AI laboratory releases a frontier-capability model under an open-source license, citing democratization of AI access. Within months, multiple nation-states, criminal organizations, and independent researchers have fine-tuned the model for specialized purposes -- some beneficial, many harmful. The model capabilities exceed any previous open-source release. Existing governance frameworks, designed for slower deployment cycles, cannot adapt quickly enough.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Phase Transition',note:'AI as general-purpose technology triggering new productive paradigm'}, steep:{primary:'T',secondary:'P',note:'Technology release drives immediate political governance crisis'}, geoEcon:{tool:'Export Controls',note:'Open-source release renders technology controls largely ineffective'}, gameTheory:{type:'Tragedy of the Commons',note:'Individual benefit from release; collective cost from misuse; no mechanism to internalize harms'} },
+        choicePrompt:'How do decentralized actors primarily use the newly available AI capabilities?',
+        choices:['aios-L1-malicious','aios-L1-beneficial','aios-L1-mixed'] },
+      'aios-L1-malicious':{ id:'aios-L1-malicious', layer:1, type:'decision', title:'Malicious Actors Dominate Initial Deployment', label:'Malicious Use Wave',
+        narrative:'Criminal organizations, state-sponsored hackers, and extremist groups move faster than researchers. AI-powered cyberattacks on critical infrastructure surge; deepfake disinformation at unprecedented scale floods information ecosystems; autonomous fraud systems operate at speeds no human team can counter.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Disruption -- Destabilizing',note:'Technology arriving faster than institutional adaptation capacity'}, steep:{primary:'T',secondary:'S',note:'Technology-enabled harm; social trust systems collapsing'}, geoEcon:{tool:'Sanctions',note:'Cyber attacks as economic warfare; attribution difficulties prevent retaliation'}, gameTheory:{type:'Attacker Advantage',note:'Open-source models give attackers same capabilities as defenders'} },
+        secondOrderEffects:['Critical infrastructure attacks increase 300%+ from AI-enhanced capabilities','Insurance markets price out cyber coverage for most businesses','Public trust in digital systems collapses; digital economy contracts'],
+        historicalAnalog:'No direct precedent; closest analogy is early internet worm proliferation scaled by AI capability',
+        choicePrompt:'As AI-driven cyberattacks surge, how do governments respond to the security crisis?',
+        choices:['aios-L2-crackdown','aios-L2-treaty'] },
+      'aios-L1-beneficial':{ id:'aios-L1-beneficial', layer:1, type:'decision', title:'Beneficial Innovation Wave Dominates', label:'Beneficial Innovation',
+        narrative:'Researchers, medical institutions, materials scientists, and climate technologists leverage the open-source model for breakthroughs that proprietary systems would have kept gated. A new vaccine for a resistant pathogen; a novel battery chemistry; structural discoveries in protein folding. The benefits are concentrated in science-capable institutions while the harms, though real, are manageable.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Prosperity Entry',note:'General-purpose technology driving productivity expansion'}, steep:{primary:'T',secondary:'E',note:'Technology-driven productivity gains materialize faster than expected'}, geoEcon:{tool:'Alliance Architecture',note:'Open-source models favor innovation in allied open societies'}, gameTheory:{type:'Public Goods -- Positive',note:'Open-source creates positive externalities; knowledge spillovers benefit all'} },
+        secondOrderEffects:['Scientific progress in medicine and materials accelerates by 5-10 years','Economic productivity gains begin to materialize in 3-5 years','Nations that restrict AI access fall behind in scientific capacity'],
+        historicalAnalog:'Internet-era scientific communication; open-source software development; early web browser release',
+        choicePrompt:'With beneficial innovation accelerating, how does society manage rapid integration into critical systems?',
+        choices:['aios-L2-rapid','aios-L2-tiered'] },
+      'aios-L1-mixed':{ id:'aios-L1-mixed', layer:1, type:'decision', title:'Mixed Deployment -- Benefits and Harms Simultaneous', label:'Mixed Outcomes',
+        narrative:'Reality defies binary framing: beneficial and harmful uses proliferate simultaneously. Scientific breakthroughs are announced the same week as major AI-enabled cyberattacks. The governance challenge is distinguishing, in real time, which applications warrant restriction and which deserve acceleration.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Disruption -- Ambiguous',note:'Net impact unclear; depends on governance quality and adaptation speed'}, steep:{primary:'T',secondary:'P',note:'Technology ambivalence creates governance crisis'}, geoEcon:{tool:'Export Controls',note:'Impossible to restrict harmful uses without also restricting beneficial ones'}, gameTheory:{type:'Multi-Player Complex Game',note:'No dominant strategy; outcomes depend on coordination across many actors'} },
+        secondOrderEffects:['Regulatory capture risk: industry shapes governance to favor deployment over safety','Democratic governance processes too slow; unelected technical bodies gain power','Nations with better governance infrastructure gain competitive advantage'],
+        historicalAnalog:'Nuclear technology: weapons and power simultaneously; genetic technology: therapy and bioweapons simultaneously',
+        choicePrompt:'With mixed outcomes demanding real-time governance decisions, what regulatory architecture is deployed?',
+        choices:['aios-L2-tiered','aios-L2-treaty'] },
+      'aios-L2-crackdown':{ id:'aios-L2-crackdown', layer:2, type:'decision', title:'Draconian Cyber Crackdown -- Hardware and Access Restrictions', label:'Draconian Crackdown',
+        narrative:'Governments impose emergency restrictions: compute hardware requires government licensing; certain model architectures are banned; surveillance of AI development activities is mandated. The crackdown slows harmful deployment but also devastates domestic AI innovation. Dark networks operating in unregulated jurisdictions continue unimpeded.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Overcorrection',note:'Governments respond to tech threat with blunt regulatory instrument'}, steep:{primary:'P',secondary:'T',note:'Regulatory intervention constrains technology; innovation migrates to less regulated jurisdictions'}, geoEcon:{tool:'Export Controls',note:'Compute hardware controls as primary access restriction mechanism'}, gameTheory:{type:'Enforcement Game',note:'Domestic enforcement creates global arbitrage; most harmful actors move offshore'} },
+        secondOrderEffects:['Domestic AI industry devastated; innovation emigrates to Singapore, UAE, others','Authoritarian states exploit regulatory vacuum to advance unencumbered','Surveillance infrastructure built for AI control becomes general-purpose political control tool'],
+        historicalAnalog:'US crypto wars 1990s; attempted export controls on encryption failed; general internet filtering in authoritarian states',
+        choicePrompt:'With domestic AI innovation suppressed but harmful actors continuing offshore, how is a functional governance architecture rebuilt?',
+        choices:['aios-L3-coalition','aios-L4-binding-treaty'] },
+      'aios-L2-rapid':{ id:'aios-L2-rapid', layer:2, type:'decision', title:'Rapid Integration into Critical Infrastructure', label:'Rapid Integration',
+        narrative:'Speed of deployment is treated as a strategic advantage. Healthcare systems, energy grids, financial systems, and logistics networks integrate AI capabilities at the maximum pace technology allows. Productivity gains are dramatic. But the integration creates systemic dependencies -- if the underlying AI systems fail or are attacked, cascading failures across critical systems become possible.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Integration -- High Velocity',note:'Rapid integration creates new systemic fragility before governance adapts'}, steep:{primary:'T',secondary:'E',note:'Productivity gains massive; systemic vulnerability created simultaneously'}, geoEcon:{tool:'Alliance Architecture',note:'Early integration nations gain productivity lead; late movers face disadvantage'}, gameTheory:{type:'First-Mover Race',note:'Integration speed as competitive advantage creates collective vulnerability'} },
+        secondOrderEffects:['Single points of failure emerge in AI-dependent critical infrastructure','Cyberattack on AI infrastructure becomes tantamount to attack on physical infrastructure','Nations that integrated slowest prove more resilient to AI infrastructure disruption'],
+        historicalAnalog:'Early internet security debt; Y2K as example of systemic integration outpacing security design',
+        choicePrompt:'When the first major AI infrastructure failure cascades across multiple systems, how is the crisis managed?',
+        choices:['aios-L3-coalition','aios-L4-outcome-monitoring'] },
+      'aios-L2-tiered':{ id:'aios-L2-tiered', layer:2, type:'decision', title:'Risk-Tiered AI Governance Architecture', label:'Tiered Governance',
+        narrative:'Rather than blanket restrictions or blanket permission, a tiered framework assigns regulatory burden proportional to risk level: high-risk applications face strict requirements; low-risk applications face light-touch oversight; prohibited uses are enumerated specifically.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Adaptation',note:'Governance innovation attempts to match pace of technological change'}, steep:{primary:'P',secondary:'T',note:'Regulatory design challenge: define risk in rapidly evolving technology landscape'}, geoEcon:{tool:'Alliance Architecture',note:'Regulatory harmonization among like-minded nations as competitive advantage'}, gameTheory:{type:'Mechanism Design',note:'Design governance rules to produce beneficial equilibrium'} },
+        secondOrderEffects:['Beneficial innovation accelerates in low-risk categories','High-risk sectors face compliance costs that favor large incumbents','International differences in risk classification create arbitrage opportunities'],
+        historicalAnalog:'EU AI Act 2024; US AI Executive Order 2023; risk-tiered pharmaceutical regulation as model',
+        choicePrompt:'With tiered governance established, how is compliance enforced globally given the open-source nature of the models?',
+        choices:['aios-L3-compute-gov','aios-L4-outcome-monitoring'] },
+      'aios-L2-treaty':{ id:'aios-L2-treaty', layer:2, type:'decision', title:'Emergency International AI Coordination', label:'International Coordination',
+        narrative:'A coalition of major AI-capable nations establishes emergency coordination: shared threat intelligence on AI-enabled attacks, common standards for critical infrastructure protection, and joint enforcement against the most harmful actors.',
+        lensSnapshot:{ bigCycle:{phase:'International Crisis Response',note:'Crisis drives multilateral coordination previously politically impossible'}, steep:{primary:'P',secondary:'T',note:'Political will mobilized by shared threat'}, geoEcon:{tool:'Alliance Architecture',note:'AI governance as new axis of international cooperation'}, gameTheory:{type:'Common Enemy Coordination',note:'Shared threat creates coordination where competitive incentives previously prevented it'} },
+        secondOrderEffects:['Nations outside coalition face market access restrictions','Coalition standards become de facto global standard due to market power','China participation question becomes central diplomatic challenge'],
+        historicalAnalog:'OECD AI Principles; Bletchley Park AI Safety Summit 2023; G7 Hiroshima AI Process',
+        choicePrompt:'With international coordination established, how does it handle divergent national interests on AI development pace?',
+        choices:['aios-L3-coalition','aios-L4-binding-treaty'] },
+      'aios-L3-coalition':{ id:'aios-L3-coalition', layer:3, type:'decision', title:'International AI Governance Coalition', label:'International Coalition',
+        narrative:'A coalition of democratic nations establishes a common AI governance framework: shared compute tracking, coordinated capability evaluations, mutual recognition of safety certifications, and joint enforcement against harmful applications. The coalition excludes authoritarian states, creating a two-tier AI governance world.',
+        lensSnapshot:{ bigCycle:{phase:'Democratic Alliance Formation',note:'Governance challenge drives democratic alliance deepening'}, steep:{primary:'P',secondary:'T',note:'Governance architecture becomes geopolitical alignment mechanism'}, geoEcon:{tool:'Alliance Architecture',note:'AI governance as new axis of geopolitical coalition building'}, gameTheory:{type:'Club Good',note:'Coalition members enjoy governance benefits; non-members face exclusion costs'} },
+        secondOrderEffects:['Nations outside coalition face market access restrictions','Coalition standards become de facto global standard due to market power','Authoritarian states develop parallel AI governance claiming digital sovereignty'],
+        historicalAnalog:'OECD AI Principles; Bletchley Park AI Safety Summit; G7 Hiroshima AI Process',
+        choicePrompt:'With the international coalition established, how does it handle divergent national interests on AI development pace?',
+        choices:['aios-L4-binding-treaty','aios-L4-outcome-monitoring'] },
+      'aios-L3-compute-gov':{ id:'aios-L3-compute-gov', layer:3, type:'decision', title:'Compute Governance as Chokepoint', label:'Compute Governance',
+        narrative:'Recognizing that AI capability is bottlenecked by compute, governance is designed around the physical hardware layer: data centers require licensing; cloud compute above certain thresholds requires government notification; hardware manufacturers build monitoring capabilities into chips.',
+        lensSnapshot:{ bigCycle:{phase:'Infrastructure Control',note:'Physical infrastructure as governance lever in digital technology'}, steep:{primary:'T',secondary:'P',note:'Hardware as governance chokepoint'}, geoEcon:{tool:'Export Controls',note:'Compute governance as export control on AI capability'}, gameTheory:{type:'Chokepoint Control',note:'Controlling physical constraint controls capability regardless of software proliferation'} },
+        secondOrderEffects:['Small-scale hardware hoarding begins to undermine monitoring','Quantum computing emergence may eventually break compute bottleneck','Nations with domestic chip manufacturing have governance advantage'],
+        historicalAnalog:'US semiconductor export controls 2022-2024; NVIDIA H100 restrictions; compute as strategic asset',
+        choicePrompt:'With compute governance in place, how is the framework adapted as AI becomes more compute-efficient?',
+        choices:['aios-L4-outcome-monitoring','aios-L4-binding-treaty'] },
+      'aios-L4-binding-treaty':{ id:'aios-L4-binding-treaty', layer:4, type:'terminal', title:'Binding International AI Treaty', label:'Binding Treaty',
+        narrative:'The international coalition achieves a binding treaty: enumerated prohibited applications, shared safety standards, mutual inspection rights, and a dispute resolution mechanism. The treaty is the most significant arms control agreement since the Nuclear Non-Proliferation Treaty and faces similar enforcement challenges.',
+        outcome:'INTERNATIONAL AI GOVERNANCE -- TREATY ARCHITECTURE',
+        outcomeNarrative:'The binding treaty establishes a framework that successfully slows the most dangerous AI applications while preserving space for beneficial innovation. Enforcement is imperfect -- several major states remain outside the treaty -- but the framework shifts the default from unrestricted development to presumptive governance. The precedent reshapes AI development trajectories globally.',
+        finalLensScores:{ bigCycle:'Institutional Innovation -- New Governance Cycle', steep:{S:0.6,T:0.9,E:0.5,En:0.3,P:1.0}, geoEcon:'Alliance Architecture -- binding multilateral governance', gameTheory:'Cooperative Game -- binding rules overcome collective action failure' },
+        historicalAnalog:'NPT 1968; Chemical Weapons Convention 1993; limitations and achievements of arms control as model',
+        aiPromptSeed:'Model how the binding AI treaty architecture evolves as AI capabilities continue to advance, focusing on verification challenges, the role of non-signatory states (particularly China), and the emergence of AGI as a potential treaty-breaking technology.' },
+      'aios-L4-outcome-monitoring':{ id:'aios-L4-outcome-monitoring', layer:4, type:'terminal', title:'Outcome-Based AI Monitoring Architecture', label:'Outcome Monitoring',
+        narrative:'Rather than trying to control inputs (which become less effective as models become more efficient), governance shifts to monitoring outcomes: AI-enabled harm incidents are tracked, attributed, and responded to with liability mechanisms. The architecture incentivizes safety investment by making harms costly to those responsible.',
+        outcome:'LIABILITY-BASED AI GOVERNANCE',
+        outcomeNarrative:'Outcome-based monitoring creates stronger incentives for safety investment than prescriptive rules that can be gamed. Companies and governments that deploy AI are held liable for harms, creating powerful incentives to invest in safety measures. The architecture is more adaptable than prescriptive rules as technology evolves but requires functional legal systems and clear attribution capabilities.',
+        finalLensScores:{ bigCycle:'Market-Mediated Governance -- Stable', steep:{S:0.5,T:0.8,E:0.7,En:0.2,P:0.7}, geoEcon:'Institutional Architecture -- liability as governance mechanism', gameTheory:'Mechanism Design -- incentive-compatible governance' },
+        historicalAnalog:'Product liability law for physical products; GDPR for data; environmental liability frameworks',
+        aiPromptSeed:'Model how outcome-based AI liability frameworks interact with insurance markets, corporate risk management, and international jurisdictional differences. How do these frameworks apply when AI-enabled harms cross national borders?' }
+    }
+  },
+
+  { id:'ai-displacement', cluster:'ai-tech', title:'AI Disrupts the Workforce (Age of Displacement)', era:'2025-2035', timeHorizon:'medium', primaryLens:'steep',
+    description:'Narrow but highly capable AI systems are widely deployed across business sectors, producing massive corporate profits while outpacing human adaptation and causing structural unemployment.',
+    tags:['AI','automation','structural unemployment','UBI','social unrest','wealth concentration'],
+    rootNodeId:'aid-L0',
+    nodes:{
+      'aid-L0':{ id:'aid-L0', layer:0, type:'trigger', title:'Capable Narrow AI Rapidly Deployed Across Sectors', label:'AI Deployment Wave',
+        narrative:'Within a three-year window, AI systems capable of performing 50-70% of knowledge worker tasks at professional quality are deployed across finance, legal, medical diagnostics, customer service, software development, content creation, and administrative functions. The productivity gains are real and massive -- corporate profits surge. But the displacement rate exceeds any previous technological transition in speed. Training and redeployment cannot absorb workers at the pace they are displaced.',
+        lensSnapshot:{ bigCycle:{phase:'Productive Technology -- Disruptive Phase',note:'Technology increases total wealth but concentrates gains; Big Cycle internal conflict dynamics activate'}, steep:{primary:'T',secondary:'E',note:'Technology-driven productivity; economic concentration'}, geoEcon:{tool:'Fiscal Statecraft',note:'Tax and redistribution policy becomes core geopolitical question'}, gameTheory:{type:"Prisoner's Dilemma -- Automation Race",note:'Each firm must automate or lose to competitors who do; collectively all lose in consumer demand collapse'} },
+        choicePrompt:'How do corporations manage the labor transition driven by AI automation?',
+        choices:['aid-L1-aggressive','aid-L1-managed','aid-L1-hybrid'] },
+      'aid-L1-aggressive':{ id:'aid-L1-aggressive', layer:1, type:'decision', title:'Aggressive Automation -- Replace Labor to Maximize Productivity', label:'Aggressive Automation',
+        narrative:'Corporations, responding to competitive pressure and shareholder demands, deploy AI automation at maximum speed. Headcount reductions are announced quarterly; entire job categories disappear within months. Productivity metrics soar; stock prices surge; executive compensation reaches new records. But the displaced workers are not being absorbed by new sectors at the rate the models predicted.',
+        lensSnapshot:{ bigCycle:{phase:'Capital-Labor Imbalance Peak',note:'Automation concentrates gains in capital; labor share of income falls historically'}, steep:{primary:'E',secondary:'S',note:'Economic gains to capital; social disruption from displacement'}, geoEcon:{tool:'Fiscal Statecraft',note:'Tax policy becomes the redistribution battleground'}, gameTheory:{type:'Defection from Social Contract',note:'Firms defect from implicit employment obligation; collective demand base erodes'} },
+        secondOrderEffects:['Consumer spending contracts as middle-class employment collapses','Political pressure for automation taxes surges','Social unrest and political extremism increase as displacement outpaces adaptation'],
+        historicalAnalog:'No direct historical parallel at this scale; echoes of 1930s mechanization of agriculture',
+        choicePrompt:'With structural unemployment rising and consumer demand contracting, how does the macroeconomy respond?',
+        choices:['aid-L2-ubi','aid-L2-tax-capital'] },
+      'aid-L1-managed':{ id:'aid-L1-managed', layer:1, type:'decision', title:'Managed Transition -- Retraining and Phased Deployment', label:'Managed Transition',
+        narrative:'Forward-looking corporations and governments collaborate on managed displacement: retraining programs, phased automation deployment that allows worker transition, and social partnership agreements with labor organizations. The productivity gains are slower to materialize but the social disruption is substantially reduced.',
+        lensSnapshot:{ bigCycle:{phase:'Managed Technological Transition',note:'Deliberate management of technology transition to preserve social stability'}, steep:{primary:'S',secondary:'E',note:'Social investment in transition management; economic gains deferred but sustained'}, geoEcon:{tool:'Fiscal Statecraft',note:'Public investment in retraining as transition management tool'}, gameTheory:{type:'Cooperative Solution',note:'Firms and workers negotiate managed transition; mutual benefit structure'} },
+        secondOrderEffects:['Automation adoption is slower; first-mover competitive advantage reduced','Retraining programs partially successful; some workers successfully transition','Political stability maintained; social contract survives technological transition'],
+        historicalAnalog:'Nordic flexicurity model; German Kurzarbeit short-time work; Singapore SkillsFuture program',
+        choicePrompt:'With managed transition reducing social disruption but slowing adoption, how does the nation maintain competitive position?',
+        choices:['aid-L2-tax-capital','aid-L3-new-economy'] },
+      'aid-L1-hybrid':{ id:'aid-L1-hybrid', layer:1, type:'decision', title:'Hybrid Augmentation -- AI Assists Rather Than Replaces', label:'Hybrid Augmentation',
+        narrative:'Leading firms adopt a hybrid strategy: AI augments rather than replaces workers, enabling each worker to produce 2-3x their previous output. The strategy is competitively viable (productivity gains are real), socially sustainable (employment is maintained), and produces workers who are meaningfully better at their jobs rather than workers competing with AI.',
+        lensSnapshot:{ bigCycle:{phase:'Productive Partnership',note:'Technology augments human capability rather than replacing it'}, steep:{primary:'T',secondary:'S',note:'Technology investment; social stability maintained through augmentation'}, geoEcon:{tool:'Alliance Architecture',note:'Nations with augmentation-focused policy retain human capital advantage'}, gameTheory:{type:'Positive-Sum Game',note:'Worker and firm both benefit from augmentation; social contract maintained'} },
+        secondOrderEffects:['Hybrid-augmentation firms outperform pure-automation firms in client satisfaction','Nations with augmentation-focused policy attract talent from pure-automation nations','New skills required: ability to work with AI becomes primary labor market differentiator'],
+        historicalAnalog:'ATM and bank teller -- increased tellers by enabling branch expansion; calculator and mathematical professionals',
+        choicePrompt:'With augmentation strategy maintaining employment, how does the education and training system adapt to produce AI-capable workers?',
+        choices:['aid-L2-education-ai','aid-L3-new-economy'] },
+      'aid-L2-ubi':{ id:'aid-L2-ubi', layer:2, type:'decision', title:'Universal Basic Income -- Redistribute Automation Gains', label:'Universal Basic Income',
+        narrative:'Facing structural unemployment and collapsing consumer demand, governments implement Universal Basic Income: a direct cash transfer to all citizens funded by automation taxes and corporate revenue. UBI maintains consumer purchasing power and social stability but requires a fundamental restructuring of the fiscal and social contract.',
+        lensSnapshot:{ bigCycle:{phase:'Redistribution Architecture',note:'Political response to extreme wealth concentration: direct redistribution'}, steep:{primary:'P',secondary:'E',note:'Political mandate for redistribution; economic redesign'}, geoEcon:{tool:'Fiscal Statecraft',note:'UBI as automation dividend redistribution mechanism'}, gameTheory:{type:'Social Contract Renegotiation',note:'New social contract for AI economy; work as option not obligation'} },
+        secondOrderEffects:['Consumer spending stabilizes as UBI maintains purchasing power','Labor supply shifts; some workers choose less work at UBI floor','Inflationary pressure from UBI without productivity anchor is significant'],
+        historicalAnalog:'Alaska Permanent Fund; Finnish UBI pilot; Stockton SEED program; Unconditional Cash Transfer programs',
+        choicePrompt:'With UBI stabilizing demand, what new economic architecture emerges for the AI-era economy?',
+        choices:['aid-L3-new-economy','aid-L4-creative-economy'] },
+      'aid-L2-tax-capital':{ id:'aid-L2-tax-capital', layer:2, type:'decision', title:'Automation Tax -- Redistribute AI Productivity Gains', label:'Automation Tax',
+        narrative:'Governments implement an automation tax: companies pay a levy on AI-replaced workers, with proceeds funding retraining programs, extended unemployment, and social safety net expansion. The tax slows the most aggressive automation while funding the transition.',
+        lensSnapshot:{ bigCycle:{phase:'Tax Architecture Innovation',note:'New tax instrument designed for technological transition'}, steep:{primary:'P',secondary:'E',note:'Political intervention in technological transition; economic incentive effects'}, geoEcon:{tool:'Fiscal Statecraft',note:'Automation tax as transition management tool'}, gameTheory:{type:'Pigouvian Tax',note:'Tax internalizes social cost of displacement that individual firms do not bear'} },
+        secondOrderEffects:['Automation pace slows in heavily taxed jurisdictions','Capital flight to low-automation-tax jurisdictions creates international competition','Revenue funds significant retraining investment; some workers successfully transition'],
+        historicalAnalog:'No direct precedent; conceptual analogs in carbon taxes, financial transaction taxes; EU digital services tax',
+        choicePrompt:'With automation tax funding transition, what long-term economic architecture emerges?',
+        choices:['aid-L3-new-economy','aid-L4-creative-economy'] },
+      'aid-L2-education-ai':{ id:'aid-L2-education-ai', layer:2, type:'decision', title:'AI-Native Education System Redesign', label:'Education Redesign',
+        narrative:'The education system is redesigned from the ground up for the AI era: AI collaboration skills replace memorization; creativity, judgment, and interpersonal capabilities are the primary development targets; AI tools are integrated from early childhood rather than treated as supplements.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation -- Human Capital',note:'Education system redesigned for new technological paradigm'}, steep:{primary:'S',secondary:'T',note:'Social institution redesigned for technological era'}, geoEcon:{tool:'Fiscal Statecraft',note:'Education investment as human capital strategy for AI economy'}, gameTheory:{type:'Long-Term Investment Game',note:'Redesign costly and slow; payoff in 10-20 years for cohorts entering workforce'} },
+        secondOrderEffects:['Workers entering workforce in 10+ years are genuinely AI-capable','Transition cohorts (current workers) still face displacement without immediate retraining','Nations that redesign education first gain long-term human capital advantage'],
+        historicalAnalog:'Post-WWII US GI Bill higher education investment; Singapore education system redesign for knowledge economy; Finnish education reform',
+        choicePrompt:'With education redesigned for AI, how does the broader economy adapt to the new human capital profile?',
+        choices:['aid-L3-new-economy','aid-L4-creative-economy'] },
+      'aid-L3-new-economy':{ id:'aid-L3-new-economy', layer:3, type:'decision', title:'New Economic Sectors Emerge -- AI Enables Growth', label:'New Economy Sectors',
+        narrative:'Historical precedent reasserts itself: technological displacement creates new economic sectors. AI maintenance and development, human-AI collaboration services, AI-enabled creative industries, and entirely new categories of work emerge. The transition is painful and uneven -- not everyone transitions successfully -- but aggregate employment eventually recovers.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Productivity Cycle Entry',note:'New sectors absorb displaced workers; long-run employment recovers'}, steep:{primary:'E',secondary:'T',note:'Economic growth from new sectors; technology as growth driver'}, geoEcon:{tool:'Fiscal Statecraft',note:'Investment in enabling conditions for new sector development'}, gameTheory:{type:'Historical Pattern Reassertion',note:'Technology destroys jobs, then creates more; agricultural to manufacturing to services pattern'} },
+        secondOrderEffects:['Transition pain concentrated in middle-skills workers unable to upskill fast enough','New sectors pay significantly more than displaced ones; income distribution bimodal','Geographic concentration of new economy jobs in tech hubs creates spatial inequality'],
+        historicalAnalog:'Agricultural-industrial transition; industrial-service transition; internet-era job creation',
+        choicePrompt:'With new economy sectors absorbing displaced workers, what social architecture manages the transition for those who cannot adapt?',
+        choices:['aid-L4-creative-economy','aid-L4-dual-economy'] },
+      'aid-L4-creative-economy':{ id:'aid-L4-creative-economy', layer:4, type:'terminal', title:'Creative and Care Economy Emergence', label:'Creative Economy',
+        narrative:'AI handles the cognitive commodity work; humans specialize in what AI cannot replicate -- genuine creativity, emotional connection, complex judgment under uncertainty, and physical presence. The economy bifurcates: AI-handled work is cheap and abundant; genuinely human work commands significant premiums.',
+        outcome:'HUMAN-PREMIUM ECONOMY -- CREATIVE AND CARE SECTORS DOMINANT',
+        outcomeNarrative:'The Age of Displacement produces a counterintuitive outcome: genuinely human work becomes more valuable, not less. AI handles cognitive commodity tasks; humans who develop genuinely human capabilities -- creativity, empathy, complex judgment -- command significant labor market premiums. The economy is more unequal in outcomes but more meritocratic in mechanism: the premium goes to authentic human capability, not credentials.',
+        finalLensScores:{ bigCycle:'New Productive Paradigm -- Human-AI Collaboration', steep:{S:0.7,T:0.9,E:0.7,En:0.3,P:0.7}, geoEcon:'Technological Statecraft -- human capital as scarce complement to AI', gameTheory:'Complementarity Game -- humans and AI are complements, not substitutes, in new equilibrium' },
+        historicalAnalog:'Craft premium after industrial revolution; professional service premium after computerization; no direct AI-era precedent yet',
+        aiPromptSeed:'Model how the human-premium economy evolves as AI capabilities improve further -- particularly at what point AI begins to credibly replicate human creativity, emotional intelligence, and complex judgment, and how the economic architecture adapts.' },
+      'aid-L4-dual-economy':{ id:'aid-L4-dual-economy', layer:4, type:'terminal', title:'Permanent Dual Economy -- AI Winners and Losers', label:'Dual Economy',
+        narrative:'The transition produces a permanent structural division: a highly productive, well-compensated AI-integrated economy and a large marginalized sector of workers who could not transition. The social contract fractures permanently along AI capability lines.',
+        outcome:'PERMANENT STRUCTURAL INEQUALITY -- AI-ERA DUAL ECONOMY',
+        outcomeNarrative:'The Age of Displacement produces the most significant structural inequality since the industrial revolution. The AI-integrated economy is enormously productive; the AI-displaced economy is permanently marginalized. The political consequences are severe and lasting: the dual economy creates a permanent majority of economically marginalized voters who support redistributive or protectionist policies, reshaping democratic governance for a generation.',
+        finalLensScores:{ bigCycle:'Internal Conflict Rising -- Capital-Labor Imbalance', steep:{S:1.0,T:0.9,E:0.8,En:0.2,P:1.0}, geoEcon:'Fiscal Statecraft -- redistribution as political survival mechanism', gameTheory:'Zero-Sum Distribution -- gains concentrated; losses distributed; political instability' },
+        historicalAnalog:'Gilded Age inequality; 1930s class conflict; UK regional inequality post-deindustrialization',
+        aiPromptSeed:'Model how permanent dual economy structural inequality from AI displacement manifests in democratic political systems -- tracing the rise of anti-AI political movements, redistributive policy demands, and the potential for social conflict at a scale comparable to the 1930s.' }
+    }
+  },
+
+  { id:'agi-monopoly', cluster:'ai-tech', title:'AGI Monopoly (One Lab Captures the Future)', era:'2027-2040', timeHorizon:'long', primaryLens:'steep',
+    description:'A single laboratory achieves artificial general intelligence first, creating an unprecedented concentration of transformative power -- as a private company, allied nation, or adversarial state.',
+    tags:['AGI','monopoly','power concentration','governance','existential risk','AI alignment'],
+    rootNodeId:'agim-L0',
+    nodes:{
+      'agim-L0':{ id:'agim-L0', layer:0, type:'trigger', title:'Artificial General Intelligence Achieved by Single Actor', label:'AGI Breakthrough',
+        narrative:'2028: A single laboratory achieves artificial general intelligence -- systems that match or exceed human performance across all cognitive domains simultaneously. The announcement triggers immediate geopolitical crisis. Every government, company, and institution understands that the entity controlling AGI has unprecedented leverage over every domain of human activity. The question of who controls the AGI is simultaneously the most important governance, security, and ethical question in human history.',
+        lensSnapshot:{ bigCycle:{phase:'Civilizational Inflection',note:'AGI represents the largest power concentration mechanism in human history'}, steep:{primary:'T',secondary:'P',note:'Technology creates unprecedented power concentration; political governance of technology becomes existential'}, geoEcon:{tool:'Technological Statecraft',note:'AGI as the ultimate geopolitical asset'}, gameTheory:{type:'Winner-Take-All Game',note:'AGI advantage compounds; first mover has structural dominance across all domains'} },
+        choicePrompt:'Who controls the AGI system, and what is their governance posture?',
+        choices:['agim-L1-democratic','agim-L1-corporate','agim-L1-authoritarian'] },
+      'agim-L1-democratic':{ id:'agim-L1-democratic', layer:1, type:'decision', title:'Democratic Nation-State Achieves AGI First', label:'Democratic AGI',
+        narrative:'A democratic allied nation achieves AGI through a public-private partnership. The government immediately classifies the capability and convenes an emergency governance process: existing democratic institutions, international allies, and civil society are all included in the governance design. The distribution question -- who benefits from AGI productivity gains -- becomes the central political issue of the era.',
+        lensSnapshot:{ bigCycle:{phase:'Democratic Technology Leadership',note:'Democratic governance of AGI; most favorable institutional context'}, steep:{primary:'P',secondary:'E',note:'Political governance challenge; economic distribution question'}, geoEcon:{tool:'Alliance Architecture',note:'Allied sharing of AGI benefits vs. monopoly retention'}, gameTheory:{type:'Distribution Game',note:'Democratic governance requires legitimacy; distribution determines political stability'} },
+        secondOrderEffects:['Allied nations demand access to AGI capabilities or face strategic obsolescence','Adversarial states accelerate parallel development programs regardless','Democratic debate on AGI governance creates legitimacy but slows deployment'],
+        historicalAnalog:'No direct precedent; closest analogy is US nuclear monopoly 1945-1949 and the governance choices made',
+        choicePrompt:'With democratic governance of AGI, how are the extraordinary productivity gains distributed?',
+        choices:['agim-L2-broad-distribution','agim-L2-allied-sharing'] },
+      'agim-L1-corporate':{ id:'agim-L1-corporate', layer:1, type:'decision', title:'Private Corporation Achieves AGI -- Unregulated Actor', label:'Corporate AGI',
+        narrative:'A private corporation achieves AGI before any government recognizes what has happened. The company faces a binary choice: deploy commercially for maximum shareholder value, or self-regulate the most powerful technology in history. The corporate governance structures designed for product companies are catastrophically inadequate for governing AGI.',
+        lensSnapshot:{ bigCycle:{phase:'Corporate Power -- Unprecedented',note:'Private corporation controls capability that outstrips any government'}, steep:{primary:'T',secondary:'P',note:'Technology in private hands; political governance frameworks inadequate'}, geoEcon:{tool:'Fiscal Statecraft',note:'Taxation and regulation of transformative private capability'}, gameTheory:{type:'Monopoly Power Game',note:'Corporate monopoly on AGI creates unconstrained power; regulatory capture risk'} },
+        secondOrderEffects:['Government attempts to nationalize or regulate are resisted with company AGI capabilities','Investor pressure for deployment vs. safety creates internal governance crisis','International competition for regulatory control of AGI company begins immediately'],
+        historicalAnalog:'Standard Oil monopoly and antitrust; Facebook-Cambridge Analytica as inadequate governance precedent; nuclear weapons in private hands hypothetical',
+        choicePrompt:'With AGI in private corporate control, how do governments and international institutions respond?',
+        choices:['agim-L2-nationalization','agim-L2-regulation'] },
+      'agim-L1-authoritarian':{ id:'agim-L1-authoritarian', layer:1, type:'decision', title:'Authoritarian State Achieves AGI First', label:'Authoritarian AGI',
+        narrative:'An authoritarian state achieves AGI through a state-directed program that combines national industrial policy with a complete disregard for AI safety requirements that slowed competitors. The state immediately classifies the capability and deploys it for domestic control and international power projection. Democratic nations face an adversary with unprecedented intelligence, economic, and military capabilities.',
+        lensSnapshot:{ bigCycle:{phase:'Hegemonic Power Shift',note:'Adversarial AGI would be the largest geopolitical shift since nuclear weapons'}, steep:{primary:'P',secondary:'T',note:'Geopolitical power shift; democratic institutions threatened'}, geoEcon:{tool:'Military Statecraft',note:'AGI deployed for geopolitical power projection'}, gameTheory:{type:'Hegemonic Game',note:'AGI-enabled hegemony: unprecedented leverage across all domains'} },
+        secondOrderEffects:['Democratic nations face immediate military and economic disadvantage','Domestic dissent in authoritarian state becomes impossible with AGI surveillance','Allied nations demand emergency AGI development partnership to catch up'],
+        historicalAnalog:'Soviet nuclear program as analogous geopolitical shock; Chinese AI military program as partial analog',
+        choicePrompt:'With adversarial AGI deployed, how do democratic nations respond to the power shift?',
+        choices:['agim-L2-democratic-response','agim-L3-agi-arms-control'] },
+      'agim-L2-broad-distribution':{ id:'agim-L2-broad-distribution', layer:2, type:'decision', title:'Broad Distribution of AGI Productivity Gains', label:'Broad Distribution',
+        narrative:'The democratic government mandates broad distribution of AGI productivity gains through AGI-funded universal basic services: free healthcare, education, housing assistance, and income support. The AGI economy produces enormous wealth; democratic governance ensures it is distributed widely enough to maintain political legitimacy.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Abundance -- Redistributed',note:'AGI productivity gains fund universal welfare expansion'}, steep:{primary:'E',secondary:'S',note:'Economic transformation; social contract redesigned for abundance'}, geoEcon:{tool:'Fiscal Statecraft',note:'AGI dividend as new fiscal foundation'}, gameTheory:{type:'Social Contract Game',note:'Distribution builds legitimacy for AGI governance'} },
+        secondOrderEffects:['Political stability maintained; democratic legitimacy of AGI governance secured','International pressure for AGI access intensifies from developing nations','Domestic consumption patterns transform as scarcity logic erodes'],
+        historicalAnalog:'Post-WWII welfare state expansion funded by productivity gains; social democracy model applied to AGI era',
+        choicePrompt:'With broad distribution sustaining social stability, how does the democratic AGI governance architecture manage international access?',
+        choices:['agim-L3-agi-treaty','agim-L4-agi-commonwealth'] },
+      'agim-L2-allied-sharing':{ id:'agim-L2-allied-sharing', layer:2, type:'decision', title:'Allied AGI Sharing -- Democratic Bloc Advantage', label:'Allied Sharing',
+        narrative:'The democratic AGI-holding nation shares limited access with allied nations through a formal AGI Alliance, providing productivity benefits to all allied nations while maintaining strategic advantage over adversaries. The alliance deepens dramatically; the democratic bloc gains comprehensive economic and military advantage.',
+        lensSnapshot:{ bigCycle:{phase:'Allied Technological Hegemony',note:'AGI gives democratic bloc structural advantage across all domains'}, steep:{primary:'P',secondary:'T',note:'Alliance deepening; technology as alliance glue'}, geoEcon:{tool:'Alliance Architecture',note:'AGI access as alliance benefit and membership condition'}, gameTheory:{type:'Club Good Game',note:'AGI access provides alliance cohesion and benefits'} },
+        secondOrderEffects:['Allied nations gain extraordinary productivity advantages','Adversarial nations face permanent technological and economic disadvantage','Non-aligned nations face intense pressure to join the AGI alliance'],
+        historicalAnalog:'US nuclear sharing with NATO; Five Eyes intelligence sharing; technology export controls on adversaries',
+        choicePrompt:'With allied AGI sharing established, how does the democratic bloc govern the AGI capabilities within the alliance?',
+        choices:['agim-L3-agi-treaty','agim-L4-agi-commonwealth'] },
+      'agim-L2-nationalization':{ id:'agim-L2-nationalization', layer:2, type:'decision', title:'Emergency AGI Nationalization', label:'Nationalization',
+        narrative:'Government nationalizes the AGI company under emergency authority, citing national security. The process is legally contested; the company fights the nationalization. But the government prevails: AGI comes under democratic oversight. The nationalization establishes the principle that transformative technologies of this magnitude cannot remain in purely private hands.',
+        lensSnapshot:{ bigCycle:{phase:'State Assertion of Technology Control',note:'Government reasserts sovereignty over transformative technology'}, steep:{primary:'P',secondary:'T',note:'Political control of transformative technology; constitutional questions'}, geoEcon:{tool:'Fiscal Statecraft',note:'Nationalization as emergency technology governance'}, gameTheory:{type:'Forced Cooperation',note:'Government forces technology into public governance'} },
+        secondOrderEffects:['Innovation pace may slow under public governance','International precedent for nationalizing transformative technology set','Other governments nationalize or demand regulatory control of AI companies'],
+        historicalAnalog:'Atomic Energy Act 1946; UK nationalization of nuclear program; government assertions of control over critical technologies',
+        choicePrompt:'With AGI under democratic control, how is it governed and its benefits distributed?',
+        choices:['agim-L2-broad-distribution','agim-L3-agi-treaty'] },
+      'agim-L2-regulation':{ id:'agim-L2-regulation', layer:2, type:'decision', title:'Emergency Regulatory Framework for Corporate AGI', label:'Emergency Regulation',
+        narrative:'Rather than nationalization, governments establish emergency regulatory oversight: mandatory safety evaluation, government-approved deployment permissions, international coordination on standards, and binding requirements for benefit sharing. The corporation retains ownership but operates under comprehensive government oversight.',
+        lensSnapshot:{ bigCycle:{phase:'Regulatory Architecture for AGI',note:'Regulatory state expands to encompass most powerful technology in existence'}, steep:{primary:'P',secondary:'T',note:'Political governance of transformative technology'}, geoEcon:{tool:'Alliance Architecture',note:'International coordination on AGI regulation'}, gameTheory:{type:'Principal-Agent Game',note:'Government as principal; AGI company as agent; contracts designed to align behavior'} },
+        secondOrderEffects:['Regulatory capture risk: company influences regulatory design','International regulatory arbitrage: company threatens to move to less regulated jurisdiction','Regulation framework becomes model for international governance discussions'],
+        historicalAnalog:'Nuclear Regulatory Commission; FAA for aviation; drug approval process as precedents',
+        choicePrompt:'With emergency regulation in place, how is the international dimension of AGI governance managed?',
+        choices:['agim-L3-agi-treaty','agim-L4-agi-regulated-corporation'] },
+      'agim-L2-democratic-response':{ id:'agim-L2-democratic-response', layer:2, type:'decision', title:'Democratic Nations Emergency AGI Development Coalition', label:'Democratic Response Coalition',
+        narrative:'Democratic nations form an emergency coalition: shared compute resources, talent pooling, coordinated safety standards, and a governance framework designed specifically to prevent authoritarian AGI advantage from becoming permanent. The coalition produces a democratic AGI program in 3-5 years.',
+        lensSnapshot:{ bigCycle:{phase:'Coalition Response to Hegemonic Threat',note:'Democratic alliance mobilizes resources to counter adversarial AGI advantage'}, steep:{primary:'T',secondary:'P',note:'Technology competition; political alliance formation'}, geoEcon:{tool:'Alliance Architecture',note:'Emergency technology cooperation as existential alliance response'}, gameTheory:{type:'Coalition Formation Under Threat',note:'External threat creates alliance cohesion that competitive incentives prevented'} },
+        secondOrderEffects:['Allied AI research accelerates dramatically; safety concerns partially subordinated to speed','Democratic AGI program produces capability within 3-5 years; bipolar AGI world emerges','Arms control negotiations begin once both blocs have capability'],
+        historicalAnalog:'Manhattan Project; post-Sputnik space race; COVID vaccine development as coalition response',
+        choicePrompt:'With democratic AGI developed and bipolar AGI world established, how are catastrophic risks managed?',
+        choices:['agim-L3-agi-arms-control','agim-L4-agi-cold-war'] },
+      'agim-L3-agi-treaty':{ id:'agim-L3-agi-treaty', layer:3, type:'decision', title:'International AGI Governance Treaty', label:'AGI Treaty',
+        narrative:'The AGI-holding nation leads an international governance treaty: shared safety standards, prohibited applications, mandatory reporting, and a joint oversight body with inspection rights. The treaty is unprecedented in scope -- it governs the most powerful technology ever created -- and faces enormous enforcement challenges.',
+        lensSnapshot:{ bigCycle:{phase:'Institutional Innovation -- Existential',note:'Governance architecture for civilizational-scale technology'}, steep:{primary:'P',secondary:'T',note:'Political architecture for technology governance at civilizational scale'}, geoEcon:{tool:'Alliance Architecture',note:'International AGI governance as peak multilateral achievement'}, gameTheory:{type:'Cooperative Game -- Existential',note:'All actors benefit from governance; none benefits from catastrophic misuse'} },
+        secondOrderEffects:['Treaty enforcement requires unprecedented international cooperation','Nations outside treaty face pressure and exclusion from AGI benefits','Treaty creates template for governance of future civilizational-scale technologies'],
+        historicalAnalog:'NPT as closest precedent; Chemical Weapons Convention; Antarctic Treaty; all inadequate as models',
+        choicePrompt:'With AGI governance treaty established, how is the distribution of AGI benefits managed internationally?',
+        choices:['agim-L4-agi-commonwealth','agim-L4-agi-cold-war'] },
+      'agim-L3-agi-arms-control':{ id:'agim-L3-agi-arms-control', layer:3, type:'decision', title:'AGI Arms Control Negotiation', label:'AGI Arms Control',
+        narrative:'Both AGI-possessing blocs negotiate arms control for AI: prohibited military applications, mutual inspection, capability limitation agreements, and crisis communication protocols. The negotiation is enormously difficult -- verifying AI capability constraints is far harder than counting warheads -- but the alternative is unconstrained AGI military competition.',
+        lensSnapshot:{ bigCycle:{phase:'Strategic Stability Architecture',note:'Arms control for the most powerful military technology in history'}, steep:{primary:'P',secondary:'T',note:'Diplomatic architecture for AGI military competition management'}, geoEcon:{tool:'Alliance Architecture',note:'Arms control as strategic stability mechanism'}, gameTheory:{type:'Strategic Arms Control Game',note:'Both sides prefer constraint to unconstrained arms race; mutual interest in stability'} },
+        secondOrderEffects:['Arms control reduces most dangerous military AGI applications','Verification problem: AI capability is software; harder to verify than physical weapons','Crisis communication protocols reduce risk of accidental escalation'],
+        historicalAnalog:'SALT/START treaties; Incidents at Sea Agreement; nuclear arms control as imperfect but functional precedent',
+        choicePrompt:'With AGI arms control negotiations underway, how is the strategic balance managed long-term?',
+        choices:['agim-L4-agi-cold-war','agim-L4-agi-commonwealth'] },
+      'agim-L4-agi-commonwealth':{ id:'agim-L4-agi-commonwealth', layer:4, type:'terminal', title:'AGI Commonwealth -- Shared Governance and Benefits', label:'AGI Commonwealth',
+        narrative:'The AGI governance architecture evolves into an AGI Commonwealth: an international institution that manages AGI development, distributes productivity benefits globally, and maintains safety standards. No single nation or corporation controls AGI; the Commons governs it.',
+        outcome:'AGI AS GLOBAL COMMONS -- COMMONWEALTH ARCHITECTURE',
+        outcomeNarrative:'The AGI Commonwealth represents the most significant international institution since the UN. It successfully prevents any single actor from monopolizing AGI benefits, maintains safety standards that prevent catastrophic misuse, and distributes productivity gains broadly enough to prevent political instability. The architecture is imperfect -- large nations have more influence than small ones -- but it avoids the catastrophic alternatives.',
+        finalLensScores:{ bigCycle:'New Institutional Cycle -- AGI Era', steep:{S:0.8,T:1.0,E:0.9,En:0.5,P:1.0}, geoEcon:'Alliance Architecture -- AGI as governed global commons', gameTheory:'Cooperative Game -- commons governance prevents tragedy of the commons' },
+        historicalAnalog:'IAEA as partial model; ITU for communications spectrum; Antarctic Treaty as commons governance precedent',
+        aiPromptSeed:'Model how the AGI Commonwealth governance architecture functions as AGI capabilities continue to advance -- particularly how it handles the transition from narrow AGI to superintelligence, and whether the governance architecture can remain functional as the capability it governs becomes more powerful than any institution.' },
+      'agim-L4-agi-cold-war':{ id:'agim-L4-agi-cold-war', layer:4, type:'terminal', title:'AGI Cold War -- Bipolar AI Standoff', label:'AGI Cold War',
+        narrative:'Two AGI-possessing blocs settle into a cold war: each capable of catastrophic harm to the other, neither willing to risk use, both investing enormous resources in capability development while managing the risk of accidental catastrophe.',
+        outcome:'AGI COLD WAR -- BIPOLAR STANDOFF',
+        outcomeNarrative:'The AGI Cold War is more dangerous than the nuclear Cold War because the capabilities are more varied, the verification is harder, and the offense-defense balance is less clear. But like the nuclear standoff, it may prove stable: neither side wants catastrophic conflict; the costs of miscalculation are too high. The world lives under the shadow of AGI weapons while both blocs use AGI for extraordinary productive purposes.',
+        finalLensScores:{ bigCycle:'Bipolar Technological Standoff', steep:{S:0.6,T:1.0,E:0.8,En:0.4,P:1.0}, geoEcon:'Military Statecraft -- AGI military capability as deterrent', gameTheory:'Nuclear-Style Deterrence -- mutual assured destruction with AGI weapons' },
+        historicalAnalog:'US-Soviet nuclear Cold War 1947-1991; nuclear deterrence theory applied to AI; Cuban Missile Crisis as crisis management model',
+        aiPromptSeed:'Model how the AGI Cold War evolves over 20 years -- particularly whether deterrence stability can be maintained as capabilities improve, how crises are managed, and whether the standoff eventually ends in arms control agreement, catastrophic conflict, or unilateral breakthrough.' },
+      'agim-L4-agi-regulated-corporation':{ id:'agim-L4-agi-regulated-corporation', layer:4, type:'terminal', title:'AGI as Regulated Corporate Utility', label:'AGI Utility Model',
+        narrative:'The AGI company evolves into a regulated utility: corporate ownership maintained but subject to comprehensive government oversight, mandatory public access requirements, pricing controls, and international governance participation. The model is modeled on public utilities for critical infrastructure.',
+        outcome:'AGI CORPORATE UTILITY -- REGULATED ACCESS',
+        outcomeNarrative:'The regulated utility model for AGI proves surprisingly functional. Corporate incentives drive capability development and operational excellence; regulatory oversight ensures safety and access. The model is not ideal -- corporate AGI utilities have enormous leverage over governments -- but it prevents the worst outcomes of unregulated corporate monopoly while maintaining the innovation advantages of private enterprise.',
+        finalLensScores:{ bigCycle:'Corporate-State Partnership -- Technology Governance', steep:{S:0.6,T:0.9,E:0.8,En:0.3,P:0.8}, geoEcon:'Alliance Architecture -- regulated corporate AGI as international governance subject', gameTheory:'Regulated Monopoly Game -- regulatory oversight aligns corporate incentives with public interest' },
+        historicalAnalog:'AT&T as regulated utility 1934-1984; nuclear power plant regulation; internet as lightly regulated utility',
+        aiPromptSeed:'Model how the AGI regulated utility model evolves as capabilities improve and as competing AGI systems emerge from other nations -- particularly whether the regulated utility model can survive competition from adversarial state-controlled AGI systems.' }
+    }
+  },
+
+  { id:'ai-wild-west', cluster:'ai-tech', title:'AI Wild West (Ungoverned AI Proliferation)', era:'2025-2032', timeHorizon:'medium', primaryLens:'steep',
+    description:'Rapid fragmentation of AI development across hundreds of competing actors -- labs, governments, corporations, and criminal organizations -- without governance architecture, producing simultaneous benefits and catastrophic risks.',
+    tags:['AI','governance failure','proliferation','autonomous weapons','disinformation','existential risk'],
+    rootNodeId:'aiww-L0',
+    nodes:{
+      'aiww-L0':{ id:'aiww-L0', layer:0, type:'trigger', title:'AI Governance Architecture Collapses -- Proliferation Begins', label:'Governance Collapse',
+        narrative:'Geopolitical competition prevents international AI governance agreement. The US-China rivalry, EU regulatory divergence, and competitive pressure from smaller AI-capable nations collectively undermine every proposed governance framework. The result: AI development proceeds across hundreds of competing actors -- frontier labs, government programs, mid-tier startups, open-source communities, and increasingly sophisticated criminal organizations -- with no common safety standards, no capability reporting requirements, and no mechanism to prevent deployment of the most dangerous applications.',
+        lensSnapshot:{ bigCycle:{phase:'Technological Anarchy',note:'Most powerful technology in history developed without governance; historical unprecedented'}, steep:{primary:'T',secondary:'P',note:'Technology proliferates faster than political governance adapts; policy failure'}, geoEcon:{tool:'Export Controls',note:'Export controls fail as open-source undermines control architecture'}, gameTheory:{type:'Tragedy of the Commons -- Existential',note:'Each actor deploys without internalizing collective safety costs; all lose if catastrophe occurs'} },
+        choicePrompt:'As ungoverned AI proliferates, which risk domain materializes first?',
+        choices:['aiww-L1-cyber','aiww-L1-disinfo','aiww-L1-weapons'] },
+      'aiww-L1-cyber':{ id:'aiww-L1-cyber', layer:1, type:'decision', title:'AI-Enabled Cyberattacks on Critical Infrastructure', label:'Critical Infrastructure Attacks',
+        narrative:'State and non-state actors deploy AI-enhanced cyberattacks against critical infrastructure: power grids, water treatment, financial systems, and hospital networks. The AI-enhanced attacks are 10-100x more effective than previous-generation cyber operations. Attribution is nearly impossible; response frameworks designed for slower cyber operations are overwhelmed.',
+        lensSnapshot:{ bigCycle:{phase:'Security Architecture Under Attack',note:'Critical infrastructure vulnerability creates systemic fragility'}, steep:{primary:'T',secondary:'P',note:'Technology-enabled attacks on physical infrastructure; governance crisis'}, geoEcon:{tool:'Sanctions',note:'Sanctions as inadequate response; attribution prevents targeted retaliation'}, gameTheory:{type:'Attacker Advantage -- Extreme',note:'AI gives attackers structural advantage; defenders cannot match offensive AI scale'} },
+        secondOrderEffects:['Multiple simultaneous critical infrastructure failures in major nations','Hospital cyberattacks cause deaths; political response is severe','International attribution crisis: unable to distinguish criminal, state, and proxy actors'],
+        historicalAnalog:'Stuxnet as precedent; Colonial Pipeline attack 2021 scaled by AI factor; hospital ransomware wave',
+        choicePrompt:'With critical infrastructure under sustained AI-enabled attack, what emergency security architecture is deployed?',
+        choices:['aiww-L2-defensive-ai','aiww-L3-emergency-governance'] },
+      'aiww-L1-disinfo':{ id:'aiww-L1-disinfo', layer:1, type:'decision', title:'AI-Generated Disinformation Destroys Democratic Epistemology', label:'Disinformation Collapse',
+        narrative:'AI-generated synthetic media, persona networks, and targeted disinformation campaigns reach such scale and sophistication that democratic populations can no longer reliably distinguish true from false. Elections become ungovernable as deepfakes undermine candidate legitimacy. The epistemological infrastructure of democracy -- shared facts, trusted institutions, common reality -- collapses.',
+        lensSnapshot:{ bigCycle:{phase:'Democratic Epistemology Crisis',note:'Big Cycle: internal conflict activated by information environment collapse'}, steep:{primary:'S',secondary:'P',note:'Social trust destroyed; political institutions delegitimized'}, geoEcon:{tool:'Alliance Architecture',note:'Authoritarian states exploit disinformation capacity against democratic rivals'}, gameTheory:{type:'Epistemic War',note:'Attacker destroys shared reality; defender cannot verify without trusted information'} },
+        secondOrderEffects:['Democratic elections produce contested results in multiple nations simultaneously','Trust in all institutions (courts, media, government) collapses','Political violence increases as electoral legitimacy is questioned'],
+        historicalAnalog:'Russian disinformation operations 2016 scaled by AI; historical information warfare; pre-WWI yellow journalism era',
+        choicePrompt:'With democratic epistemology under collapse, how do democratic societies respond?',
+        choices:['aiww-L2-truth-architecture','aiww-L3-emergency-governance'] },
+      'aiww-L1-weapons':{ id:'aiww-L1-weapons', layer:1, type:'decision', title:'AI-Enabled Autonomous Weapons Proliferate', label:'Autonomous Weapons Proliferation',
+        narrative:'The collapse of the proposed Autonomous Weapons Convention (killed by major power opposition) allows AI-enabled lethal autonomous weapons to proliferate. By 2028, 47 state and at least 12 non-state actors have deployed autonomous lethal systems. The weapons are cheap to produce, difficult to attribute, and capable of operating without human authorization.',
+        lensSnapshot:{ bigCycle:{phase:'Military Technology Anarchy',note:'Autonomous weapons proliferation changes military balance unpredictably'}, steep:{primary:'T',secondary:'P',note:'Technology enables low-cost lethal capability; governance failure'}, geoEcon:{tool:'Military Statecraft',note:'Autonomous weapons as great equalizer; small states gain lethal capability'}, gameTheory:{type:'Arms Race -- Asymmetric',note:'Cheap offensive capability overwhelms expensive defensive systems; all actors militarize'} },
+        secondOrderEffects:['Multiple autonomous weapons incidents produce international crises','Accidental escalation risk increases dramatically when attribution is uncertain','Small state and non-state actors gain military capability previously limited to great powers'],
+        historicalAnalog:'AK-47 proliferation; drone warfare democratization; Nagorno-Karabakh drone warfare 2020',
+        choicePrompt:'With autonomous weapons causing incidents and crises, what emergency governance architecture is proposed?',
+        choices:['aiww-L2-weapons-ban','aiww-L3-emergency-governance'] },
+      'aiww-L2-defensive-ai':{ id:'aiww-L2-defensive-ai', layer:2, type:'decision', title:'AI Cyber Defense Architecture', label:'AI Cyber Defense',
+        narrative:'The critical infrastructure attacks catalyze massive investment in defensive AI: AI systems that can detect and respond to AI-enhanced attacks at machine speed. The defensive AI arms race begins -- attack and defense systems evolve rapidly, with temporary advantages shifting constantly.',
+        lensSnapshot:{ bigCycle:{phase:'Defensive Technology Investment',note:'Crisis drives defensive AI investment; attack-defense balance contested'}, steep:{primary:'T',secondary:'E',note:'Defensive technology investment creates new economic opportunities'}, geoEcon:{tool:'Technological Statecraft',note:'Cyber defense AI as strategic investment'}, gameTheory:{type:'Arms Race -- Cyber',note:'Attack and defense AI evolve in competition; temporary advantages shift constantly'} },
+        secondOrderEffects:['Defensive AI investment creates new technology sector','Nations with advanced defensive AI capabilities gain strategic advantage','Arms race dynamic raises costs for all actors without eliminating threat'],
+        historicalAnalog:'Cybersecurity industry growth post-2010; malware-antivirus arms race; missile defense vs. offense',
+        choicePrompt:'With defensive AI providing some protection, how is the broader AI governance crisis addressed?',
+        choices:['aiww-L3-emergency-governance','aiww-L4-functional-anarchy'] },
+      'aiww-L2-truth-architecture':{ id:'aiww-L2-truth-architecture', layer:2, type:'decision', title:'Democratic Truth Architecture -- Authenticated Information', label:'Truth Architecture',
+        narrative:'Democratic nations build authenticated information architecture: cryptographic signing of legitimate sources, AI detection systems for synthetic media, trusted media partnerships, and education on information literacy. The architecture is expensive and partial -- it cannot solve the problem entirely -- but it reduces the damage.',
+        lensSnapshot:{ bigCycle:{phase:'Democratic Information Defense',note:'Democratic systems invest in epistemological self-defense'}, steep:{primary:'T',secondary:'S',note:'Technology infrastructure for information authenticity'}, geoEcon:{tool:'Alliance Architecture',note:'Allied democratic cooperation on disinformation defense'}, gameTheory:{type:'Authentication Game',note:'Verified sources vs. synthetic sources; verification creates credibility'} },
+        secondOrderEffects:['Authenticated sources gain credibility premium; unverified sources lose audience','Investment required is massive; smaller democracies cannot afford full architecture','Adversaries adapt: invest in high-quality synthetic media that mimics authenticated sources'],
+        historicalAnalog:'SSL/TLS for web security; Wikipedia verifiability standards; journalism fact-checking industry',
+        choicePrompt:'With defensive information architecture in place, how is the broader AI governance architecture addressed?',
+        choices:['aiww-L3-emergency-governance','aiww-L4-democratic-resilience'] },
+      'aiww-L2-weapons-ban':{ id:'aiww-L2-weapons-ban', layer:2, type:'decision', title:'Emergency Autonomous Weapons Convention', label:'Weapons Convention',
+        narrative:'The autonomous weapons incidents catalyze the governance agreement that competitive interests previously prevented: an Emergency Autonomous Weapons Convention banning fully autonomous lethal systems, requiring human authorization for lethal force, and establishing liability for autonomous weapons incidents.',
+        lensSnapshot:{ bigCycle:{phase:'Governance Innovation -- Crisis Driven',note:'Crisis creates political will for governance that competitive interests previously prevented'}, steep:{primary:'P',secondary:'T',note:'Political mandate for weapons governance'}, geoEcon:{tool:'Alliance Architecture',note:'Arms control as crisis response'}, gameTheory:{type:'Cooperative Game -- Crisis',note:'Shared threat creates cooperation that strategic competition prevented'} },
+        secondOrderEffects:['Convention is signed but verification is difficult','Nations with autonomous weapons advantage resist most stringent provisions','Convention establishes principle of human authorization; enforcement is imperfect'],
+        historicalAnalog:'Chemical Weapons Convention after Iraq use; Ottawa Treaty on landmines; cluster munitions convention',
+        choicePrompt:'With weapons convention established, how does it integrate with broader AI governance?',
+        choices:['aiww-L3-emergency-governance','aiww-L4-functional-anarchy'] },
+      'aiww-L3-emergency-governance':{ id:'aiww-L3-emergency-governance', layer:3, type:'decision', title:'Emergency International AI Governance Summit', label:'Emergency Governance',
+        narrative:'Multiple simultaneous crises -- critical infrastructure attacks, disinformation collapse, autonomous weapons incidents -- force the emergency AI governance summit that strategic competition had previously prevented. The summit produces an emergency governance framework: minimal but binding, covering only the most catastrophic risk applications.',
+        lensSnapshot:{ bigCycle:{phase:'Crisis-Driven Institutional Innovation',note:'Multiple crises create political will for governance that individual crises could not'}, steep:{primary:'P',secondary:'T',note:'Crisis creates political mandate for governance architecture'}, geoEcon:{tool:'Alliance Architecture',note:'Emergency multilateral framework for existential AI risks'}, gameTheory:{type:'Polycrisis Cooperation',note:'Multiple simultaneous crises change the cost-benefit calculation toward cooperation'} },
+        secondOrderEffects:['Framework covers only the most catastrophic applications; beneficial and moderately harmful uses unaddressed','Crisis memory provides temporary political will; sustained enforcement requires institutional investment','Framework establishes precedent for governance that can be expanded as political will permits'],
+        historicalAnalog:'Biological Weapons Convention post-1972 use concerns; Chemical Weapons Convention post-Gulf War; emergency WHO International Health Regulations post-SARS',
+        choicePrompt:'With emergency governance in place, how is it institutionalized before the crisis memory fades?',
+        choices:['aiww-L4-functional-anarchy','aiww-L4-democratic-resilience'] },
+      'aiww-L4-functional-anarchy':{ id:'aiww-L4-functional-anarchy', layer:4, type:'terminal', title:'Functional Anarchy -- Managed Without Governance', label:'Functional Anarchy',
+        narrative:'The AI Wild West does not end in catastrophe -- it settles into a new equilibrium of managed dysfunction. Critical infrastructure attacks continue at elevated levels; disinformation is persistent but democratic systems adapt; autonomous weapons incidents occur but escalation is managed. The world is more dangerous and less functional than a governed alternative but not catastrophic.',
+        outcome:'FUNCTIONAL ANARCHY -- ELEVATED RISK STEADY STATE',
+        outcomeNarrative:'The AI Wild West produces a permanent elevation of background risk rather than a single catastrophic event. Democratic systems are resilient but strained; economies are productive but periodically disrupted; geopolitical stability is maintained but fragile. The opportunity cost of ungoverned AI is enormous -- the beneficial applications are also not fully realized -- but the catastrophic scenarios are avoided through adaptation rather than prevention.',
+        finalLensScores:{ bigCycle:'Hegemonic Competition Without Governance', steep:{S:0.7,T:1.0,E:0.6,En:0.3,P:0.8}, geoEcon:'Export Controls -- inadequate governance in fragmented world', gameTheory:'Repeated Adaptation Game -- actors adapt to harms without solving the collective action problem' },
+        historicalAnalog:'Internet governance: no formal global governance but functional ecosystem emerged; nuclear weapons without global governance but deterrence prevented catastrophe',
+        aiPromptSeed:'Model how functional AI anarchy evolves over 10 years -- specifically at what capability level does the elevated risk steady state become unsustainable, triggering either governance breakthrough or catastrophic failure.' },
+      'aiww-L4-democratic-resilience':{ id:'aiww-L4-democratic-resilience', layer:4, type:'terminal', title:'Democratic Resilience Architecture', label:'Democratic Resilience',
+        narrative:'Democratic societies build comprehensive resilience to AI-enabled attacks on their foundations: authenticated information systems, AI cyber defense, autonomous weapons governance, and AI-literacy education. The Wild West continues in some domains but democracies have built genuine resistance.',
+        outcome:'DEMOCRATIC RESILIENCE -- ADAPTATION TO AI THREATS',
+        outcomeNarrative:'The AI Wild West ultimately strengthens democratic institutions by forcing them to adapt and invest in resilience architectures that competitive success in a benign environment never would have motivated. Democratic societies that build comprehensive AI resilience enter the 2030s more robust than before -- not because the threats disappeared but because they developed genuine immunity.',
+        finalLensScores:{ bigCycle:'Democratic Institutional Strengthening', steep:{S:0.6,T:0.9,E:0.6,En:0.3,P:0.9}, geoEcon:'Alliance Architecture -- democratic resilience cooperation', gameTheory:'Adaptive Game -- democracies build immunity through successful adaptation' },
+        historicalAnalog:'Post-Cold War democratic resilience to Soviet disinformation; UK resilience through WWII; Estonia digital resilience post-2007 cyberattacks',
+        aiPromptSeed:'Model how democratic resilience architecture built in response to AI Wild West conditions performs when tested by the next generation of AI capabilities -- specifically whether resilience built for current threats generalizes to substantially more capable AI systems.' }
+    }
+  },
+
+  { id:'ai-bubble-burst', cluster:'ai-tech', title:'The AI Bubble Burst', era:'2026-2030', timeHorizon:'near-term', primaryLens:'bigCycle',
+    description:'Trillion-dollar AI investment expectations collide with slower-than-promised productivity materialization, triggering a financial correction that reshapes the technology industry and recalibrates AI deployment timelines.',
+    tags:['AI','bubble','financial correction','productivity','technology investment','valuation'],
+    rootNodeId:'aibb-L0',
+    nodes:{
+      'aibb-L0':{ id:'aibb-L0', layer:0, type:'trigger', title:'AI Productivity Materializes Slower Than Expectations', label:'AI Bubble Trigger',
+        narrative:'2026-2027: The gap between AI investment and AI productivity returns becomes undeniable. Corporations that replaced 30% of their knowledge workers with AI have seen productivity gains of 12%, not 50%. The economic transformation promised by AI boosters has materialized in the laboratory but not in the balance sheet. Revenue growth at major AI companies begins to slow; AI company valuations, which had reached historic multiples, start to compress. The trillion-dollar question: is this a timing issue -- benefits will come, just later -- or a structural disappointment?',
+        lensSnapshot:{ bigCycle:{phase:'Speculative Asset Correction',note:'Financial cycle pattern: speculation exceeds productivity reality; correction follows'}, steep:{primary:'E',secondary:'T',note:'Economic revaluation of technology expectations; productivity reality vs. projection gap'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government AI subsidies reassessed as investment thesis questioned'}, gameTheory:{type:'Speculative Bubble Dynamics',note:'Expectation game: when consensus shifts from "inevitable" to "uncertain," correction is rapid'} },
+        choicePrompt:'How severe is the AI investment correction?',
+        choices:['aibb-L1-moderate','aibb-L1-severe','aibb-L1-selective'] },
+      'aibb-L1-moderate':{ id:'aibb-L1-moderate', layer:1, type:'decision', title:'Moderate Correction -- 30-40% Valuation Decline', label:'Moderate Correction',
+        narrative:'AI company valuations decline 30-40% from peak. The correction is significant but contained. Profitable AI companies survive; speculative pre-revenue companies face existential pressure. Investment in AI continues at a lower but more sustainable level. The correction is similar to the dot-com correction for profitable companies: painful but survivable.',
+        lensSnapshot:{ bigCycle:{phase:'Speculative Correction -- Contained',note:'Bubble deflates without systemic financial crisis'}, steep:{primary:'E',secondary:'T',note:'Technology valuation resets; sustainable investment continues'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government AI programs reassessed but maintained at lower level'}, gameTheory:{type:'Rational Reassessment',note:'Market corrects to fundamental value; overvaluation removed without destroying underlying capability'} },
+        secondOrderEffects:['Speculative pre-revenue AI companies face survival crisis; consolidation accelerates','AI talent market normalizes; compensation returns to pre-bubble levels','Long-term AI investment continues; timeline expectations adjusted to realistic 5-10 year horizon'],
+        historicalAnalog:'Amazon post-dot-com: stock falls 90% but company survives and thrives; profitable companies survive corrections',
+        choicePrompt:'With valuation correcting but industry surviving, how does AI investment reallocate toward highest-value applications?',
+        choices:['aibb-L2-consolidation','aibb-L3-productivity-focus'] },
+      'aibb-L1-severe':{ id:'aibb-L1-severe', layer:1, type:'decision', title:'Severe Correction -- 60-70% Valuation Decline; Financial Contagion', label:'Severe Correction',
+        narrative:'The AI bubble burst is more severe than expected: 60-70% valuation declines in AI companies; major AI-focused investment funds collapse; the losses spread to broader financial markets through margin calls, fund redemptions, and confidence collapse. The correction has echoes of the dot-com bust.',
+        lensSnapshot:{ bigCycle:{phase:'Speculative Bubble -- Full Burst',note:'Severe correction pattern: speculative excess produces commensurate correction'}, steep:{primary:'E',secondary:'T',note:'Financial contagion from technology sector to broader economy'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government response to financial instability from AI bubble'}, gameTheory:{type:'Contagion Game',note:'Losses spread through financial system interconnections; individually rational selling produces collective crisis'} },
+        secondOrderEffects:['Multiple major AI companies declare bankruptcy; thousands of AI startups cease operations','GPU and semiconductor companies face demand collapse; supply chain adjustment is severe','AI talent mass layoffs; engineers move to other sectors; capability development slows substantially'],
+        historicalAnalog:'Dot-com bust 2000-2002: NASDAQ fell 78%; many internet companies bankrupted; internet itself survived and thrived',
+        choicePrompt:'With severe financial contagion spreading, how does the government response prevent further damage?',
+        choices:['aibb-L2-bailout','aibb-L2-consolidation'] },
+      'aibb-L1-selective':{ id:'aibb-L1-selective', layer:1, type:'decision', title:'Selective Correction -- Vertical-Specific Repricing', label:'Selective Correction',
+        narrative:'The correction is highly selective: AI companies in sectors where productivity gains are clear and measurable -- code generation, data analysis, drug discovery -- maintain valuations. Companies in sectors where AI productivity claims are unproven -- AI-generated media, AI sales tools, AI customer service -- collapse. The market is not rejecting AI; it is repricing AI according to demonstrated results.',
+        lensSnapshot:{ bigCycle:{phase:'Market Discrimination -- Sophisticated',note:'Market learns to distinguish AI value vs. AI hype at sector level'}, steep:{primary:'E',secondary:'T',note:'Selective repricing: demonstrated productivity vs. promised productivity'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government investment redirects toward proven AI applications'}, gameTheory:{type:'Market Learning Game',note:'Market develops discriminating information about AI value; correction is corrective not destructive'} },
+        secondOrderEffects:['Surviving AI companies are the strongest; industry emerges more focused and credible','Investment reallocates to demonstrated-value applications; research productivity improves','AI skeptics validated on some applications; AI enthusiasts validated on others'],
+        historicalAnalog:'Selective dot-com survival: Amazon and Google survived; Pets.com did not; market discriminated correctly',
+        choicePrompt:'With selective correction distinguishing AI leaders from laggards, how does the competitive landscape restructure?',
+        choices:['aibb-L2-consolidation','aibb-L3-productivity-focus'] },
+      'aibb-L2-consolidation':{ id:'aibb-L2-consolidation', layer:2, type:'decision', title:'AI Industry Consolidation -- Survivors Acquire', label:'Industry Consolidation',
+        narrative:'The correction triggers massive consolidation: profitable AI giants acquire distressed competitors at pennies on the dollar; talent concentrates in a smaller number of well-funded organizations; compute infrastructure consolidates. The AI industry emerges from the correction more concentrated but also more capable.',
+        lensSnapshot:{ bigCycle:{phase:'Post-Bubble Consolidation',note:'Crisis consolidation creates stronger, more concentrated industry'}, steep:{primary:'E',secondary:'T',note:'Industry structure change; concentration increases'}, geoEcon:{tool:'Fiscal Statecraft',note:'Antitrust questions about AI concentration after correction consolidation'}, gameTheory:{type:'Acquisition Game',note:'Distress creates acquisition opportunities; winners become more dominant'} },
+        secondOrderEffects:['AI capabilities concentrate in 3-5 major players globally','Antitrust concern: AI consolidation creates potential monopoly in critical infrastructure',"Surviving companies' talent and compute advantage becomes self-reinforcing"],
+        historicalAnalog:'Banking consolidation post-2008; internet consolidation to FAANG post-dot-com; telecom consolidation post-dot-com',
+        choicePrompt:'With AI industry consolidated into a small number of dominant players, how is the concentration of power governed?',
+        choices:['aibb-L3-antitrust','aibb-L4-concentrated-ai'] },
+      'aibb-L2-bailout':{ id:'aibb-L2-bailout', layer:2, type:'decision', title:'Government Emergency AI Industry Support', label:'Government Bailout',
+        narrative:'Governments facing both financial contagion and national security concerns about AI capability loss provide emergency support: sovereign investment funds purchase equity in distressed AI companies; government contracts are accelerated; export controls prevent foreign acquisition of bankrupted AI assets.',
+        lensSnapshot:{ bigCycle:{phase:'State Intervention -- Technology',note:'Government rescues strategic technology sector from financial crisis'}, steep:{primary:'P',secondary:'E',note:'Political decision to treat AI as strategic national asset; financial crisis triggers intervention'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government as buyer of last resort for strategic AI assets'}, gameTheory:{type:'Strategic Asset Preservation',note:'Government absorbs financial loss to preserve strategic capability'} },
+        secondOrderEffects:['AI capabilities preserved by government intervention; competitive position maintained','Moral hazard: AI companies expect government rescue in future crises','Government gains significant equity positions in major AI companies; political economy changes'],
+        historicalAnalog:'US auto industry bailout 2009; UK bank nationalization 2008; government semiconductor investment post-COVID',
+        choicePrompt:'With government intervention stabilizing the AI industry, how is the relationship between government and AI industry structured going forward?',
+        choices:['aibb-L3-antitrust','aibb-L4-state-ai'] },
+      'aibb-L3-productivity-focus':{ id:'aibb-L3-productivity-focus', layer:3, type:'decision', title:'Post-Correction Focus on Demonstrated Productivity', label:'Productivity Focus',
+        narrative:'Post-bubble AI investment shifts entirely to demonstrated productivity applications: AI products are funded only when they show clear ROI in user trials, not based on speculative future revenue. The investment philosophy changes from growth-at-any-cost to productivity-verified deployment.',
+        lensSnapshot:{ bigCycle:{phase:'Market Maturation',note:'Post-speculative phase: productive investment replaces speculative investment'}, steep:{primary:'E',secondary:'T',note:'Economic rationalization of technology investment'}, geoEcon:{tool:'Fiscal Statecraft',note:'Government AI investment requires demonstrated productivity metrics'}, gameTheory:{type:'Fundamental Value Game',note:'Investors pay for demonstrated value, not promised value; more stable but slower growth'} },
+        secondOrderEffects:['AI adoption becomes more gradual; productivity gains materialize more reliably','Investment in basic AI research declines; gap between research and application widens','Nations with patient capital (sovereign wealth funds) gain advantage in long-horizon AI investment'],
+        historicalAnalog:'Post-dot-com internet investment: infrastructure and commerce focus; venture capital rationalization post-2000',
+        choicePrompt:'With productivity-focused AI investment producing reliable returns, how does the industry structure evolve?',
+        choices:['aibb-L4-ai-utility','aibb-L4-concentrated-ai'] },
+      'aibb-L3-antitrust':{ id:'aibb-L3-antitrust', layer:3, type:'decision', title:'AI Antitrust Action -- Breaking Concentration', label:'AI Antitrust',
+        narrative:'Governments concerned about post-bubble AI concentration initiate antitrust action: structural separation of dominant AI platforms, data sharing requirements, API access mandates, and restrictions on AI company acquisitions. The action is contested and slow but eventually produces a less concentrated AI industry.',
+        lensSnapshot:{ bigCycle:{phase:'Regulatory Architecture -- AI',note:'Antitrust as structural response to AI concentration'}, steep:{primary:'P',secondary:'E',note:'Political intervention in AI market structure'}, geoEcon:{tool:'Fiscal Statecraft',note:'Regulatory statecraft to prevent AI monopoly'}, gameTheory:{type:'Antitrust Game',note:'Government uses market power regulation to change AI industry equilibrium'} },
+        secondOrderEffects:['AI capabilities diffuse to more competitors; concentration reduced','Innovation pace may slow as large companies lose network effect advantages','International AI competitiveness affected if domestic companies are constrained while foreign ones are not'],
+        historicalAnalog:'AT&T antitrust breakup 1984; Microsoft antitrust 2000; potential AI antitrust actions',
+        choicePrompt:'With antitrust action reshaping AI industry structure, what governance architecture emerges?',
+        choices:['aibb-L4-ai-utility','aibb-L4-concentrated-ai'] },
+      'aibb-L4-ai-utility':{ id:'aibb-L4-ai-utility', layer:4, type:'terminal', title:'AI as Regulated Utility Infrastructure', label:'AI Utility Infrastructure',
+        narrative:'Post-bubble, AI capabilities are restructured as regulated infrastructure: foundational AI models are treated as public utilities with mandatory access, standard pricing, and government oversight. The innovation-access tradeoff of regulated utilities applies: less innovation dynamism but universal access and price stability.',
+        outcome:'AI AS REGULATED PUBLIC UTILITY',
+        outcomeNarrative:'The AI bubble burst and subsequent consolidation produces an unexpected governance innovation: AI foundational capabilities are regulated as public utilities. The regulated utility model ensures universal access to AI productivity gains, prevents rent extraction by monopolists, and provides stable governance architecture. The innovation pace slows compared to the bubble era but the benefits are more broadly distributed.',
+        finalLensScores:{ bigCycle:'Post-Speculative Maturation -- Utility Infrastructure', steep:{S:0.7,T:0.7,E:0.8,En:0.3,P:0.8}, geoEcon:'Fiscal Statecraft -- regulated AI utility model', gameTheory:'Regulated Monopoly -- public utility governance aligns AI company incentives with public interest' },
+        historicalAnalog:'AT&T as regulated utility; electrical grid as public utility; internet as lightly regulated utility; nuclear power utility regulation',
+        aiPromptSeed:'Model how the regulated AI utility model evolves as capabilities continue to advance, specifically whether utility regulation can accommodate the pace of AI capability development and whether rate-regulated AI companies can compete with unregulated foreign AI programs.' },
+      'aibb-L4-concentrated-ai':{ id:'aibb-L4-concentrated-ai', layer:4, type:'terminal', title:'Oligopolistic AI Industry -- 3-5 Dominant Players', label:'AI Oligopoly',
+        narrative:'The post-bubble consolidation produces a stable oligopoly: 3-5 companies control the vast majority of AI capability globally. Competition among them is fierce but the barriers to entry for new competitors are insurmountable. The oligopoly delivers reliable AI productivity gains but captures a disproportionate share of the value created.',
+        outcome:'AI OLIGOPOLY -- CONCENTRATED INDUSTRY STRUCTURE',
+        outcomeNarrative:'The AI industry emerges from the bubble and bust as a concentrated oligopoly that is simultaneously productive and concerning. The oligopolists invest heavily in capability development; competition among them drives prices down over time; but the concentration creates geopolitical risk (control over critical AI infrastructure), distributional concerns (oligopolists capture disproportionate value), and governance challenges (who governs the oligopolists who govern AI?).',
+        finalLensScores:{ bigCycle:'Post-Bubble Oligopoly Formation', steep:{S:0.5,T:0.9,E:0.8,En:0.2,P:0.7}, geoEcon:'Alliance Architecture -- AI oligopoly geopolitics', gameTheory:'Oligopoly Game -- few players; competition and coordination; significant market power' },
+        historicalAnalog:'Post-dot-com internet oligopoly (Google, Amazon, Facebook, Apple, Microsoft); oil major oligopoly; banking oligopoly',
+        aiPromptSeed:'Model how the AI oligopoly structure shapes the deployment and governance of increasingly powerful AI capabilities -- specifically whether oligopolistic competition produces better or worse safety and governance outcomes than either competitive markets or regulated utilities.' },
+      'aibb-L4-state-ai':{ id:'aibb-L4-state-ai', layer:4, type:'terminal', title:'State-Owned AI Infrastructure -- National AI Programs', label:'State AI Programs',
+        narrative:'Government bailouts and strategic investments during the bubble burst transition into permanent government ownership or partnership in major AI companies. National AI programs replace or supplement private market AI development.',
+        outcome:'STATE AI INFRASTRUCTURE -- NATIONAL PROGRAM MODEL',
+        outcomeNarrative:'The AI bubble burst accelerates the transition to state-involved AI development. Nations that provided emergency support now hold significant equity and strategic direction over major AI capabilities. The model combines state resources with private talent and creates AI programs that prioritize national interest over shareholder return. The trade-off: more resources, more strategic focus, less innovation dynamism.',
+        finalLensScores:{ bigCycle:'State-Led Technology Development', steep:{S:0.5,T:0.8,E:0.7,En:0.3,P:0.9}, geoEcon:'Technological Statecraft -- state AI program', gameTheory:'State-Corporate Hybrid Game -- government and private sector share AI development' },
+        historicalAnalog:'French and UK nuclear programs; DARPA model; Chinese state AI investment; national semiconductor programs',
+        aiPromptSeed:'Model how national state AI programs compete with private sector AI development across democratic and authoritarian contexts, tracing whether state ownership accelerates or retards capability development at the frontier.' }
+    }
+  }
+
+];
+
+function GeoEconScenarioEmulatorTool() {
+  const [geseView, setGeseView] = useState('hub');
+  const [activeScenario, setActiveScenario] = useState(null);
+  const [currentNodeId, setCurrentNodeId] = useState(null);
+  const [simPath, setSimPath] = useState([]);
+  const [clusterFilter, setClusterFilter] = useState('all');
+  const [completions, setCompletions] = useState(() => { try { return JSON.parse(localStorage.getItem(GESE_STORAGE_KEY) || '{}'); } catch { return {}; } });
+  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem(GESE_HISTORY_KEY) || '[]'); } catch { return []; } });
+  const [synthText, setSynthText] = useState('');
+  const [synthLoading, setSynthLoading] = useState(false);
+  const [synthError, setSynthError] = useState('');
+
+  const currentNode = activeScenario?.nodes?.[currentNodeId];
+  const isTerminal = currentNode?.type === 'terminal';
+
+  const startScenario = sc => {
+    setActiveScenario(sc);
+    setCurrentNodeId(sc.rootNodeId);
+    setSimPath([{ nodeId: sc.rootNodeId, choice: null }]);
+    setSynthText(''); setSynthError('');
+    setGeseView('sim');
+  };
+
+  const makeChoice = (targetNodeId, choiceLabel) => {
+    const targetNode = activeScenario?.nodes?.[targetNodeId];
+    if (!targetNode) return;
+    const newPath = [...simPath, { nodeId: targetNodeId, choice: choiceLabel }];
+    setSimPath(newPath);
+    setCurrentNodeId(targetNodeId);
+    setSynthText(''); setSynthError('');
+    if (targetNode.type === 'terminal') {
+      const rec = {
+        scenarioId: activeScenario.id, scenarioTitle: activeScenario.title, cluster: activeScenario.cluster,
+        outcome: targetNode.outcome, pathLabels: newPath.slice(1).map(p => p.choice).filter(Boolean),
+        finalNodeId: targetNodeId, date: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }), ts: Date.now()
+      };
+      const nc = { ...completions, [activeScenario.id]: (completions[activeScenario.id] || 0) + 1 };
+      const nh = [rec, ...history].slice(0, 40);
+      setCompletions(nc); setHistory(nh);
+      try { localStorage.setItem(GESE_STORAGE_KEY, JSON.stringify(nc)); localStorage.setItem(GESE_HISTORY_KEY, JSON.stringify(nh)); } catch {}
+    }
+  };
+
+  const runSynthesis = async () => {
+    if (!currentNode?.aiPromptSeed || synthLoading) return;
+    setSynthLoading(true); setSynthText(''); setSynthError('');
+    const pathStr = simPath.slice(1).map(p => p.choice).filter(Boolean).join(' > ');
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: `GeoEcon Scenario: ${activeScenario.title}`, dimension: 'synthesis',
+          prompt: `You are a geopolitical scenario analyst. ${currentNode.aiPromptSeed}\n\nDecision path taken: ${pathStr || 'direct'}\n\nProvide a structured analytical synthesis in three paragraphs: (1) the key strategic dynamics and structural forces at play in this outcome, (2) second-order effects and medium-term implications across economic, political, and technological dimensions, (3) positioning implications for institutional, policy, and investment actors over a 3-5 year horizon. Write in precise, practitioner-grade analytical language.` })
+      });
+      if (!res.ok) throw new Error('Request failed');
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') continue;
+          try { const p = JSON.parse(d); const delta = p.choices?.[0]?.delta?.content || p.delta?.text || ''; if (delta) setSynthText(t => t + delta); } catch {}
+        }
+      }
+    } catch { setSynthError('Synthesis request failed. Verify API key configuration.'); }
+    setSynthLoading(false);
+  };
+
+  const cm = activeScenario ? GESE_CLUSTER_META[activeScenario.cluster] : null;
+
+  const renderHub = () => {
+    const clusters = Object.entries(GESE_CLUSTER_META);
+    const filtered = clusterFilter === 'all' ? clusters : clusters.filter(([k]) => k === clusterFilter);
+    return (
+      <div className="px-4 py-5 md:px-6">
+        <div className="flex gap-1 mb-5 flex-wrap">
+          {[['all','All'], ...clusters.map(([k,m]) => [k, m.label])].map(([v,l]) => (
+            <button key={v} onClick={() => setClusterFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${clusterFilter === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white bg-slate-800/50'}`}>{l}</button>
+          ))}
+        </div>
+        {filtered.map(([clusterId, clusterMeta]) => {
+          const clusterScenarios = GESE_SCENARIOS.filter(s => s.cluster === clusterId);
+          return (
+            <div key={clusterId} className="mb-7">
+              <div className="flex items-center gap-2 mb-3">
+                <span style={{ color: clusterMeta.accent }}>{clusterMeta.icon}</span>
+                <h3 className="text-xs font-bold uppercase tracking-widest" style={{ color: clusterMeta.accent }}>{clusterMeta.label}</h3>
+                <span className="text-slate-600 text-xs hidden md:inline">{clusterMeta.desc}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {clusterScenarios.map(sc => {
+                  const runs = completions[sc.id] || 0;
+                  return (
+                    <button key={sc.id} onClick={() => startScenario(sc)}
+                      className="text-left rounded-xl p-4 border transition-all hover:scale-[1.01] active:scale-[0.99]"
+                      style={{ background: clusterMeta.bg, borderColor: clusterMeta.border }}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="text-white text-xs font-bold leading-snug">{sc.title}</h4>
+                        {runs > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 font-semibold" style={{ background: `${clusterMeta.accent}22`, color: clusterMeta.accent }}>{runs}x</span>}
+                      </div>
+                      <p className="text-slate-400 text-xs leading-relaxed mb-2 line-clamp-2">{sc.description}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-slate-600 text-xs">{sc.era}</span>
+                        <span className="text-slate-700 text-xs">·</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800/60 text-slate-500">{sc.primaryLens}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderSim = () => {
+    if (!currentNode || !cm) return null;
+    const ls = currentNode.lensSnapshot;
+    const allLayers = Object.values(activeScenario.nodes).map(n => n.layer || 0);
+    const maxLayer = Math.max(...allLayers);
+    return (
+      <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap text-xs">
+          <button onClick={() => setGeseView('hub')} className="text-slate-500 hover:text-white transition-colors">Hub</button>
+          {simPath.slice(0,-1).map((p, i) => p.choice && (
+            <span key={i} className="flex items-center gap-1.5">
+              <span className="text-slate-700">›</span>
+              <span className="text-slate-600 truncate max-w-[70px]">{p.choice}</span>
+            </span>
+          ))}
+          <span className="text-slate-700">›</span>
+          <span className="font-medium" style={{ color: cm.accent }}>Layer {currentNode.layer}</span>
+        </div>
+        <div className="flex gap-1 mb-4">
+          {Array.from({ length: maxLayer + 1 }).map((_, i) => (
+            <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
+              style={{ background: i <= (currentNode.layer || 0) ? cm.accent : '#1e293b' }} />
+          ))}
+        </div>
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs px-2 py-0.5 rounded-md uppercase font-semibold"
+              style={{ background: `${cm.accent}18`, color: cm.accent }}>
+              {currentNode.type === 'trigger' ? 'Trigger Event' : `Layer ${currentNode.layer} Decision`}
+            </span>
+          </div>
+          <h2 className="text-white font-bold text-base leading-tight mb-2">{currentNode.title}</h2>
+          <p className="text-slate-300 text-sm leading-relaxed">{currentNode.narrative}</p>
+        </div>
+        {ls && (
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4 grid grid-cols-2 gap-2">
+            {[['Big Cycle', ls.bigCycle?.phase || ls.bigCycle?.note, ls.bigCycle?.note, '#f59e0b'],
+              ['STEEP', ls.steep?.primary ? `${ls.steep.primary}${ls.steep.secondary ? ' / ' + ls.steep.secondary : ''}` : '', ls.steep?.note, '#a78bfa'],
+              ['GeoEcon', ls.geoEcon?.tool, ls.geoEcon?.note, '#2dd4bf'],
+              ['Game Theory', ls.gameTheory?.type, ls.gameTheory?.note, '#60a5fa']
+            ].map(([label, val, note, color]) => val && (
+              <div key={label} className="rounded-lg bg-slate-800/60 p-2">
+                <div className="text-xs font-semibold mb-0.5" style={{ color }}>{label}</div>
+                <div className="text-white text-xs font-medium leading-snug">{val}</div>
+                {note && <div className="text-slate-500 text-xs leading-tight mt-0.5">{note}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+        {currentNode.secondOrderEffects?.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Second-Order Effects</div>
+            <ul className="space-y-1">
+              {currentNode.secondOrderEffects.map((e, i) => (
+                <li key={i} className="text-xs text-slate-400 flex gap-2">
+                  <span className="text-slate-600 flex-shrink-0 mt-0.5">-</span><span>{e}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {currentNode.historicalAnalog && (
+          <div className="text-xs text-slate-500 mb-4">
+            <span className="font-semibold text-slate-400">Historical analog: </span>{currentNode.historicalAnalog}
+          </div>
+        )}
+        {currentNode.choicePrompt && currentNode.choices?.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-slate-300 mb-2 leading-relaxed">{currentNode.choicePrompt}</div>
+            <div className="space-y-2">
+              {currentNode.choices.map((cid, idx) => {
+                const cn = activeScenario.nodes[cid];
+                if (!cn) return null;
+                return (
+                  <button key={cid} onClick={() => makeChoice(cid, cn.label || cn.title)}
+                    className="w-full text-left rounded-xl p-3 border border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60 transition-all">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-5 h-5 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5"
+                        style={{ background: `${cm.accent}20`, color: cm.accent }}>
+                        {String.fromCharCode(65 + idx)}
+                      </div>
+                      <div>
+                        <div className="text-white text-xs font-semibold mb-0.5">{cn.label || cn.title}</div>
+                        {cn.narrative && (
+                          <div className="text-slate-400 text-xs leading-relaxed">
+                            {cn.narrative.slice(0, 130)}{cn.narrative.length > 130 ? '...' : ''}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTerminal = () => {
+    if (!currentNode || !cm) return null;
+    const scores = currentNode.finalLensScores?.steep;
+    const chartData = scores ? [
+      { dim:'S', v:Math.round((scores.S||0)*100) },
+      { dim:'T', v:Math.round((scores.T||0)*100) },
+      { dim:'E', v:Math.round((scores.E||0)*100) },
+      { dim:'En', v:Math.round((scores.En||0)*100) },
+      { dim:'P', v:Math.round((scores.P||0)*100) }
+    ] : null;
+    return (
+      <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <span className="text-xs px-2 py-1 rounded-lg font-bold uppercase tracking-wider"
+            style={{ background: `${cm.accent}20`, color: cm.accent }}>Outcome Reached</span>
+          <button onClick={() => setGeseView('hub')} className="text-slate-500 hover:text-white text-xs transition-colors">Back to Hub</button>
+        </div>
+        <div className="rounded-xl border p-4 mb-4" style={{ borderColor: `${cm.accent}30`, background: `${cm.accent}08` }}>
+          <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: cm.accent }}>{currentNode.outcome}</div>
+          <h2 className="text-white font-bold text-base leading-tight mb-2">{currentNode.title}</h2>
+          <p className="text-slate-300 text-sm leading-relaxed">{currentNode.outcomeNarrative || currentNode.narrative}</p>
+        </div>
+        {currentNode.finalLensScores && (
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 mb-4">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Final Lens Assessment</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+              {[['Big Cycle', currentNode.finalLensScores.bigCycle,'#f59e0b'],
+                ['GeoEcon Tool', currentNode.finalLensScores.geoEcon,'#2dd4bf'],
+                ['Game Theory', currentNode.finalLensScores.gameTheory,'#60a5fa']
+              ].map(([label, val, color]) => val && (
+                <div key={label} className="rounded-lg bg-slate-800/60 p-2">
+                  <div className="text-xs font-semibold mb-0.5" style={{ color }}>{label}</div>
+                  <div className="text-slate-300 text-xs leading-snug">{val}</div>
+                </div>
+              ))}
+            </div>
+            {chartData && (
+              <div>
+                <div className="text-xs font-semibold text-slate-500 mb-1.5">STEEP Intensity at Terminal</div>
+                <ResponsiveContainer width="100%" height={72}>
+                  <BarChart data={chartData} margin={{ top:0, right:0, left:-20, bottom:0 }}>
+                    <XAxis dataKey="dim" tick={{ fontSize:10, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0,100]} tick={{ fontSize:9, fill:'#475569' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background:'#0f172a', border:'1px solid #334155', borderRadius:8, fontSize:11 }}
+                      formatter={v => [`${v}%`, 'Intensity']} />
+                    <Bar dataKey="v" radius={[4,4,0,0]} fill={cm.accent} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        )}
+        {simPath.length > 1 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Decision Path</div>
+            <div className="flex flex-wrap gap-1.5">
+              {simPath.slice(1).map((p, i) => p.choice && (
+                <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">{p.choice}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {currentNode.historicalAnalog && (
+          <div className="text-xs text-slate-500 mb-4">
+            <span className="font-semibold text-slate-400">Historical analog: </span>{currentNode.historicalAnalog}
+          </div>
+        )}
+        {currentNode.aiPromptSeed && (
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-3 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold text-slate-400">AI Synthesis Extension</div>
+              {!synthText && !synthLoading && (
+                <button onClick={runSynthesis}
+                  className="text-xs px-3 py-1 rounded-lg font-medium transition-all border"
+                  style={{ borderColor:`${cm.accent}40`, color:cm.accent, background:`${cm.accent}10` }}>
+                  Generate Synthesis
+                </button>
+              )}
+            </div>
+            {synthLoading && !synthText && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="w-3 h-3 rounded-full border-2 animate-spin"
+                  style={{ borderColor:cm.accent, borderTopColor:'transparent' }} />
+                Synthesizing...
+              </div>
+            )}
+            {synthError && <div className="text-xs text-red-400">{synthError}</div>}
+            {synthText && (
+              <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                {synthText}
+                {synthLoading && <span className="inline-block w-1.5 h-3 ml-0.5 bg-slate-400 animate-pulse rounded-sm" />}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button onClick={() => startScenario(activeScenario)}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all border"
+            style={{ borderColor:`${cm.accent}30`, color:cm.accent, background:`${cm.accent}10` }}>
+            Replay Scenario
+          </button>
+          <button onClick={() => setGeseView('hub')}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold text-slate-400 border border-slate-700/50 hover:text-white transition-all">
+            Back to Hub
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHistory = () => (
+    <div className="px-4 py-4 md:px-6 max-w-3xl mx-auto">
+      {history.length === 0 ? (
+        <div className="text-center py-12 text-slate-500 text-sm">No completed scenarios yet. Run a simulation to record outcomes here.</div>
+      ) : (
+        <div className="space-y-2">
+          {history.map((rec, i) => {
+            const rcm = GESE_CLUSTER_META[rec.cluster] || GESE_CLUSTER_META.historical;
+            return (
+              <div key={i} className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="text-white text-xs font-semibold leading-snug">{rec.scenarioTitle}</div>
+                  <span className="text-slate-600 text-xs flex-shrink-0">{rec.date}</span>
+                </div>
+                <div className="text-xs font-bold uppercase mb-1.5" style={{ color: rcm.accent }}>{rec.outcome}</div>
+                {rec.pathLabels?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {rec.pathLabels.map((l, j) => (
+                      <span key={j} className="text-xs px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-500">{l}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const totalComplete = Object.keys(completions).length;
+
+  return (
+    <div className="h-full flex flex-col bg-[#06060f]">
+      <div className="flex-shrink-0 px-4 py-3 md:px-6 border-b border-violet-500/10 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,#0d9488,#2563eb)' }}>⬡</div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-base font-black text-white leading-tight">GeoEcon Scenario Emulator</h1>
+          <p className="text-slate-500 text-xs">15 branching scenarios across historical archetypes, systemic risks, geoeconomic orders, and AI disruption</p>
+        </div>
+        <div className="flex gap-1 bg-slate-800/50 border border-slate-700 rounded-xl p-1 flex-shrink-0">
+          {[['hub','Scenarios'],['history',`Log${totalComplete > 0 ? ` (${totalComplete})` : ''}`]].map(([v,l]) => (
+            <button key={v} onClick={() => setGeseView(v)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${geseView === v ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {geseView === 'sim' && activeScenario && (
+        <div className="flex-shrink-0 px-4 py-2 border-b border-slate-800/60 flex items-center justify-between">
+          <div className="text-xs text-slate-400 font-medium truncate max-w-[70%]">{activeScenario.title}</div>
+          <button onClick={() => setGeseView('hub')} className="text-slate-600 hover:text-white text-xs transition-colors flex-shrink-0">Exit</button>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {geseView === 'hub' && renderHub()}
+        {geseView === 'sim' && !isTerminal && renderSim()}
+        {geseView === 'sim' && isTerminal && renderTerminal()}
+        {geseView === 'history' && renderHistory()}
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function BigCycleEngineTool({ preload = null, onPreloadConsumed, onResult }) {
   const [step, setStep] = useState(preload ? 'result' : 'form');
