@@ -7284,13 +7284,16 @@ const GSE_LENS_META = {
 };
 
 const GSE_COND_RULES = {
-  "os73-L3-petrodollar":              (dv)      => !dv.some(d => d.choiceId === "os73-L1-raise"),
-  "bpe-L2-sanctions":                 (dv)      => dv.some(d => d.choiceId === "bpe-L1-containment"),
-  "ies26-L4-imf-program":             (_dv, ls) => ls.geoEcon.intensityScore > 40,
-  "aios-L4-binding-treaty":           (_dv, ls) => ls.gameTheory.cooperateCount >= ls.gameTheory.defectCount,
-  "os73-L2-volcker":                  (dv)      => dv.some(d => d.choiceId === "os73-L1-lower"),
-  "os73-L3-premature-easing":         (dv)      => dv.some(d => d.choiceId === "os73-L2-volcker"),
-  "aid-L3-international-tax-coordination": (dv) => dv.some(d => d.choiceId === "aid-L2-ubi"),
+  "os73-L3-petrodollar-deal":              (dv)      => !dv.some(d => d.choiceId === "os73-L1-defend-peg"),
+  "bpe-L2-aggressive-secondary-sanctions": (dv)      => dv.some(d => d.choiceId === "bpe-L1-containment"),
+  "bpe-L2-economic-incentives":            (dv)      => dv.some(d => d.choiceId === "bpe-L1-accommodation"),
+  "ies26-L4-imf-program":                  (_dv, ls) => ls.geoEcon.intensityScore > 40,
+  "aid-L3-international-tax-coordination": (dv)      => dv.some(d => d.choiceId === "aid-L2-ubi-experiment"),
+  "aid-L3-sovereign-wealth-fund":          (dv)      => dv.some(d => d.choiceId === "aid-L2-demand-collapse"),
+  "aibb-L4-quantum-commercial":            (dv)      => dv.some(d => d.choiceId === "aibb-L2-consolidation" || d.choiceId === "aibb-L2-bailout"),
+  "aios-L4-binding-treaty":               (_dv, ls) => ls.gameTheory.cooperateCount >= ls.gameTheory.defectCount,
+  "os73-L2-volcker-shock":                 (dv)      => dv.some(d => d.choiceId === "os73-L1-lower-rates"),
+  "os73-L3-premature-easing":              (dv)      => dv.some(d => d.choiceId === "os73-L2-volcker-shock"),
 };
 
 function gseInitLens() {
