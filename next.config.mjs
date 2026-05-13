@@ -3,9 +3,11 @@ const nextConfig = {
   // Disabled — prevents Three.js useEffect double-firing on the visualization panel
   reactStrictMode: false,
 
-  // Heavy document-parsing packages with native bindings — keep out of the
-  // Edge/serverless bundle and load them as external Node.js modules instead
-  serverExternalPackages: ['pdf-parse', 'mammoth'],
+  experimental: {
+    // Heavy document-parsing packages with native bindings — keep out of the
+    // Edge/serverless bundle and load them as external Node.js modules instead
+    serverComponentsExternalPackages: ['pdf-parse', 'mammoth'],
+  },
 
   async headers() {
     return [
