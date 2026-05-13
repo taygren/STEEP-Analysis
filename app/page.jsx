@@ -11293,26 +11293,15 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
           <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'promptpkg' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geopolicylab' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
-            <span className="text-base leading-none">◧</span>
+            <span className="text-base leading-none">◈</span>
             <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Prompt Engineering Package</span>
-              <span className="block text-slate-600 text-xs">Techniques & adversarial modes</span>
+              <span className="block text-xs font-medium">GeoPolicy Lab</span>
+              <span className="block text-slate-600 text-xs">Policy simulation environment</span>
             </span>
-            {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'gametheory' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'gametheory' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">⬡</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Game Theory Simulator</span>
-              <span className="block text-slate-600 text-xs">Strategic decision scenarios</span>
-            </span>
-            {activeTab === 'gametheory' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
+            {activeTab === 'geopolicylab' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
           </button>
           <button
             onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoeconscenarioemulator' }); closeSidebar(); }}
@@ -11326,15 +11315,15 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             {activeTab === 'geoeconscenarioemulator' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
           <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geopolicylab' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'promptpkg' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
           >
-            <span className="text-base leading-none">◈</span>
+            <span className="text-base leading-none">◧</span>
             <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">GeoPolicy Lab</span>
-              <span className="block text-slate-600 text-xs">Policy simulation environment</span>
+              <span className="block text-xs font-medium">Prompt Engineering Package</span>
+              <span className="block text-slate-600 text-xs">Techniques & adversarial modes</span>
             </span>
-            {activeTab === 'geopolicylab' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
+            {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
         </div>
 
@@ -11564,13 +11553,6 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
-        {/* Game Theory Simulator — strategic decision scenarios */}
-        {activeTab === 'gametheory' && (
-          <div className="h-full overflow-y-auto">
-            <GameTheorySimulatorTool bceResult={bceCache} giResult={giCache} />
-          </div>
-        )}
-
         {/* GeoEcon Scenario Emulator — 15 branching geopolitical scenarios */}
         {activeTab === 'geoeconscenarioemulator' && (
           <div className="h-full overflow-y-auto">
@@ -11702,48 +11684,25 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                   </div>
                   <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>P</div>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#d9770618', color: '#f59e0b', border: '1.5px solid #d9770625' }}>◈</div>
                       <div className="min-w-0">
-                        <h3 className="text-white font-bold text-sm leading-tight">Prompt Engineering Package</h3>
-                        <p className="text-slate-500 text-xs mt-0.5">Techniques, adversarial modes, and planning tools</p>
+                        <h3 className="text-white font-bold text-sm leading-tight">GeoPolicy Lab</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Strategic policy simulation environment</p>
                       </div>
                     </div>
                     <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
-                      Nine research-backed prompting techniques, six adversarial challenge modes powered by Groq, a structured task brief builder, ten core principles, and copy-ready checkpoint prompts — assembled from the AI Prompting Toolkit.
+                      Fuses the Big Cycle Engine, Farrell & Newman Triangular Framework, and a game theory decision engine into a unified five-panel simulation workflow. Configure macro environments, deploy instruments, play adversarial decision scenarios, and receive a full STEEP lens debrief across 8 historical cases.
                     </p>
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {['Adversarial Buddy', 'Task Brief Builder', 'Techniques', 'Principles', 'Checkpoints'].map(t => (
+                      {['Empire Stage', 'Instrument Scoring', 'Decision Theater', 'STEEP Synthesis', 'Historical Scenarios'].map(t => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
                       ))}
                     </div>
                     <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' })}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-amber-300 border border-amber-900/60 bg-amber-950/30 hover:bg-amber-900/30 hover:text-amber-200 transition-colors"
                     >
-                      Open Prompt Engineering Package →
-                    </button>
-                  </div>
-                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#0d948818', color: '#2dd4bf', border: '1.5px solid #0d948825' }}>♟</div>
-                      <div className="min-w-0">
-                        <h3 className="text-white font-bold text-sm leading-tight">Game Theory Simulator</h3>
-                        <p className="text-slate-500 text-xs mt-0.5">Strategic decision scenarios</p>
-                      </div>
-                    </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
-                      Twelve interactive scenarios across four strategic domains: cooperation, bargaining, competition, and signaling. Play against AI opponents with distinct strategy profiles, reveal payoff matrices, and receive structured decision debriefs.
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {['Nash Equilibrium', 'Payoff Matrix', 'Signaling', 'Bargaining', 'Cooperation'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'gametheory' })}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
-                    >
-                      Open Game Theory Simulator →
+                      Open GeoPolicy Lab →
                     </button>
                   </div>
                   <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
@@ -11767,6 +11726,29 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                       className="w-full py-2 rounded-xl text-xs font-semibold text-teal-300 border border-teal-900/60 bg-teal-950/30 hover:bg-teal-900/30 hover:text-teal-200 transition-colors"
                     >
                       Open GeoEcon Scenario Emulator →
+                    </button>
+                  </div>
+                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>P</div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-bold text-sm leading-tight">Prompt Engineering Package</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">Techniques, adversarial modes, and planning tools</p>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
+                      Nine research-backed prompting techniques, six adversarial challenge modes powered by Groq, a structured task brief builder, ten core principles, and copy-ready checkpoint prompts — assembled from the AI Prompting Toolkit.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {['Adversarial Buddy', 'Task Brief Builder', 'Techniques', 'Principles', 'Checkpoints'].map(t => (
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' })}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
+                    >
+                      Open Prompt Engineering Package →
                     </button>
                   </div>
                 </div>
@@ -11836,7 +11818,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'promptpkg' && activeTab !== 'gametheory' && activeTab !== 'geoeconscenarioemulator' && status === 'idle' && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'promptpkg' && activeTab !== 'geoeconscenarioemulator' && status === 'idle' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -11941,7 +11923,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && activeTab !== 'geoeconscenarioemulator' && isRunning && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'geoeconscenarioemulator' && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -11977,7 +11959,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'gametheory' && activeTab !== 'geoeconscenarioemulator' && isComplete && (
+        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'geoeconscenarioemulator' && isComplete && (
           <div className="h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-violet-500/10 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
