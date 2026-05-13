@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoPolicy Lab — Strategic Simulation Environment</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="top-bar">
+  <div class="logo">GEOPOLICY LAB</div>
+  <div class="classify-stamp">SIMULATION // UNCLASSIFIED</div>
+  <div class="top-badges">
+    <div class="status-badge env empty" id="env-badge"><div class="badge-dot"></div><span id="env-badge-text">ENV NOT SET</span></div>
+    <div class="status-badge instr empty" id="instr-badge"><div class="badge-dot"></div><span id="instr-badge-text">INSTRUMENT NOT SET</span></div>
+    <div class="status-badge" style="border-color:rgba(76,175,120,0.3);color:var(--green);" id="score-badge"><div class="badge-dot"></div><span id="score-badge-text">SCORE: —</span></div>
+  </div>
+</header>
+
+<div class="app-body">
+<!-- SIDE NAV -->
+<nav class="side-nav">
+  <div class="nav-section">NAVIGATION</div>
+  <button class="nav-btn" onclick="nav('overview')" id="nav-overview">
+    <span class="nav-layer">⊕</span> OVERVIEW
+  </button>
+  <button class="nav-btn" onclick="nav('library')" id="nav-library">
+    <span class="nav-layer">00</span> SCENARIO LIBRARY
+  </button>
+  <div class="nav-divider"></div>
+  <div class="nav-section">SIMULATION LAYERS</div>
+  <button class="nav-btn" onclick="nav('env')" id="nav-env">
+    <span class="nav-layer">01</span> ENVIRONMENT
+  </button>
+  <button class="nav-btn locked" onclick="nav('instrument')" id="nav-instrument">
+    <span class="nav-layer">02</span> INSTRUMENT
+  </button>
+  <button class="nav-btn locked" onclick="nav('decision')" id="nav-decision">
+    <span class="nav-layer">03</span> DECISION THEATER
+  </button>
+  <button class="nav-btn locked" onclick="nav('synthesis')" id="nav-synthesis">
+    <span class="nav-layer">04</span> OUTCOME SYNTHESIS
+  </button>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="main"></main>
+</div>
+
+<div class="grid-deco"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { INSTRUMENT_ATTRIBUTES, GEOECONOMIC_CAPACITIES, STRATEGIC_UTILITY_CLASSES, computeSeverityScore, classifySeverity } from '../lib/bigCycle/engine';
 import AboutPanel from './components/AboutPanel';
+import GeoPolicyLabTool from './components/GeoPolicyLabTool';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -11324,6 +11325,17 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
             </span>
             {activeTab === 'geoeconscenarioemulator' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
           </button>
+          <button
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geopolicylab' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+          >
+            <span className="text-base leading-none">◈</span>
+            <span className="text-left leading-tight flex-1 min-w-0">
+              <span className="block text-xs font-medium">GeoPolicy Lab</span>
+              <span className="block text-slate-600 text-xs">Policy simulation environment</span>
+            </span>
+            {activeTab === 'geopolicylab' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
+          </button>
         </div>
 
         {/* Insights — Thought Leadership + Innovator Illumination */}
@@ -11563,6 +11575,13 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         {activeTab === 'geoeconscenarioemulator' && (
           <div className="h-full overflow-y-auto">
             <GeoEconScenarioEmulatorTool />
+          </div>
+        )}
+
+        {/* GeoPolicy Lab — integrated policy simulation environment */}
+        {activeTab === 'geopolicylab' && (
+          <div className="h-full overflow-hidden">
+            <GeoPolicyLabTool />
           </div>
         )}
 
