@@ -1,26 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable strict mode to prevent double-firing of Three.js useEffect in dev
+  // Disabled — prevents Three.js useEffect double-firing on the visualization panel
   reactStrictMode: false,
 
-  // Allow the API routes to reach a longer-running Ollama instance
-  // (relevant for self-hosted / VPS deployments)
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
+  // Heavy document-parsing packages with native bindings — keep out of the
+  // Edge/serverless bundle and load them as external Node.js modules instead
+  serverExternalPackages: ['pdf-parse', 'mammoth'],
 
-  // Allow cross-origin requests from Replit's proxied preview domain
-  allowedDevOrigins: ['*.replit.dev', '*.kirk.replit.dev'],
-
-  // Headers to allow cross-origin requests in development
   async headers() {
     return [
+      // CORS for all API routes — required for cross-origin LLM / data requests
       {
         source: '/api/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Origin',  value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
+        ],
+      },
+      // Security baseline for all routes
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options',        value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy',        value: 'strict-origin-when-cross-origin' },
         ],
       },
     ];
