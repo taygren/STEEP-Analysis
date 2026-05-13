@@ -29,7 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_tl_slug         ON thought_leadership(slug);
 ALTER TABLE thought_leadership ENABLE ROW LEVEL SECURITY;
 
 -- Public can read published posts; service role key bypasses RLS for admin ops
-CREATE POLICY IF NOT EXISTS "public read published" ON thought_leadership
+DROP POLICY IF EXISTS "public read published" ON thought_leadership;
+CREATE POLICY "public read published" ON thought_leadership
   FOR SELECT USING (status = 'published');
 
 -- ── Studio Updates ────────────────────────────────────────────
@@ -49,7 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_su_date   ON studio_updates(date DESC);
 
 ALTER TABLE studio_updates ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public read published" ON studio_updates
+DROP POLICY IF EXISTS "public read published" ON studio_updates;
+CREATE POLICY "public read published" ON studio_updates
   FOR SELECT USING (status = 'published');
 
 -- ── Innovator Illumination ────────────────────────────────────
@@ -76,5 +78,6 @@ CREATE INDEX IF NOT EXISTS idx_ii_slug         ON innovator_illumination(slug);
 
 ALTER TABLE innovator_illumination ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "public read published" ON innovator_illumination
+DROP POLICY IF EXISTS "public read published" ON innovator_illumination;
+CREATE POLICY "public read published" ON innovator_illumination
   FOR SELECT USING (status = 'published');
