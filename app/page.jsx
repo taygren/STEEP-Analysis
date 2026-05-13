@@ -10928,6 +10928,13 @@ function RASCEFTool() {
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════
 
+// Sidebar-selectable tabs that should be reflected in the URL
+const SIDEBAR_TABS = new Set([
+  'home', 'bigcycleengine', 'geoinstrument', 'geopolicylab',
+  'geoeconscenarioemulator', 'thoughtleadership', 'innovatorillumination',
+  'about', 'promptpkg',
+]);
+
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { subject, status, agentStatuses, steepData, synthesis, activeTab, selectedModel, groqStatus, availableModels,
@@ -10936,6 +10943,28 @@ function App() {
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
+
+  // ── URL ↔ tab sync ────────────────────────────────────────────────────────
+  // On mount: read ?tab= and activate the matching sidebar tab
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && SIDEBAR_TABS.has(tab)) {
+      dispatch({ type: 'SET_ACTIVE_TAB', payload: tab });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On tab change: reflect sidebar tabs in the URL bar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (activeTab && SIDEBAR_TABS.has(activeTab) && activeTab !== 'home') {
+      url.searchParams.set('tab', activeTab);
+    } else {
+      url.searchParams.delete('tab');
+    }
+    window.history.replaceState(null, '', url.toString());
+  }, [activeTab]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
