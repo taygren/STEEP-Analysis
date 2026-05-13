@@ -1,25 +1,36 @@
 /**
  * GET /api/studio-updates
- * Public endpoint — returns published Studio Updates, newest first.
+ * Public — returns published Studio Updates, newest first.
  */
 
-import { kvGet, kvZRange } from '../../../lib/kv';
+import { getSupabase } from '../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const INDEX_KEY = 'studioupdates:index';
+function fromRow(r) {
+  return {
+    id:          r.id,
+    title:       r.title,
+    body:        r.body,
+    date:        r.date,
+    status:      r.status,
+    publishedAt: r.published_at,
+    updatedAt:   r.updated_at,
+    createdAt:   r.created_at,
+  };
+}
 
 export async function GET() {
   try {
-    const ids = await kvZRange(INDEX_KEY, 0, -1, { rev: true });
-    const updates = [];
-    for (const id of ids) {
-      const u = await kvGet(`studioupdates:post:${id}`);
-      if (!u || u.status !== 'published') continue;
-      updates.push(u);
-    }
-    return Response.json({ found: true, updates });
+    const { data, error } = await getSupabase()
+      .from('studio_updates')
+      .select('*')
+      .eq('status', 'published')
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+    return Response.json({ found: true, updates: (data || []).map(fromRow) });
   } catch (err) {
     console.error('[studio-updates] GET error:', err.message);
     return Response.json({ found: false, error: err.message }, { status: 500 });

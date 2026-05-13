@@ -1,36 +1,35 @@
 /**
  * Admin CRUD for Innovator Illumination posts.
+ * All methods require header: x-admin-token matching ADMIN_PUBLISH_TOKEN.
  *
- * All methods require header: x-admin-token matching ADMIN_PUBLISH_TOKEN env var.
- *
- * POST   /api/innovator-illumination/admin  — create or update a post
- * PUT    /api/innovator-illumination/admin  — publish / unpublish
- * DELETE /api/innovator-illumination/admin  — delete a post
- * GET    /api/innovator-illumination/admin  — list all posts
+ * GET    /api/innovator-illumination/admin  — list all (drafts + published)
+ * POST   /api/innovator-illumination/admin  — create or update
+ * PUT    /api/innovator-illumination/admin  — publish / unpublish  { id, status }
+ * DELETE /api/innovator-illumination/admin  — delete               { id }
  */
 
-import { kvGet, kvSet, kvDel, kvZAdd, kvZRem, kvZRange } from '../../../../lib/kv';
-import { randomUUID } from 'crypto';
+import { getSupabase, slugify, authCheck, authResponse } from '../../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const INDEX_KEY = 'innovatorillumination:index';
-const ALL_KEY   = 'innovatorillumination:all';
-
-function authCheck(req) {
-  const token = process.env.ADMIN_PUBLISH_TOKEN;
-  if (!token) return 'no_token';
-  return req.headers.get('x-admin-token') === token ? 'ok' : 'unauthorized';
-}
-
-function authResponse(check) {
-  if (check === 'no_token') return Response.json({ error: 'ADMIN_PUBLISH_TOKEN is not configured.' }, { status: 403 });
-  return Response.json({ error: 'Unauthorized' }, { status: 401 });
-}
-
-function slugify(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+function fromRow(r) {
+  return {
+    id:               r.id,
+    slug:             r.slug,
+    title:            r.title,
+    dek:              r.dek,
+    logoUrl:          r.logo_url,
+    techSegment:      r.tech_segment,
+    solutionOverview: r.solution_overview,
+    contentMarkdown:  r.content_markdown,
+    heroImageUrl:     r.hero_image_url,
+    geoKeywords:      r.geo_keywords ?? [],
+    status:           r.status,
+    publishedAt:      r.published_at,
+    updatedAt:        r.updated_at,
+    createdAt:        r.created_at,
+  };
 }
 
 export async function GET(req) {
@@ -38,20 +37,13 @@ export async function GET(req) {
   if (check !== 'ok') return authResponse(check);
 
   try {
-    // Read from both registries (union) so existing published-only entries
-    // are included during migration before ALL_KEY is populated.
-    const [publishedIds, allIds] = await Promise.all([
-      kvZRange(INDEX_KEY, 0, -1, { rev: true }),
-      kvZRange(ALL_KEY,   0, -1, { rev: true }),
-    ]);
-    const ids = new Set([...publishedIds, ...allIds]);
-    const posts = [];
-    for (const id of ids) {
-      const post = await kvGet(`innovatorillumination:post:${id}`);
-      if (post) posts.push(post);
-    }
-    posts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    return Response.json({ found: true, posts });
+    const { data, error } = await getSupabase()
+      .from('innovator_illumination')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return Response.json({ found: true, posts: (data || []).map(fromRow) });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
@@ -64,40 +56,44 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const now  = new Date().toISOString();
-    const id   = body.id || randomUUID();
-    const slug = body.slug || slugify(body.title || id);
+    const sb   = getSupabase();
 
-    const existing = body.id ? await kvGet(`innovatorillumination:post:${body.id}`) : null;
-
-    const post = {
-      id,
-      slug,
-      title:           body.title           || 'Untitled',
-      dek:             body.dek             || '',
-      logoUrl:         body.logoUrl         || '',
-      techSegment:     body.techSegment     || '',
-      solutionOverview: body.solutionOverview || '',
-      contentMarkdown: body.contentMarkdown || '',
-      heroImageUrl:    body.heroImageUrl    || '',
-      geoKeywords:     body.geoKeywords     || [],
-      status:          body.status          || 'draft',
-      publishedAt:     body.status === 'published' ? (body.publishedAt || existing?.publishedAt || now) : null,
-      updatedAt:       now,
-      createdAt:       existing?.createdAt || body.createdAt || now,
-    };
-
-    await kvSet(`innovatorillumination:post:${id}`, post);
-
-    // Always register in all-posts index so drafts remain discoverable
-    const allScore = new Date(post.updatedAt).getTime();
-    await kvZAdd(ALL_KEY, allScore, id);
-
-    if (post.status === 'published') {
-      const score = new Date(post.publishedAt || now).getTime();
-      await kvZAdd(INDEX_KEY, score, id);
+    let existing = null;
+    if (body.id) {
+      const { data } = await sb.from('innovator_illumination').select('*').eq('id', body.id).single();
+      existing = data;
     }
 
-    return Response.json({ found: true, post });
+    const isPublished = (body.status ?? existing?.status ?? 'draft') === 'published';
+    const publishedAt = isPublished
+      ? (existing?.published_at || body.publishedAt || now)
+      : null;
+
+    const row = {
+      ...(body.id ? { id: body.id } : {}),
+      slug:             body.slug             || slugify(body.title) || existing?.slug || '',
+      title:            body.title            ?? existing?.title            ?? 'Untitled',
+      dek:              body.dek              ?? existing?.dek              ?? '',
+      logo_url:         body.logoUrl          ?? existing?.logo_url         ?? '',
+      tech_segment:     body.techSegment      ?? existing?.tech_segment     ?? '',
+      solution_overview: body.solutionOverview ?? existing?.solution_overview ?? '',
+      content_markdown: body.contentMarkdown  ?? existing?.content_markdown ?? '',
+      hero_image_url:   body.heroImageUrl     ?? existing?.hero_image_url   ?? '',
+      geo_keywords:     body.geoKeywords      ?? existing?.geo_keywords     ?? [],
+      status:           body.status           ?? existing?.status           ?? 'draft',
+      published_at:     publishedAt,
+      updated_at:       now,
+      created_at:       existing?.created_at  ?? body.createdAt             ?? now,
+    };
+
+    const { data, error } = await sb
+      .from('innovator_illumination')
+      .upsert(row, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return Response.json({ found: true, post: fromRow(data) });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
@@ -111,26 +107,26 @@ export async function PUT(req) {
     const { id, status } = await req.json();
     if (!id) return Response.json({ error: 'id required' }, { status: 400 });
 
-    const existing = await kvGet(`innovatorillumination:post:${id}`);
-    if (!existing) return Response.json({ error: 'Post not found' }, { status: 404 });
+    const sb  = getSupabase();
+    const now = new Date().toISOString();
 
-    const now  = new Date().toISOString();
-    const post = {
-      ...existing,
-      status,
-      updatedAt:   now,
-      publishedAt: status === 'published' ? (existing.publishedAt || now) : existing.publishedAt,
-    };
+    const { data: existing, error: fetchErr } = await sb
+      .from('innovator_illumination').select('*').eq('id', id).single();
+    if (fetchErr || !existing) return Response.json({ error: 'Not found' }, { status: 404 });
 
-    await kvSet(`innovatorillumination:post:${id}`, post);
+    const publishedAt = status === 'published'
+      ? (existing.published_at || now)
+      : existing.published_at;
 
-    if (status === 'published') {
-      await kvZAdd(INDEX_KEY, new Date(post.publishedAt).getTime(), id);
-    } else {
-      await kvZRem(INDEX_KEY, id);
-    }
+    const { data, error } = await sb
+      .from('innovator_illumination')
+      .update({ status, published_at: publishedAt, updated_at: now })
+      .eq('id', id)
+      .select()
+      .single();
 
-    return Response.json({ found: true, post });
+    if (error) throw error;
+    return Response.json({ found: true, post: fromRow(data) });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
@@ -144,10 +140,12 @@ export async function DELETE(req) {
     const { id } = await req.json();
     if (!id) return Response.json({ error: 'id required' }, { status: 400 });
 
-    await kvDel(`innovatorillumination:post:${id}`);
-    await kvZRem(INDEX_KEY, id);
-    await kvZRem(ALL_KEY, id);
+    const { error } = await getSupabase()
+      .from('innovator_illumination')
+      .delete()
+      .eq('id', id);
 
+    if (error) throw error;
     return Response.json({ found: true, deleted: id });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

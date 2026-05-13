@@ -1,22 +1,45 @@
-import { kvGet } from '../../../../lib/kv';
+import { getSupabase } from '../../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+function fromRow(r) {
+  return {
+    id:              r.id,
+    slug:            r.slug,
+    title:           r.title,
+    dek:             r.dek,
+    contentMarkdown: r.content_markdown,
+    heroImageUrl:    r.hero_image_url,
+    geoKeywords:     r.geo_keywords ?? [],
+    regions:         r.regions      ?? [],
+    instruments:     r.instruments  ?? [],
+    companies:       r.companies    ?? [],
+    status:          r.status,
+    publishedAt:     r.published_at,
+    updatedAt:       r.updated_at,
+    createdAt:       r.created_at,
+  };
+}
 
 export async function GET(_req, { params }) {
   try {
     const { id } = params;
     if (!id) return Response.json({ error: 'id required' }, { status: 400 });
 
-    const post = await kvGet(`thoughtleadership:post:${id}`);
-    if (!post) return Response.json({ error: 'Not found' }, { status: 404 });
+    const sb = getSupabase();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-    if (post.status !== 'published') {
-      return Response.json({ error: 'Not found' }, { status: 404 });
-    }
+    const { data, error } = await sb
+      .from('thought_leadership')
+      .select('*')
+      .eq(isUuid ? 'id' : 'slug', id)
+      .eq('status', 'published')
+      .single();
 
-    return Response.json({ found: true, ...post });
+    if (error || !data) return Response.json({ error: 'Not found' }, { status: 404 });
 
+    return Response.json({ found: true, ...fromRow(data) });
   } catch (err) {
     console.error('[thought-leadership/[id]]', err);
     return Response.json({ error: err.message }, { status: 500 });
