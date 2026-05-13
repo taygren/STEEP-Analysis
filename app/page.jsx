@@ -11615,29 +11615,6 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                   </div>
                   <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#7c3aed18', color: '#a78bfa', border: '1.5px solid #7c3aed25' }}>R</div>
-                      <div className="min-w-0">
-                        <h3 className="text-white font-bold text-sm leading-tight">RASCEF Generator</h3>
-                        <p className="text-slate-500 text-xs mt-0.5">AI prompt engineering framework</p>
-                      </div>
-                    </div>
-                    <p className="text-slate-400 text-xs leading-relaxed mb-4 flex-1">
-                      A six-element prompt architecture — Role, Action, Situation, Context, Expectation, Format — that replaces vague AI instructions with precise, structured analytical direction. Produces deployable system prompts for any analytical task.
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {['Role', 'Action', 'Situation', 'Context', 'Expectation', 'Format'].map(t => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-400">{t}</span>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' })}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-violet-300 border border-violet-900/60 bg-violet-950/30 hover:bg-violet-900/30 hover:text-violet-200 transition-colors"
-                    >
-                      Open in Prompt Engineering Package →
-                    </button>
-                  </div>
-                  <div className="bg-[#0f0f1b]/80 border border-violet-500/10 hover:border-violet-500/20 transition-colors rounded-2xl p-5 flex flex-col">
-                    <div className="flex items-start gap-3 mb-3">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-base flex-shrink-0" style={{ background: '#d9770618', color: '#fbbf24', border: '1.5px solid #d9770625' }}>⊕</div>
                       <div className="min-w-0">
                         <h3 className="text-white font-bold text-sm leading-tight">Big Cycle Engine</h3>
