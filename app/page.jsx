@@ -3415,6 +3415,11 @@ function ThoughtLeadershipPanel() {
         <div>
           <h1 className="text-2xl font-black text-white mb-1">Thought Leadership</h1>
           <p className="text-slate-500 text-sm">Strategic intelligence briefs — macro, geopolitical &amp; sector analysis</p>
+          <a href="/thought-leadership" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-violet-400 transition-colors mt-1">
+            View all posts
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6M5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </a>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Admin toggle */}
@@ -4140,6 +4145,11 @@ function InnovatorIlluminationPanel() {
           <div>
             <h1 className="text-2xl font-black text-white mb-0.5">Innovator Illumination</h1>
             <p className="text-slate-500 text-xs">Spotlighting breakthrough technology solution providers</p>
+            <a href="/innovator-illumination" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-cyan-400 transition-colors mt-0.5">
+              View all profiles
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5h6M5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </a>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

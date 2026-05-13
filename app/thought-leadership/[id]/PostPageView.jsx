@@ -81,11 +81,11 @@ export default function PostPageView({ post }) {
       <nav className="print-hide sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <a
-            href="/"
+            href="/thought-leadership"
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm flex-shrink-0"
           >
             <BackIcon />
-            <span className="font-semibold text-slate-300">STINT Studio</span>
+            <span className="font-semibold text-slate-300">Thought Leadership</span>
           </a>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -173,8 +173,8 @@ export default function PostPageView({ post }) {
               <PrintIcon /> Export PDF
             </button>
           </div>
-          <a href="/" className="mt-2 text-xs text-slate-600 hover:text-slate-400 transition-colors">
-            ← Back to STINT Studio
+          <a href="/thought-leadership" className="mt-2 text-xs text-slate-600 hover:text-slate-400 transition-colors">
+            ← Back to Thought Leadership
           </a>
         </div>
       </main>
