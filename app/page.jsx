@@ -3192,13 +3192,9 @@ function IIPublishModal({ onClose, onPublished, initialToken = '', initialPost =
 function ThoughtLeadershipPanel() {
   const [posts, setPosts]             = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [postContent, setPostContent] = useState('');
-  const [contentLoading, setContentLoading] = useState(false);
   const [search, setSearch]           = useState('');
   const [activeTag, setActiveTag]     = useState('');
   const [showPublish, setShowPublish] = useState(false);
-  const [tlShareToast, setTlShareToast] = useState('');
 
   // Admin state — token lives only in memory (never persisted to localStorage)
   const [adminToken, setAdminToken]         = useState('');
@@ -3238,33 +3234,6 @@ function ThoughtLeadershipPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  const openPost = async (post) => {
-    setSelectedPost(post);
-    setContentLoading(true);
-
-    // The list API now returns full contentMarkdown — use it immediately so
-    // the reader never sees the truncated excerpt, even before any network call.
-    if (post.contentMarkdown) {
-      setPostContent(post.contentMarkdown);
-      setContentLoading(false);
-      return;
-    }
-
-    // Fallback: fetch from the [id] route (e.g. for legacy cached list responses).
-    try {
-      const res = await fetch(`/api/thought-leadership/${post.id}`);
-      const data = await res.json();
-      if (res.ok && data.contentMarkdown) {
-        setPostContent(data.contentMarkdown);
-      } else {
-        setPostContent(post.excerpt || '');
-      }
-    } catch {
-      setPostContent(post.excerpt || '');
-    }
-    setContentLoading(false);
-  };
-
   const readingTime = (text) => Math.max(1, Math.ceil((text || '').split(/\s+/).filter(Boolean).length / 200));
 
   const allTags = [...new Set(posts.flatMap(p => p.geoKeywords || []))].slice(0, 14);
@@ -3278,113 +3247,6 @@ function ThoughtLeadershipPanel() {
     return true;
   });
 
-  // ── Single article view ────────────────────────────────────────
-  if (selectedPost) {
-    return (
-      <div className="max-w-3xl mx-auto fade-in">
-        {/* Sticky back bar */}
-        <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur py-3 mb-6 border-b border-slate-800/60 flex items-center justify-between gap-3">
-          <button
-            onClick={() => { setSelectedPost(null); setPostContent(''); setTlShareToast(''); }}
-            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors flex-shrink-0"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            All articles
-          </button>
-
-          {/* Share strip */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <a
-              href={`/thought-leadership/${selectedPost.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open as standalone page"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4.5 2H2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.5M6.5 1H10m0 0v3.5M10 1 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="hidden sm:inline">Page</span>
-            </a>
-            <button
-              onClick={() => {
-                const url = `${window.location.origin}/thought-leadership/${selectedPost.id}`;
-                navigator.clipboard.writeText(url).then(() => { setTlShareToast('copied'); setTimeout(() => setTlShareToast(''), 2200); });
-              }}
-              title="Copy link"
-              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${tlShareToast === 'copied' ? 'bg-emerald-900 border-emerald-700 text-emerald-300' : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600'}`}
-            >
-              {tlShareToast === 'copied' ? '✓ Copied' : 'Copy link'}
-            </button>
-            <button
-              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedPost.title)}&url=${encodeURIComponent(window.location.origin + '/thought-leadership/' + selectedPost.id)}`, '_blank', 'noopener')}
-              title="Share on X"
-              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >𝕏</button>
-            <button
-              onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/thought-leadership/' + selectedPost.id)}`, '_blank', 'noopener')}
-              title="Share on LinkedIn"
-              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >in</button>
-            {adminToken && (
-              <button
-                onClick={() => openAdminEditor(selectedPost)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
-              >
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2-6 6H1.5v-2l6-6z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Edit
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Hero image */}
-        {selectedPost.heroImageUrl && (
-          <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl">
-            <img
-              src={selectedPost.heroImageUrl}
-              alt={selectedPost.title}
-              className="w-full object-cover"
-              style={{ maxHeight: 380 }}
-            />
-          </div>
-        )}
-
-        {/* Meta */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {(selectedPost.geoKeywords || []).map(k => (
-              <span key={k} className="text-xs px-2.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/70">{k}</span>
-            ))}
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black text-white leading-tight mb-3">{selectedPost.title}</h1>
-          {selectedPost.dek && <p className="text-slate-400 text-base leading-relaxed mb-4">{selectedPost.dek}</p>}
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            {selectedPost.publishedAt && (
-              <span>{new Date(selectedPost.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-            )}
-            <span>·</span>
-            <span>{readingTime(postContent || selectedPost.excerpt)} min read</span>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="border-t border-slate-800 pt-8 pb-16">
-          {contentLoading ? (
-            <div className="flex items-center gap-2 text-slate-600 text-sm py-8">
-              <svg className="animate-spin h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-              Loading article…
-            </div>
-          ) : (
-            <TLMarkdown md={postContent} />
-          )}
-        </div>
-      </div>
-    );
-  }
 
   const refreshPosts = () => {
     setLoading(true);
@@ -3547,10 +3409,10 @@ function ThoughtLeadershipPanel() {
       {/* Magazine card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {filtered.map(post => (
-          <article
+          <a
             key={post.id}
-            onClick={() => openPost(post)}
-            className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/40"
+            href={`/thought-leadership/${post.slug || post.id}`}
+            className="group block no-underline bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-black/40"
           >
             {/* Thumbnail or accent bar */}
             {post.heroImageUrl ? (
@@ -3593,7 +3455,7 @@ function ThoughtLeadershipPanel() {
                 <div className="flex items-center gap-2">
                   {adminToken && (
                     <button
-                      onClick={e => { e.stopPropagation(); openAdminEditor(post); }}
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); openAdminEditor(post); }}
                       className="text-slate-500 hover:text-slate-300 text-xs font-medium px-2 py-0.5 rounded border border-slate-800 hover:border-slate-600 transition-colors"
                     >Edit</button>
                   )}
@@ -3606,7 +3468,7 @@ function ThoughtLeadershipPanel() {
                 </div>
               </div>
             </div>
-          </article>
+          </a>
         ))}
       </div>
 
@@ -3980,12 +3842,10 @@ ${syn?.strategic_summary || syn?.key_risks?.length ? `<div class="card"><h2>Stra
 function InnovatorIlluminationPanel() {
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [selectedPost, setSelectedPost] = useState(null);
   const [search, setSearch]             = useState('');
   const [activeTag, setActiveTag]       = useState('');
   const [showPublish, setShowPublish]   = useState(false);
   const [editingPost, setEditingPost]   = useState(null);
-  const [iiShareToast, setIiShareToast] = useState('');
 
   const [adminToken, setAdminToken]         = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -4045,96 +3905,6 @@ function InnovatorIlluminationPanel() {
 
   // Gather all geo keywords from posts
   const allTags = [...new Set(posts.flatMap(p => p.geoKeywords || []))].sort();
-
-  if (selectedPost) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        {/* Back + share strip */}
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <button onClick={() => { setSelectedPost(null); setIiShareToast(''); }} className="flex items-center gap-2 text-slate-500 hover:text-white text-sm transition-colors flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Back to Innovators
-          </button>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <a
-              href={`/innovator-illumination/${selectedPost.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open as standalone page"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4.5 2H2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.5M6.5 1H10m0 0v3.5M10 1 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="hidden sm:inline">Page</span>
-            </a>
-            <button
-              onClick={() => {
-                const url = `${window.location.origin}/innovator-illumination/${selectedPost.id}`;
-                navigator.clipboard.writeText(url).then(() => { setIiShareToast('copied'); setTimeout(() => setIiShareToast(''), 2200); });
-              }}
-              title="Copy link"
-              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${iiShareToast === 'copied' ? 'bg-emerald-900 border-emerald-700 text-emerald-300' : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600'}`}
-            >
-              {iiShareToast === 'copied' ? '✓ Copied' : 'Copy link'}
-            </button>
-            <button
-              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedPost.title)}&url=${encodeURIComponent(window.location.origin + '/innovator-illumination/' + selectedPost.id)}`, '_blank', 'noopener')}
-              title="Share on X"
-              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >𝕏</button>
-            <button
-              onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/innovator-illumination/' + selectedPost.id)}`, '_blank', 'noopener')}
-              title="Share on LinkedIn"
-              className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/70 border border-slate-700/60 text-slate-400 hover:text-white hover:border-slate-600 transition-colors"
-            >in</button>
-          </div>
-        </div>
-
-        {/* Article header */}
-        {selectedPost.heroImageUrl && (
-          <div className="rounded-2xl overflow-hidden mb-6" style={{ maxHeight: 280 }}>
-            <img src={selectedPost.heroImageUrl} alt={selectedPost.title} className="w-full object-cover" style={{ maxHeight: 280 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-          </div>
-        )}
-
-        <div className="flex items-start gap-4 mb-4">
-          <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900 flex-shrink-0 overflow-hidden flex items-center justify-center">
-            {selectedPost.logoUrl ? (
-              <img src={selectedPost.logoUrl} alt={selectedPost.title} className="w-full h-full object-contain p-1" onError={e => { e.currentTarget.style.display='none'; }} />
-            ) : (
-              <span className="text-white text-xl font-black">{(selectedPost.title||'?')[0].toUpperCase()}</span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            {selectedPost.techSegment && (
-              <span className="inline-block text-xs px-2 py-0.5 rounded-full font-semibold mb-2" style={{ background: '#0891b220', color: '#22d3ee', border: '1px solid #0891b240' }}>{selectedPost.techSegment}</span>
-            )}
-            <h1 className="text-2xl font-black text-white leading-tight">{selectedPost.title}</h1>
-            {selectedPost.solutionOverview && <p className="text-slate-400 text-sm mt-1 leading-relaxed">{selectedPost.solutionOverview}</p>}
-          </div>
-        </div>
-
-        {selectedPost.geoKeywords?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-6">
-            {selectedPost.geoKeywords.map(t => (
-              <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">{t}</span>
-            ))}
-          </div>
-        )}
-
-        <div className="prose-like">
-          <TLMarkdown md={selectedPost.contentMarkdown || ''} />
-        </div>
-
-        {adminToken && (
-          <div className="mt-8 pt-6 border-t border-slate-800 flex gap-3">
-            <button onClick={() => setEditingPost(selectedPost)} className="text-xs px-3 py-1.5 rounded-lg bg-blue-950 hover:bg-blue-900 text-blue-400 transition-colors">Edit</button>
-            <button onClick={() => doUnpublish(selectedPost.id)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">Unpublish</button>
-            <button onClick={() => { doDelete(selectedPost.id); setSelectedPost(null); }} className="text-xs px-3 py-1.5 rounded-lg bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -4225,9 +3995,9 @@ function InnovatorIlluminationPanel() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {posts.map(post => (
-            <div key={post.id}
-              className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-600 transition-all cursor-pointer flex flex-col"
-              onClick={() => setSelectedPost(post)}
+            <a key={post.id}
+              href={`/innovator-illumination/${post.slug || post.id}`}
+              className="group block no-underline bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-600 transition-all flex flex-col"
             >
               {/* Hero image strip */}
               {post.heroImageUrl && (
@@ -4272,13 +4042,13 @@ function InnovatorIlluminationPanel() {
 
               {/* Admin actions */}
               {adminToken && (
-                <div className="px-4 pb-3 flex gap-2" onClick={e => e.stopPropagation()}>
+                <div className="px-4 pb-3 flex gap-2" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
                   <button onClick={() => setEditingPost(post)} className="text-xs px-2 py-1 rounded bg-blue-950 hover:bg-blue-900 text-blue-400 transition-colors">Edit</button>
                   <button onClick={() => doUnpublish(post.id)} className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">Unpublish</button>
                   <button onClick={() => doDelete(post.id)} className="text-xs px-2 py-1 rounded bg-red-950 hover:bg-red-900 text-red-400 transition-colors">Delete</button>
                 </div>
               )}
-            </div>
+            </a>
           ))}
         </div>
       )}
@@ -4300,9 +4070,7 @@ function InnovatorIlluminationPanel() {
           onPublished={(tok, updatedPost) => {
             setEditingPost(null);
             loadPosts();
-            if (updatedPost && selectedPost && selectedPost.id === updatedPost.id) {
-              setSelectedPost(updatedPost);
-            }
+
           }}
         />
       )}

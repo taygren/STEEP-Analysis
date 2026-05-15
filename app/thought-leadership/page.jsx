@@ -1,7 +1,9 @@
 import { getSupabase } from '../../lib/supabase';
+import { unstable_noStore as noStore } from 'next/cache';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata = {
   title: 'Thought Leadership | STINT Studio',
@@ -17,14 +19,17 @@ function ArrowIcon() {
 }
 
 async function getPosts() {
+  noStore();
   try {
-    const { data } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('thought_leadership')
       .select('id, slug, title, dek, geo_keywords, published_at, hero_image_url, content_markdown')
       .eq('status', 'published')
       .order('published_at', { ascending: false });
+    if (error) console.error('[tl-list] Supabase error:', error.message);
     return data || [];
-  } catch {
+  } catch (err) {
+    console.error('[tl-list] Exception:', err.message);
     return [];
   }
 }

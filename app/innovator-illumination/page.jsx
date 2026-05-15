@@ -1,7 +1,9 @@
 import { getSupabase } from '../../lib/supabase';
+import { unstable_noStore as noStore } from 'next/cache';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata = {
   title: 'Innovator Illumination | STINT Studio',
@@ -17,14 +19,17 @@ function ArrowIcon() {
 }
 
 async function getProfiles() {
+  noStore();
   try {
-    const { data } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('innovator_illumination')
       .select('id, slug, title, dek, tech_segment, solution_overview, logo_url, hero_image_url, geo_keywords, published_at')
       .eq('status', 'published')
       .order('published_at', { ascending: false });
+    if (error) console.error('[ii-list] Supabase error:', error.message);
     return data || [];
-  } catch {
+  } catch (err) {
+    console.error('[ii-list] Exception:', err.message);
     return [];
   }
 }
