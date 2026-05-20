@@ -39,7 +39,15 @@ function readingTime(md) {
 }
 
 export default async function ThoughtLeadershipListPage() {
-  const posts = await getPosts();
+  const rawPosts = await getPosts();
+  // Deduplicate by slug — keep only the first (most-recent) record per slug
+  const seenSlugs = new Set();
+  const posts = rawPosts.filter(p => {
+    const key = p.slug || p.id;
+    if (seenSlugs.has(key)) return false;
+    seenSlugs.add(key);
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">

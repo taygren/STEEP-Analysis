@@ -50,7 +50,14 @@ export async function GET(req) {
     const { data, error } = await q;
     if (error) throw error;
 
-    let posts = (data || []).map(fromRow);
+    // Deduplicate by slug — keeps the most-recent record when multiple share the same slug
+    const seenSlugs = new Set();
+    let posts = (data || []).map(fromRow).filter(p => {
+      const key = p.slug || p.id;
+      if (seenSlugs.has(key)) return false;
+      seenSlugs.add(key);
+      return true;
+    });
 
     if (query) {
       posts = posts.filter(p =>

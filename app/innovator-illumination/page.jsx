@@ -35,7 +35,15 @@ async function getProfiles() {
 }
 
 export default async function InnovatorIlluminationListPage() {
-  const profiles = await getProfiles();
+  const rawProfiles = await getProfiles();
+  // Deduplicate by slug — keep only the first (most-recent) record per slug
+  const seenSlugs = new Set();
+  const profiles = rawProfiles.filter(p => {
+    const key = p.slug || p.id;
+    if (seenSlugs.has(key)) return false;
+    seenSlugs.add(key);
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">

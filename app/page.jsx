@@ -3227,12 +3227,21 @@ function ThoughtLeadershipPanel() {
     window.open(`/admin?postId=${post.id}`, '_blank');
   };
 
-  useEffect(() => {
+  const refreshPosts = () => {
+    setLoading(true);
     fetch('/api/thought-leadership?limit=50')
       .then(r => r.json())
       .then(d => { setPosts(d.posts || []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    refreshPosts();
+    // Silently re-sync whenever the user returns to this browser tab/window
+    const onVisibility = () => { if (!document.hidden) refreshPosts(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const readingTime = (text) => Math.max(1, Math.ceil((text || '').split(/\s+/).filter(Boolean).length / 200));
 
@@ -3246,15 +3255,6 @@ function ThoughtLeadershipPanel() {
     }
     return true;
   });
-
-
-  const refreshPosts = () => {
-    setLoading(true);
-    fetch('/api/thought-leadership?limit=50')
-      .then(r => r.json())
-      .then(d => { setPosts(d.posts || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  };
 
   // ── Blog index ─────────────────────────────────────────────────
   return (
@@ -3902,6 +3902,20 @@ function InnovatorIlluminationPanel() {
   };
 
   useEffect(() => { loadPosts(); }, [activeTag, search]);
+
+  // Silently re-sync whenever the user returns to this browser tab/window
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!document.hidden) {
+        fetch('/api/innovator-illumination?limit=50')
+          .then(r => r.json())
+          .then(d => setPosts(d.posts || []))
+          .catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   // Gather all geo keywords from posts
   const allTags = [...new Set(posts.flatMap(p => p.geoKeywords || []))].sort();
