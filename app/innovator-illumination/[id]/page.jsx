@@ -36,10 +36,18 @@ function fromRow(r) {
 async function getProfile(id) {
   const sb = getSupabase();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  const { data } = isUuid
-    ? await sb.from('innovator_illumination').select('*').eq('id', id).single()
-    : await sb.from('innovator_illumination').select('*').eq('slug', id).single();
-  return data ? fromRow(data) : null;
+  if (isUuid) {
+    const { data } = await sb.from('innovator_illumination').select('*').eq('id', id).single();
+    return data ? fromRow(data) : null;
+  }
+  // Slug lookup: use limit(1) so duplicate slugs never cause a .single() error
+  const { data } = await sb
+    .from('innovator_illumination')
+    .select('*')
+    .eq('slug', id)
+    .order('published_at', { ascending: false })
+    .limit(1);
+  return data?.[0] ? fromRow(data[0]) : null;
 }
 
 export async function generateMetadata({ params }) {
