@@ -11012,6 +11012,8 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
   ] : [];
   const tabs = [...coreTabs, ...topOnlyTabs];
 
+  const isOtherTab = ['home', 'bigcycleengine', 'geoinstrument', 'geopolicylab', 'geoeconscenarioemulator', 'promptpkg', 'tayos', 'skillstore', 'thoughtleadership', 'innovatorillumination', 'about'].includes(activeTab);
+
   return (
     <div className="relative flex bg-[#07070e] overflow-hidden h-full">
 
