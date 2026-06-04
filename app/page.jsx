@@ -10739,6 +10739,7 @@ function App() {
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedSecs, setExpandedSecs] = useState({
     intelligence: true,
     simulators: true,
@@ -10750,7 +10751,6 @@ function App() {
   const toggleSection = (sec) => {
     setExpandedSecs(prev => ({ ...prev, [sec]: !prev[sec] }));
   };
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ── URL ↔ tab sync ────────────────────────────────────────────────────────
   // On mount: read ?tab= and activate the matching sidebar tab
@@ -10820,9 +10820,206 @@ function App() {
       // Step 2: run 5 dimension agents sequentially
       // (local GPU handles one request at a time; sequential shows clear progress)
       const results = { social: null, technological: null, economic: null, environmental: null, political: null };
-const rc = buildRecencyContext();
+
+      const rc = buildRecencyContext();
 
       // ── Pre-fetch live data in parallel before agents run ─────────────────
+      // Macro data (always; no key required)
+      let macroPayload = null;
+      try {
+        const macroRes = await fetch('/api/macro');
+        const macroJson = await macroRes.json();
+        if (macroJson.found) {
+          macroPayload = macroJson;
+          dispatch({ type: 'SET_MACRO_DATA', data: macroJson });
+        }
+      } catch { /* non-fatal — economic agent runs without live macro */ }
+
+      // Sentiment data (only when ticker is known and key may be set)
+      let sentimentPayload = null;
+      if (activeTicker) {
+        try {
+          const sentRes = await fetch(`/api/sentiment?ticker=${encodeURIComponent(activeTicker)}`);
+          const sentJson = await sentRes.json();
+          if (sentJson.found) {
+            sentimentPayload = sentJson;
+            dispatch({ type: 'SET_SENTIMENT_DATA', data: sentJson });
+          }
+        } catch { /* non-fatal — social agent runs without sentiment grounding */ }
+      }
+
+      // ── Per-dimension search angles — keep tight so Tavily returns relevant hits
+      const dimQueries = {
+        Social:        `${subject} consumer behavior demographics workforce culture public trust 2025 2026`,
+        Technological: `${subject} technology AI infrastructure platform breakthroughs 2025 2026`,
+        Economic:      `${subject} market financials revenue margins supply chain trade policy 2025 2026`,
+        Environmental: `${subject} sustainability climate carbon emissions ESG regulation 2025 2026`,
+        Political:     `${subject} regulation legislation antitrust policy geopolitics 2025 2026`,
+      };
+
+      const agents = [
+        { key: 'social',        dim: 'Social',        prompt: SOCIAL_PROMPT(subject, subjectType, rc) },
+        { key: 'technological', dim: 'Technological', prompt: TECH_PROMPT(subject, subjectType, rc) },
+        { key: 'economic',      dim: 'Economic',      prompt: ECON_PROMPT(subject, subjectType, rc) },
+        { key: 'environmental', dim: 'Environmental', prompt: ENV_PROMPT(subject, subjectType, rc) },
+        { key: 'political',     dim: 'Political',     prompt: POL_PROMPT(subject, subjectType, rc) },
+      ];
+
+      // Aggregate sources for synthesis to reference cross-dim themes
+      const allSources = [];
+
+      let dailyLimitHit = false;
+      for (const { key, dim, prompt } of agents) {
+        if (dailyLimitHit) {
+          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
+          continue;
+        }
+        try {
+          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'researching' });
+          const sources = await fetchResearch(dimQueries[dim], 4);
+          allSources.push(...sources.map(s => ({ ...s, dimension: dim })));
+          const sourcesBlock = formatSourcesBlock(sources, `RECENT ${dim.toUpperCase()} SOURCES`);
+
+          // Build live-data injection blocks for Social and Economic agents
+          let liveDataBlock = '';
+          if (key === 'social' && sentimentPayload) {
+            liveDataBlock = buildSentimentBlock(sentimentPayload) + '\n\n';
+          } else if (key === 'economic' && macroPayload) {
+            liveDataBlock = buildMacroBlock(macroPayload) + '\n\n';
+          }
+
+          const data = await callAgent(
+            prompt,
+            `${liveDataBlock}Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Ground every driver.evidence entry in the live sources below where relevant — cite the source URL inside the evidence string. Return only valid JSON matching the schema exactly.
+
+${sourcesBlock}`,
+            selectedModel,
+            (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: s }),
+            1500, // room for richer per-driver descriptions and concrete evidence
+          );
+          results[key] = data;
+          dispatch({ type: 'SET_STEEP_DATA', dimension: key, data });
+        } catch (err) {
+          console.error(`${dim} agent error:`, err.message);
+          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
+          if (err.errorType === 'rate_limit_daily') {
+            dailyLimitHit = true;
+            dispatch({
+              type: 'SET_ERROR',
+              errorType: 'rate_limit_daily',
+              payload: `Groq daily token limit reached on ${err.modelUsed || selectedModel}. The free tier allows 100,000 tokens per day on this model. Switch to "llama-3.1-8b-instant" (separate daily quota, faster) from the model dropdown, wait until your daily reset, or upgrade to Groq's Dev tier.`,
+            });
+          }
+        }
+        // Inter-agent pacing — lets Groq's per-minute token bucket partially refill
+        // between heavy calls, sharply reducing 429 retries on the free tier.
+        await new Promise(r => setTimeout(r, 4000));
+      }
+
+      // Skip synthesis if we already exhausted the daily quota — it would just fail again.
+      if (dailyLimitHit) {
+        dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
+        return;
+      }
+
+      // Step 3: synthesis — longer pause lets the TPM bucket recover before
+      // the heaviest call (synthesis = 5 dim summaries + cross-dim sources + 2200 tok output)
+      await new Promise(r => setTimeout(r, 10000));
+      dispatch({ type: 'SET_STATUS', payload: 'synthesizing' });
+      try {
+        const synthData = await callAgent(
+          SYNTHESIS_PROMPT(subject, subjectType, results, rc),
+          `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Use the cross-dimension live sources below to anchor cross_dimension_insights and roadmap triggers in real, dated events. Return only valid JSON matching the schema.
+
+${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
+          selectedModel,
+          (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
+          2200, // room for full roadmap, richer cross-dimension insights, and executive summary
+        );
+        dispatch({ type: 'SET_SYNTHESIS', data: synthData });
+
+        // Step 4: Investment Thesis (runs after synthesis, only when we have a ticker)
+        if (activeTicker) {
+          dispatch({ type: 'SET_THESIS_STATUS', payload: 'loading' });
+          try {
+            const fundRes = await fetch(`/api/fundamentals?ticker=${encodeURIComponent(activeTicker)}`);
+            const fundData = await fundRes.json();
+            if (fundData.found) {
+              dispatch({ type: 'SET_FUNDAMENTALS', data: fundData });
+              // Build a compact STEEP context block for the thesis agent
+              const steepContext = Object.entries(results)
+                .filter(([, d]) => d)
+                .map(([dim, d]) => `${dim}: ${d.dominant_direction} — ${(d.summary || '').slice(0, 150)}`)
+                .join('\n');
+              const thesisData = await callAgent(
+                INVESTMENT_THESIS_PROMPT(activeTicker, fundData.company_name, fundData),
+                `Generate the investment thesis for ${activeTicker} (${fundData.company_name}).
+
+STEEP ANALYSIS CONTEXT (from 5 specialist agents):
+${steepContext}
+
+Integrate the STEEP context where relevant — especially macro tailwinds/headwinds from Economic, regulatory risks from Political, and demand signals from Social. Return only valid JSON matching the schema.`,
+                selectedModel,
+                (s) => dispatch({ type: 'SET_THESIS_STATUS', payload: s === 'complete' ? 'complete' : 'loading' }),
+                1600,
+              );
+              dispatch({ type: 'SET_INVESTMENT_THESIS', data: thesisData });
+              dispatch({ type: 'SET_THESIS_STATUS', payload: 'complete' });
+            } else {
+              // Ticker not found in Yahoo Finance — treat as private
+              activeTicker = null;
+              dispatch({ type: 'SET_TICKER', payload: null });
+              dispatch({ type: 'SET_THESIS_STATUS', payload: 'idle' });
+            }
+          } catch (err) {
+            console.error('Investment thesis error:', err.message);
+            dispatch({ type: 'SET_THESIS_STATUS', payload: 'error' });
+          }
+        }
+
+        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });
+      } catch (err) {
+        console.error('Synthesis error:', err.message);
+        dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
+        if (err.errorType === 'rate_limit_daily') {
+          dispatch({
+            type: 'SET_ERROR',
+            errorType: 'rate_limit_daily',
+            payload: `Groq daily token limit reached during synthesis on ${err.modelUsed || selectedModel}. The five dimension briefings completed — switch to "llama-3.1-8b-instant" or wait for the daily reset to generate the executive synthesis.`,
+          });
+        } else {
+          dispatch({ type: 'SET_STATUS', payload: 'complete' });
+          dispatch({ type: 'SET_ACTIVE_TAB', payload: 'evidence' });
+        }
+      }
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', payload: err.message });
+    }
+  }, [subject, selectedModel, groqStatus]);
+
+  const hasTicker = Boolean(ticker && isComplete && thesisStatus !== 'idle');
+
+  const coreTabs = [
+    { key: 'overview', label: 'Overview',  icon: '◉' },
+    { key: 'forcemap', label: 'Force Map', icon: '◈' },
+    { key: 'roadmap',  label: 'Roadmap',   icon: '→' },
+    ...(hasTicker ? [{ key: 'thesis', label: 'Thesis', icon: '◎', badge: thesisStatus }] : []),
+  ];
+  const topOnlyTabs = isComplete ? [
+    { key: 'dataviz',  label: 'Data Viz',  icon: '▦' },
+    { key: 'bigcycle', label: 'Big Cycle', icon: '⬡' },
+    { key: 'markets',  label: 'Prediction Markets', icon: '◎', badge: predictionStatus === 'loading' ? 'loading' : predictionStatus === 'complete' && predictionMarkets?.length > 0 ? 'complete' : undefined },
+  ] : [];
+  const tabs = [...coreTabs, ...topOnlyTabs];
+
+  return (
+    <div className="relative flex bg-[#07070e] overflow-hidden h-full">
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden touch-none" onClick={closeSidebar} />
+      )}
+
       {/* ── SIDEBAR ── */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2.5rem))] bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 md:relative md:z-auto ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'} md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 sidebar-glow-mobile-off'}`}>
         {/* Branding */}
@@ -10862,49 +11059,6 @@ const rc = buildRecencyContext();
         {/* Groq panel */}
         {!sidebarCollapsed && <GroqPanel state={state} dispatch={dispatch} />}
 
-        {/* Subject + Run (Conditional for STEEP views) */}
-        {!isOtherTab && (
-          <div className="px-4 py-4 border-b border-violet-500/10 space-y-2">
-            {sidebarCollapsed ? (
-              <button 
-                onClick={() => setSidebarCollapsed(false)} 
-                className="w-full flex items-center justify-center py-2.5 rounded-lg bg-violet-950/40 border border-violet-500/20 text-violet-400 hover:text-white hover:bg-violet-950/60 transition-colors" 
-                title="Expand and Search"
-              >
-                🔍
-              </button>
-            ) : (
-              <>
-                <label className="block text-xs text-slate-500 font-medium">Subject to Analyze</label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={e => dispatch({ type: 'SET_SUBJECT', payload: e.target.value })}
-                  placeholder="e.g. quantum computing"
-                  disabled={isRunning}
-                  onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
-                  className="w-full bg-slate-900/80 border border-violet-500/20 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                />
-                <button
-                  onClick={() => { handleAnalysis(); closeSidebar(); }}
-                  disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
-                  className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
-                  style={{ background: isRunning ? 'linear-gradient(135deg,#2e1065,#4c1d95)' : 'linear-gradient(135deg,#6d28d9,#7c3aed)' }}
-                >
-                  {isRunning
-                    ? <span className="flex items-center justify-center gap-2"><Spinner size={12} />Analyzing…</span>
-                    : groqStatus !== 'online' ? 'Groq Not Connected' : 'Run STEEP Analysis'}
-                </button>
-                {groqStatus === 'online' && (
-                  <p className="text-slate-650 text-[10px] text-center">
-                    6 agents · {CATALOG.find(m => m.id === selectedModel)?.label || selectedModel}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
         {/* Progress */}
         {!sidebarCollapsed && isRunning && (
           <div className="px-4 py-4 border-b border-violet-500/10">
@@ -10912,118 +11066,281 @@ const rc = buildRecencyContext();
           </div>
         )}
 
-          </button>
-        </div>
+        {/* Tab nav (STEEP dashboard only) */}
+        {!isOtherTab && isComplete && !sidebarCollapsed && (
+          <nav className="px-3 py-3 border-b border-violet-500/10">
+            <p className="text-xs text-slate-500 px-2 mb-2 uppercase tracking-widest font-semibold">Dashboard</p>
+            {tabs.map(tab => (
+              <button key={tab.key} onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key }); closeSidebar(); }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs mb-0.5 transition-all ${activeTab === tab.key ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}>
+                <span className="text-sm">{tab.icon}</span>
+                <span>{tab.label}</span>
+                {activeTab === tab.key && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+              </button>
+            ))}
+          </nav>
+        )}
 
-        {/* Insights — Thought Leadership + Innovator Illumination */}
-        <div className="px-3 py-3 border-t border-violet-500/10">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Insights</p>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'thoughtleadership' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">✍</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Thought Leadership</span>
-              <span className="block text-slate-600 text-xs">Intelligence briefs</span>
-            </span>
-            {activeTab === 'thoughtleadership' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'innovatorillumination' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">💡</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Innovator Illumination</span>
-              <span className="block text-slate-600 text-xs">Technology spotlights</span>
-            </span>
-            {activeTab === 'innovatorillumination' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
-          </button>
-        </div>
+        {/* Collapsible Accordion Sections */}
+        <div className="flex-1 py-4 overflow-y-auto space-y-4">
+          {sidebarCollapsed ? (
+            /* Slim icon list when collapsed */
+            <div className="flex flex-col items-center gap-2 px-2">
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'home' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Home Dashboard">
+                🏠
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === null || ['overview', 'forcemap', 'roadmap', 'thesis', 'dataviz', 'bigcycle', 'markets'].includes(activeTab) ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="STEEP Analysis">
+                📊
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'bigcycleengine' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Big Cycle Engine">
+                🔄
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'geoinstrument' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="GeoEcon Instrument">
+                🛡️
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'geopolicylab' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="GeoPolicy Lab">
+                ⚔️
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoeconscenarioemulator' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'geoeconscenarioemulator' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Scenario Emulator">
+                🌐
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'tayos' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'tayos' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="TayOS Terminal">
+                💻
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'skillstore' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'skillstore' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Skill Store">
+                🛒
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'promptpkg' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Prompt Package">
+                📝
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'thoughtleadership' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Thought Leadership">
+                ✍️
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'innovatorillumination' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Innovator Illumination">
+                💡
+              </button>
+              <button onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' }); closeSidebar(); }}
+                className={`p-2.5 rounded-lg transition-colors ${activeTab === 'about' ? 'bg-violet-900/60 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="About Studio">
+                ℹ️
+              </button>
+            </div>
+          ) : (
+            /* Collapsible Accordion Sections */
+            <div className="px-3 space-y-4">
+              
+              {/* Category 1: Strategic Intel */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('intelligence')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Strategic Intel</span>
+                  <span>{expandedSecs.intelligence ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.intelligence && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === null ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">📊</span>
+                      <span className="text-left">STEEP Analysis</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'bigcycleengine' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🔄</span>
+                      <span className="text-left">Big Cycle Engine</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'geoinstrument' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🛡️</span>
+                      <span className="text-left">GeoEcon Instrument</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-        {/* Studio — About */}
-        <div className="px-3 py-3 border-t border-violet-500/10">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Studio</p>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'about' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">◎</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">About</span>
-              <span className="block text-slate-600 text-xs">Studio & Taylor Grenawalt</span>
-            </span>
-            {activeTab === 'about' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
-          </button>
-        </div>
+              {/* Category 2: Simulators */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('simulators')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Simulators</span>
+                  <span>{expandedSecs.simulators ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.simulators && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'geopolicylab' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">⚔️</span>
+                      <span className="text-left">GeoPolicy Lab</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoeconscenarioemulator' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'geoeconscenarioemulator' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🌐</span>
+                      <span className="text-left">Scenario Emulator</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-        {/* Examples */}
-        <div className="px-3 py-3 border-t border-violet-500/10">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Examples</p>
-          <p className="text-xs text-slate-700 px-2 mb-1 uppercase tracking-widest font-semibold">STEEP Analysis</p>
-          <button
-            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">⚛</span>
-            <span className="text-left leading-tight">
-              <span className="block text-xs font-medium">Quantum Computing</span>
-              <span className="block text-slate-600 text-xs">Pre-run example</span>
-            </span>
-            {status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
-            )}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">🍎</span>
-            <span className="text-left leading-tight">
-              <span className="block text-xs font-medium">Apple</span>
-              <span className="block text-slate-600 text-xs">Pre-run example</span>
-            </span>
-            {status === 'complete' && subject === APPLE_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
-            )}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: WALMART_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${status === 'complete' && subject === WALMART_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">🛒</span>
-            <span className="text-left leading-tight">
-              <span className="block text-xs font-medium">Walmart</span>
-              <span className="block text-slate-600 text-xs">Pre-run example</span>
-            </span>
-            {status === 'complete' && subject === WALMART_EXAMPLE.subject && (
-              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />
-            )}
-          </button>
-          <p className="text-xs text-slate-700 px-2 mt-3 mb-1 uppercase tracking-widest font-semibold">Instruments</p>
-          <button
-            onClick={() => { dispatch({ type: 'LOAD_BCE_EXAMPLE', payload: BCE_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'bigcycleengine' ? 'bg-amber-950/40 text-white font-medium border border-amber-700/30' : 'text-slate-400 hover:text-white hover:bg-amber-950/20 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">⊕</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">United States</span>
-              <span className="block text-slate-600 text-xs">Big Cycle Engine example</span>
-            </span>
-            {activeTab === 'bigcycleengine' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'LOAD_GI_EXAMPLE', payload: GI_EXAMPLE }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'geoinstrument' ? 'bg-teal-950/40 text-white font-medium border border-teal-700/30' : 'text-slate-400 hover:text-white hover:bg-teal-950/20 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">◈</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">US Semis → China</span>
-              <span className="block text-slate-600 text-xs">GeoEcon Instrument example</span>
-            </span>
-            {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
-          </button>
+              {/* Category 3: Developer & Eng */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('devEng')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Developer &amp; Eng</span>
+                  <span>{expandedSecs.devEng ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.devEng && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'tayos' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'tayos' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">💻</span>
+                      <span className="text-left">TayOS Terminal</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'skillstore' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'skillstore' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🛒</span>
+                      <span className="text-left">Skill Store</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'promptpkg' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">📝</span>
+                      <span className="text-left">Prompt Package</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Category 4: Insights Feed */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('insights')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Insights Feed</span>
+                  <span>{expandedSecs.insights ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.insights && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'thoughtleadership' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">✍️</span>
+                      <span className="text-left font-medium">Thought Leadership</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'innovatorillumination' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'innovatorillumination' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">💡</span>
+                      <span className="text-left font-medium">Innovator Illum</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Category 5: Studio */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('studio')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Studio</span>
+                  <span>{expandedSecs.studio ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.studio && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${activeTab === 'about' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">ℹ️</span>
+                      <span className="text-left font-medium">About</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Category 6: Examples */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => toggleSection('examples')}
+                  className="w-full flex items-center justify-between px-2 py-1 text-slate-500 hover:text-white uppercase tracking-wider text-[10px] font-bold font-mono transition-colors"
+                >
+                  <span>Demo Cases</span>
+                  <span>{expandedSecs.examples ? '▼' : '▶'}</span>
+                </button>
+                {expandedSecs.examples && (
+                  <div className="space-y-0.5 pl-1">
+                    <button
+                      onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: QUANTUM_COMPUTING_EXAMPLE }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${status === 'complete' && subject === QUANTUM_COMPUTING_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">⚛️</span>
+                      <span className="text-left">Quantum Computing</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: APPLE_EXAMPLE }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${status === 'complete' && subject === APPLE_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🍎</span>
+                      <span className="text-left">Apple Inc.</span>
+                    </button>
+                    <button
+                      onClick={() => { dispatch({ type: 'LOAD_EXAMPLE', payload: WALMART_EXAMPLE }); closeSidebar(); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${status === 'complete' && subject === WALMART_EXAMPLE.subject ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
+                    >
+                      <span className="text-sm">🛒</span>
+                      <span className="text-left">Walmart</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
         </div>
 
         {/* Error */}
@@ -11461,10 +11778,10 @@ const rc = buildRecencyContext();
                     style={{ background: 'linear-gradient(135deg,#7c3aed,#4c1d95)' }}
                   >
                     {isRunning ? (
-                      <>
+                      <span className="flex items-center gap-2">
                         <Spinner size={14} />
                         Analyzing...
-                      </>
+                      </span>
                     ) : (
                       'Run STEEP Analysis'
                     )}
@@ -11666,7 +11983,7 @@ const rc = buildRecencyContext();
             onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' })}
             className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === 'thoughtleadership' || activeTab === 'innovatorillumination' ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
           >
-            <span className="text-lg">✍</span>
+            <span className="text-lg">📝</span>
             <span>Insights</span>
           </button>
 
@@ -11675,7 +11992,7 @@ const rc = buildRecencyContext();
             onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' })}
             className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === 'about' ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
           >
-            <span className="text-lg">◎</span>
+            <span className="text-lg">ℹ️</span>
             <span>About</span>
           </button>
 
