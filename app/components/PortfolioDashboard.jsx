@@ -114,6 +114,24 @@ export default function PortfolioDashboard({ dispatch, posts: initialPosts = [],
       badge: 'Toolkit',
       badgeColor: 'text-blue-400 bg-blue-950/40 border-blue-850',
       action: () => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' })
+    },
+    {
+      id: 'tayos',
+      name: 'TayOS Terminal Shell',
+      desc: 'Simulated retro developer command prompt. Execute local telemetry inspect commands like help, sysinfo, and projects.',
+      icon: '💻',
+      badge: 'Interactive OS',
+      badgeColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-850',
+      action: () => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'tayos' })
+    },
+    {
+      id: 'skillstore',
+      name: 'Agent Skill Store Registry',
+      desc: 'Structured capability database containing prompt engineering system seeds, parameter mappings, and model target endpoints.',
+      icon: '🛒',
+      badge: 'Agent Database',
+      badgeColor: 'text-violet-400 bg-violet-950/40 border-violet-850',
+      action: () => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'skillstore' })
     }
   ];
 

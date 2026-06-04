@@ -16,6 +16,8 @@ import { INSTRUMENT_ATTRIBUTES, GEOECONOMIC_CAPACITIES, STRATEGIC_UTILITY_CLASSE
 import AboutPanel from './components/AboutPanel';
 import GeoPolicyLabTool from './components/GeoPolicyLabTool';
 import PortfolioDashboard from './components/PortfolioDashboard';
+import TayOSTerminal from './components/TayOSTerminal';
+import SkillStoreRegistry from './components/SkillStoreRegistry';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -10725,7 +10727,7 @@ function RASCEFTool() {
 const SIDEBAR_TABS = new Set([
   'home', 'bigcycleengine', 'geoinstrument', 'geopolicylab',
   'geoeconscenarioemulator', 'thoughtleadership', 'innovatorillumination',
-  'about', 'promptpkg',
+  'about', 'promptpkg', 'tayos', 'skillstore',
 ]);
 
 function App() {
@@ -10736,6 +10738,19 @@ function App() {
 
   const isRunning  = ['classifying', 'researching', 'synthesizing'].includes(status);
   const isComplete = status === 'complete';
+
+  const [expandedSecs, setExpandedSecs] = useState({
+    intelligence: true,
+    simulators: true,
+    devEng: true,
+    insights: true,
+    studio: true,
+    examples: false,
+  });
+  const toggleSection = (sec) => {
+    setExpandedSecs(prev => ({ ...prev, [sec]: !prev[sec] }));
+  };
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ── URL ↔ tab sync ────────────────────────────────────────────────────────
   // On mount: read ?tab= and activate the matching sidebar tab
@@ -10805,347 +10820,98 @@ function App() {
       // Step 2: run 5 dimension agents sequentially
       // (local GPU handles one request at a time; sequential shows clear progress)
       const results = { social: null, technological: null, economic: null, environmental: null, political: null };
-
-      const rc = buildRecencyContext();
+const rc = buildRecencyContext();
 
       // ── Pre-fetch live data in parallel before agents run ─────────────────
-      // Macro data (always; no key required)
-      let macroPayload = null;
-      try {
-        const macroRes = await fetch('/api/macro');
-        const macroJson = await macroRes.json();
-        if (macroJson.found) {
-          macroPayload = macroJson;
-          dispatch({ type: 'SET_MACRO_DATA', data: macroJson });
-        }
-      } catch { /* non-fatal — economic agent runs without live macro */ }
-
-      // Sentiment data (only when ticker is known and key may be set)
-      let sentimentPayload = null;
-      if (activeTicker) {
-        try {
-          const sentRes = await fetch(`/api/sentiment?ticker=${encodeURIComponent(activeTicker)}`);
-          const sentJson = await sentRes.json();
-          if (sentJson.found) {
-            sentimentPayload = sentJson;
-            dispatch({ type: 'SET_SENTIMENT_DATA', data: sentJson });
-          }
-        } catch { /* non-fatal — social agent runs without sentiment grounding */ }
-      }
-
-      // ── Per-dimension search angles — keep tight so Tavily returns relevant hits
-      const dimQueries = {
-        Social:        `${subject} consumer behavior demographics workforce culture public trust 2025 2026`,
-        Technological: `${subject} technology AI infrastructure platform breakthroughs 2025 2026`,
-        Economic:      `${subject} market financials revenue margins supply chain trade policy 2025 2026`,
-        Environmental: `${subject} sustainability climate carbon emissions ESG regulation 2025 2026`,
-        Political:     `${subject} regulation legislation antitrust policy geopolitics 2025 2026`,
-      };
-
-      const agents = [
-        { key: 'social',        dim: 'Social',        prompt: SOCIAL_PROMPT(subject, subjectType, rc) },
-        { key: 'technological', dim: 'Technological', prompt: TECH_PROMPT(subject, subjectType, rc) },
-        { key: 'economic',      dim: 'Economic',      prompt: ECON_PROMPT(subject, subjectType, rc) },
-        { key: 'environmental', dim: 'Environmental', prompt: ENV_PROMPT(subject, subjectType, rc) },
-        { key: 'political',     dim: 'Political',     prompt: POL_PROMPT(subject, subjectType, rc) },
-      ];
-
-      // Aggregate sources for synthesis to reference cross-dim themes
-      const allSources = [];
-
-      let dailyLimitHit = false;
-      for (const { key, dim, prompt } of agents) {
-        if (dailyLimitHit) {
-          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
-          continue;
-        }
-        try {
-          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'researching' });
-          const sources = await fetchResearch(dimQueries[dim], 4);
-          allSources.push(...sources.map(s => ({ ...s, dimension: dim })));
-          const sourcesBlock = formatSourcesBlock(sources, `RECENT ${dim.toUpperCase()} SOURCES`);
-
-          // Build live-data injection blocks for Social and Economic agents
-          let liveDataBlock = '';
-          if (key === 'social' && sentimentPayload) {
-            liveDataBlock = buildSentimentBlock(sentimentPayload) + '\n\n';
-          } else if (key === 'economic' && macroPayload) {
-            liveDataBlock = buildMacroBlock(macroPayload) + '\n\n';
-          }
-
-          const data = await callAgent(
-            prompt,
-            `${liveDataBlock}Conduct a senior-analyst ${dim} dimension STEEP analysis on: "${subject}" (classified as: ${subjectType}). Apply the WRITING STANDARD strictly: name specifics, show causality, surface second-order effects, be decision-relevant, no boilerplate. Ground every driver.evidence entry in the live sources below where relevant — cite the source URL inside the evidence string. Return only valid JSON matching the schema exactly.
-
-${sourcesBlock}`,
-            selectedModel,
-            (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: s }),
-            1500, // room for richer per-driver descriptions and concrete evidence
-          );
-          results[key] = data;
-          dispatch({ type: 'SET_STEEP_DATA', dimension: key, data });
-        } catch (err) {
-          console.error(`${dim} agent error:`, err.message);
-          dispatch({ type: 'SET_AGENT_STATUS', dimension: key, status: 'error' });
-          if (err.errorType === 'rate_limit_daily') {
-            dailyLimitHit = true;
-            dispatch({
-              type: 'SET_ERROR',
-              errorType: 'rate_limit_daily',
-              payload: `Groq daily token limit reached on ${err.modelUsed || selectedModel}. The free tier allows 100,000 tokens per day on this model. Switch to "llama-3.1-8b-instant" (separate daily quota, faster) from the model dropdown, wait until your daily reset, or upgrade to Groq's Dev tier.`,
-            });
-          }
-        }
-        // Inter-agent pacing — lets Groq's per-minute token bucket partially refill
-        // between heavy calls, sharply reducing 429 retries on the free tier.
-        await new Promise(r => setTimeout(r, 4000));
-      }
-
-      // Skip synthesis if we already exhausted the daily quota — it would just fail again.
-      if (dailyLimitHit) {
-        dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
-        return;
-      }
-
-      // Step 3: synthesis — longer pause lets the TPM bucket recover before
-      // the heaviest call (synthesis = 5 dim summaries + cross-dim sources + 2200 tok output)
-      await new Promise(r => setTimeout(r, 10000));
-      dispatch({ type: 'SET_STATUS', payload: 'synthesizing' });
-      try {
-        const synthData = await callAgent(
-          SYNTHESIS_PROMPT(subject, subjectType, results, rc),
-          `Synthesize the five STEEP dimension briefings for "${subject}" into a board-grade executive intelligence report. Apply the SYNTHESIS STANDARD strictly: integrate (do not restate), name causal mechanisms between dimensions, make every roadmap milestone a specific decision point with observable triggers and verb-led accelerants. Use the cross-dimension live sources below to anchor cross_dimension_insights and roadmap triggers in real, dated events. Return only valid JSON matching the schema.
-
-${formatSourcesBlock(allSources.slice(0, 6), 'CROSS-DIMENSION LIVE SOURCES')}`,
-          selectedModel,
-          (s) => dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: s }),
-          2200, // room for full roadmap, richer cross-dimension insights, and executive summary
-        );
-        dispatch({ type: 'SET_SYNTHESIS', data: synthData });
-
-        // Step 4: Investment Thesis (runs after synthesis, only when we have a ticker)
-        if (activeTicker) {
-          dispatch({ type: 'SET_THESIS_STATUS', payload: 'loading' });
-          try {
-            const fundRes = await fetch(`/api/fundamentals?ticker=${encodeURIComponent(activeTicker)}`);
-            const fundData = await fundRes.json();
-            if (fundData.found) {
-              dispatch({ type: 'SET_FUNDAMENTALS', data: fundData });
-              // Build a compact STEEP context block for the thesis agent
-              const steepContext = Object.entries(results)
-                .filter(([, d]) => d)
-                .map(([dim, d]) => `${dim}: ${d.dominant_direction} — ${(d.summary || '').slice(0, 150)}`)
-                .join('\n');
-              const thesisData = await callAgent(
-                INVESTMENT_THESIS_PROMPT(activeTicker, fundData.company_name, fundData),
-                `Generate the investment thesis for ${activeTicker} (${fundData.company_name}).
-
-STEEP ANALYSIS CONTEXT (from 5 specialist agents):
-${steepContext}
-
-Integrate the STEEP context where relevant — especially macro tailwinds/headwinds from Economic, regulatory risks from Political, and demand signals from Social. Return only valid JSON matching the schema.`,
-                selectedModel,
-                (s) => dispatch({ type: 'SET_THESIS_STATUS', payload: s === 'complete' ? 'complete' : 'loading' }),
-                1600,
-              );
-              dispatch({ type: 'SET_INVESTMENT_THESIS', data: thesisData });
-              dispatch({ type: 'SET_THESIS_STATUS', payload: 'complete' });
-            } else {
-              // Ticker not found in Yahoo Finance — treat as private
-              activeTicker = null;
-              dispatch({ type: 'SET_TICKER', payload: null });
-              dispatch({ type: 'SET_THESIS_STATUS', payload: 'idle' });
-            }
-          } catch (err) {
-            console.error('Investment thesis error:', err.message);
-            dispatch({ type: 'SET_THESIS_STATUS', payload: 'error' });
-          }
-        }
-
-        dispatch({ type: 'SET_ACTIVE_TAB', payload: 'overview' });
-      } catch (err) {
-        console.error('Synthesis error:', err.message);
-        dispatch({ type: 'SET_AGENT_STATUS', dimension: 'synthesis', status: 'error' });
-        if (err.errorType === 'rate_limit_daily') {
-          dispatch({
-            type: 'SET_ERROR',
-            errorType: 'rate_limit_daily',
-            payload: `Groq daily token limit reached during synthesis on ${err.modelUsed || selectedModel}. The five dimension briefings completed — switch to "llama-3.1-8b-instant" or wait for the daily reset to generate the executive synthesis.`,
-          });
-        } else {
-          dispatch({ type: 'SET_STATUS', payload: 'complete' });
-          dispatch({ type: 'SET_ACTIVE_TAB', payload: 'evidence' });
-        }
-      }
-    } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: err.message });
-    }
-  }, [subject, selectedModel, groqStatus]);
-
-  const hasTicker = Boolean(ticker && isComplete && thesisStatus !== 'idle');
-
-  const coreTabs = [
-    { key: 'overview', label: 'Overview',  icon: '◉' },
-    { key: 'forcemap', label: 'Force Map', icon: '◈' },
-    { key: 'roadmap',  label: 'Roadmap',   icon: '→' },
-    ...(hasTicker ? [{ key: 'thesis', label: 'Thesis', icon: '◎', badge: thesisStatus }] : []),
-  ];
-  const topOnlyTabs = isComplete ? [
-    { key: 'dataviz',  label: 'Data Viz',  icon: '▦' },
-    { key: 'bigcycle', label: 'Big Cycle', icon: '⬡' },
-    { key: 'markets',  label: 'Prediction Markets', icon: '◎', badge: predictionStatus === 'loading' ? 'loading' : predictionStatus === 'complete' && predictionMarkets?.length > 0 ? 'complete' : undefined },
-  ] : [];
-  const tabs = [...coreTabs, ...topOnlyTabs];
-
-  return (
-    <div className="relative flex bg-[#07070e] overflow-hidden h-full">
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 md:hidden touch-none" onClick={closeSidebar} />
-      )}
-
       {/* ── SIDEBAR ── */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2.5rem))] bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto overscroll-contain transition-transform duration-300 md:relative md:z-auto md:w-64 md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 sidebar-glow-mobile-off'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-2.5rem))] bg-[#09090f]/95 backdrop-blur-xl border-r border-violet-500/10 flex flex-col overflow-y-auto overscroll-contain transition-all duration-300 md:relative md:z-auto ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'} md:flex-shrink-0 md:translate-x-0 sidebar-glow ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 sidebar-glow-mobile-off'}`}>
         {/* Branding */}
-        <div className="px-5 pb-4 border-b border-violet-500/10 md:pt-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-          <div className="flex items-center gap-2.5 mb-1">
+        <div className="px-5 pb-4 border-b border-violet-500/10 md:pt-4 flex items-center justify-between gap-1" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' }); closeSidebar(); }}
-              className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity text-left"
             >
               <img src="/stint-logo.png" alt="STINT Studio" className="h-7 w-auto object-contain flex-shrink-0 mix-blend-screen" />
-              <span className="font-bold text-white">STINT Studio</span>
-            </button>
-            <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close menu">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              {!sidebarCollapsed && <span className="font-bold text-white whitespace-nowrap">STINT Studio</span>}
             </button>
           </div>
-          <p className="text-slate-600 text-xs">Applied Strategy & Intelligence</p>
+          
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden md:flex p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+            )}
+          </button>
+
+          <button onClick={closeSidebar} className="ml-auto md:hidden p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0" aria-label="Close menu">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </button>
         </div>
+        {!sidebarCollapsed && (
+          <div className="px-5 pt-1.5">
+            <p className="text-slate-600 text-[10px] tracking-wide font-medium uppercase">Applied Strategy &amp; Intel</p>
+          </div>
+        )}
 
         {/* Groq panel */}
-        <GroqPanel state={state} dispatch={dispatch} />
+        {!sidebarCollapsed && <GroqPanel state={state} dispatch={dispatch} />}
 
-        {/* Subject + Run */}
-        <div className="px-4 py-4 border-b border-violet-500/10 space-y-2">
-          <label className="block text-xs text-slate-500 font-medium">Subject to Analyze</label>
-          <input
-            type="text"
-            value={subject}
-            onChange={e => dispatch({ type: 'SET_SUBJECT', payload: e.target.value })}
-            placeholder="e.g. quantum computing"
-            disabled={isRunning}
-            onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
-            className="w-full bg-slate-900/80 border border-violet-500/20 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          />
-          <button
-            onClick={() => { handleAnalysis(); closeSidebar(); }}
-            disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
-            className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
-            style={{ background: isRunning ? 'linear-gradient(135deg,#2e1065,#4c1d95)' : 'linear-gradient(135deg,#6d28d9,#7c3aed)' }}
-          >
-            {isRunning
-              ? <span className="flex items-center justify-center gap-2"><Spinner size={12} />Analyzing…</span>
-              : groqStatus !== 'online' ? 'Groq Not Connected' : 'Run STEEP Analysis'}
-          </button>
-          {groqStatus === 'online' && (
-            <p className="text-slate-600 text-xs text-center">
-              6 agents · {CATALOG.find(m => m.id === selectedModel)?.label || selectedModel}
-            </p>
-          )}
-        </div>
+        {/* Subject + Run (Conditional for STEEP views) */}
+        {!isOtherTab && (
+          <div className="px-4 py-4 border-b border-violet-500/10 space-y-2">
+            {sidebarCollapsed ? (
+              <button 
+                onClick={() => setSidebarCollapsed(false)} 
+                className="w-full flex items-center justify-center py-2.5 rounded-lg bg-violet-950/40 border border-violet-500/20 text-violet-400 hover:text-white hover:bg-violet-950/60 transition-colors" 
+                title="Expand and Search"
+              >
+                🔍
+              </button>
+            ) : (
+              <>
+                <label className="block text-xs text-slate-500 font-medium">Subject to Analyze</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={e => dispatch({ type: 'SET_SUBJECT', payload: e.target.value })}
+                  placeholder="e.g. quantum computing"
+                  disabled={isRunning}
+                  onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
+                  className="w-full bg-slate-900/80 border border-violet-500/20 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                />
+                <button
+                  onClick={() => { handleAnalysis(); closeSidebar(); }}
+                  disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
+                  className="w-full py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed text-white"
+                  style={{ background: isRunning ? 'linear-gradient(135deg,#2e1065,#4c1d95)' : 'linear-gradient(135deg,#6d28d9,#7c3aed)' }}
+                >
+                  {isRunning
+                    ? <span className="flex items-center justify-center gap-2"><Spinner size={12} />Analyzing…</span>
+                    : groqStatus !== 'online' ? 'Groq Not Connected' : 'Run STEEP Analysis'}
+                </button>
+                {groqStatus === 'online' && (
+                  <p className="text-slate-650 text-[10px] text-center">
+                    6 agents · {CATALOG.find(m => m.id === selectedModel)?.label || selectedModel}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Progress */}
-        {isRunning && (
+        {!sidebarCollapsed && isRunning && (
           <div className="px-4 py-4 border-b border-violet-500/10">
             <ProgressPanel agentStatuses={agentStatuses} status={status} />
           </div>
         )}
 
-        {/* Tab nav */}
-        {isComplete && (
-          <nav className="flex-1 px-3 py-3">
-            <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Dashboard</p>
-            {coreTabs.map(tab => (
-              <button key={tab.key} onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: tab.key }); closeSidebar(); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === tab.key ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}>
-                <span className="text-base leading-none">{tab.icon}</span>
-                <span>{tab.label}</span>
-                {activeTab === tab.key && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
-              </button>
-            ))}
-          </nav>
-        )}
-
-        {/* Toolkit */}
-        <div className="px-3 py-3 border-t border-violet-500/10">
-          <p className="text-xs text-slate-600 px-2 mb-2 uppercase tracking-widest font-semibold">Toolkit</p>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: null }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === null ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">📊</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">STEEP Analysis</span>
-              <span className="block text-slate-600 text-xs">Six-agent intelligence framework</span>
-            </span>
-            {activeTab === null && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'bigcycleengine' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'bigcycleengine' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">⊕</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Big Cycle Engine</span>
-              <span className="block text-slate-600 text-xs">Dalio Big Cycle pipeline</span>
-            </span>
-            {activeTab === 'bigcycleengine' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoinstrument' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geoinstrument' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">◈</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">GeoEcon Instrument</span>
-              <span className="block text-slate-600 text-xs">Farrell & Newman framework</span>
-            </span>
-            {activeTab === 'geoinstrument' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geopolicylab' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geopolicylab' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">◈</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">GeoPolicy Lab</span>
-              <span className="block text-slate-600 text-xs">Policy simulation environment</span>
-            </span>
-            {activeTab === 'geopolicylab' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'geoeconscenarioemulator' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'geoeconscenarioemulator' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">⬡</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">GeoEcon Scenario Emulator</span>
-              <span className="block text-slate-600 text-xs">15 branching scenarios</span>
-            </span>
-            {activeTab === 'geoeconscenarioemulator' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />}
-          </button>
-          <button
-            onClick={() => { dispatch({ type: 'SET_ACTIVE_TAB', payload: 'promptpkg' }); closeSidebar(); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mb-0.5 transition-all ${activeTab === 'promptpkg' ? 'bg-violet-950/60 text-white font-medium border border-violet-500/20' : 'text-slate-400 hover:text-white hover:bg-violet-950/30 border border-transparent'}`}
-          >
-            <span className="text-base leading-none">◧</span>
-            <span className="text-left leading-tight flex-1 min-w-0">
-              <span className="block text-xs font-medium">Prompt Engineering Package</span>
-              <span className="block text-slate-600 text-xs">Techniques & adversarial modes</span>
-            </span>
-            {activeTab === 'promptpkg' && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
           </button>
         </div>
 
@@ -11389,6 +11155,20 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
           </div>
         )}
 
+        {/* TayOS Terminal — simulated retro developer command prompt */}
+        {activeTab === 'tayos' && (
+          <div className="h-full overflow-y-auto">
+            <TayOSTerminal groqStatus={groqStatus} selectedModel={selectedModel} />
+          </div>
+        )}
+
+        {/* Skill Store Registry — structured capabilities registry */}
+        {activeTab === 'skillstore' && (
+          <div className="h-full overflow-y-auto">
+            <SkillStoreRegistry />
+          </div>
+        )}
+
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
           <div className="h-full overflow-y-auto">
@@ -11624,7 +11404,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Idle — STEEP Overview */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'promptpkg' && activeTab !== 'geoeconscenarioemulator' && status === 'idle' && (
+        {!isOtherTab && status === 'idle' && (
           <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
             <div className="max-w-4xl mx-auto">
 
@@ -11633,8 +11413,73 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
                 <img src="/stint-logo.png" alt="STINT Studio" className="h-14 w-auto object-contain mx-auto mb-5 mix-blend-screen" />
                 <h1 className="text-2xl md:text-3xl font-black text-white mb-3">STEEP Analysis</h1>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
-                  Six-agent structured intelligence across Social, Technological, Economic, Environmental, and Political dimensions. Enter a subject in the sidebar to begin, or pick one below.
+                  Six-agent structured intelligence across Social, Technological, Economic, Environmental, and Political dimensions. Enter a subject below or click one of the suggested trends to run a live analysis.
                 </p>
+              </div>
+
+              {/* Input Form Console */}
+              <div className="max-w-xl mx-auto mb-10 p-6 rounded-2xl glass-panel border border-violet-500/10 space-y-4 shadow-xl">
+                <div className="space-y-2">
+                  <label className="block text-xs text-slate-400 font-semibold uppercase tracking-wider">Subject to Analyze</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={e => dispatch({ type: 'SET_SUBJECT', payload: e.target.value })}
+                      placeholder="Enter trend, company, or technology (e.g. Artificial Intelligence)..."
+                      disabled={isRunning}
+                      onKeyDown={e => e.key === 'Enter' && !isRunning && subject.trim() && handleAnalysis()}
+                      className="w-full bg-[#0d0d1a]/80 border border-violet-500/20 rounded-xl pl-4 pr-10 py-3.5 text-sm text-white placeholder-slate-600 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                      🔍
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1.5">Model Engine</label>
+                    <select
+                      value={selectedModel}
+                      onChange={e => dispatch({ type: 'SET_SELECTED_MODEL', payload: e.target.value })}
+                      disabled={isRunning}
+                      className="w-full bg-[#0d0d1a]/80 border border-violet-500/20 rounded-xl px-3 py-3 text-xs text-white focus:border-violet-500 transition-colors"
+                    >
+                      {CATALOG.map(m => (
+                        <option key={m.id} value={m.id} className="bg-[#0d0d1a]">
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleAnalysis}
+                    disabled={isRunning || !subject.trim() || groqStatus !== 'online'}
+                    className="sm:w-48 py-3.5 px-6 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center justify-center gap-2 self-end"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#4c1d95)' }}
+                  >
+                    {isRunning ? (
+                      <>
+                        <Spinner size={14} />
+                        Analyzing...
+                      </>
+                    ) : (
+                      'Run STEEP Analysis'
+                    )}
+                  </button>
+                </div>
+                
+                {groqStatus === 'online' ? (
+                  <p className="text-[10px] text-slate-500 text-center">
+                    Uses a 6-agent sequential analysis loop with live API calls.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-rose-450 font-medium text-center">
+                    Groq system is offline. Please configure your API key.
+                  </p>
+                )}
               </div>
 
               {/* What is STEEP */}
@@ -11729,7 +11574,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Running */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'geoeconscenarioemulator' && isRunning && (
+        {!isOtherTab && isRunning && (
           <div className="h-full flex items-center justify-center px-4 md:px-8">
             <div className="text-center max-w-lg">
               <div className="relative w-20 h-20 mx-auto mb-7">
@@ -11765,7 +11610,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         {/* Results */}
-        {activeTab !== 'thoughtleadership' && activeTab !== 'innovatorillumination' && activeTab !== 'about' && activeTab !== 'home' && activeTab !== 'bigcycleengine' && activeTab !== 'geoinstrument' && activeTab !== 'geoeconscenarioemulator' && isComplete && (
+        {!isOtherTab && isComplete && (
           <div className="h-full flex flex-col">
             <div className="flex items-center gap-1 px-3 pt-4 pb-0 md:px-6 md:pt-5 border-b border-violet-500/10 flex-shrink-0 overflow-x-auto scrollbar-none">
               {tabs.map(tab => (
@@ -11795,6 +11640,54 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
         )}
 
         </div>{/* end content area */}
+
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="md:hidden flex-shrink-0 h-16 bg-[#09090f]/95 backdrop-blur-xl border-t border-violet-500/10 flex items-center justify-around px-2 pb-safe">
+          {/* Home Tab */}
+          <button
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'home' })}
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === 'home' ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
+          >
+            <span className="text-lg">🏠</span>
+            <span>Home</span>
+          </button>
+
+          {/* STEEP Tab */}
+          <button
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: null })}
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === null || ['overview', 'forcemap', 'roadmap', 'thesis', 'dataviz', 'bigcycle', 'markets'].includes(activeTab) ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
+          >
+            <span className="text-lg">📊</span>
+            <span>STEEP</span>
+          </button>
+
+          {/* Insights Tab */}
+          <button
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'thoughtleadership' })}
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === 'thoughtleadership' || activeTab === 'innovatorillumination' ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
+          >
+            <span className="text-lg">✍</span>
+            <span>Insights</span>
+          </button>
+
+          {/* About Tab */}
+          <button
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'about' })}
+            className={`flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-all ${activeTab === 'about' ? 'text-violet-400 font-semibold' : 'text-slate-500'}`}
+          >
+            <span className="text-lg">◎</span>
+            <span>About</span>
+          </button>
+
+          {/* Open Menu/Drawer Tab */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-slate-500 hover:text-white"
+          >
+            <span className="text-lg">☰</span>
+            <span>Tools</span>
+          </button>
+        </div>
       </main>
     </div>
   );
