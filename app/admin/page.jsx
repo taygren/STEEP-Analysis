@@ -1018,7 +1018,10 @@ function PostEditor({ token, post, onBack, onSaved }) {
                 <span>{form.contentMarkdown.length.toLocaleString()} chars</span>
               </div>
             </div>
-            
+
+            {/* Left Column: lg:col-span-7 ends here */}
+            </div>
+
             {/* Right Column: GEO Live Auditor, Correlation Node Map & Memory Ledger */}
             <div className="lg:col-span-5 space-y-6">
               

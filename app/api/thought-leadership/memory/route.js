@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { kvGet, kvSet } from '../../../lib/kv';
+import { kvGet, kvSet } from '../../../../lib/kv';
 
 export const runtime = 'nodejs';
 
