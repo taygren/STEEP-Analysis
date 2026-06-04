@@ -261,6 +261,16 @@ function PostEditor({ token, post, onBack, onSaved }) {
   const [preview, setPreview] = useState(false);
   const [postId, setPostId] = useState(post?.id || null);
 
+  // ── Thought Leadership Workspace States ──
+  const [writerUrls, setWriterUrls] = useState('');
+  const [writerNotes, setWriterNotes] = useState('');
+  const [writerType, setWriterType] = useState('Signal Analysis');
+  const [writerLength, setWriterLength] = useState('standard');
+  const [generating, setGenerating] = useState(false);
+  const [memories, setMemories] = useState([]);
+  const [selectedNode, setSelectedNode] = useState('infra');
+  const [showWriter, setShowWriter] = useState(false);
+
   // ── Textarea ref for cursor-position image insertion ───────────
   const contentRef = useRef(null);
 
@@ -268,6 +278,140 @@ function PostEditor({ token, post, onBack, onSaved }) {
   const [imgUploading, setImgUploading] = useState(false);
   const [imgUploadErr, setImgUploadErr] = useState('');
   const imgInputRef = useRef(null);
+
+  useEffect(() => {
+    fetchMemories();
+  }, []);
+
+  const fetchMemories = async () => {
+    try {
+      const res = await fetch('/api/thought-leadership/memory');
+      const data = await res.json();
+      if (data.found) setMemories(data.memories);
+    } catch (e) {
+      console.error('[memory] Fetch error:', e);
+    }
+  };
+
+  const addMemoryLog = async (detail, scope, source) => {
+    try {
+      const res = await fetch('/api/thought-leadership/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ detail, scope, source }),
+      });
+      const data = await res.json();
+      if (data.success) setMemories(data.memories);
+    } catch (e) {
+      console.error('[memory] Save error:', e);
+    }
+  };
+
+  const clearMemoryLogs = async () => {
+    try {
+      const res = await fetch('/api/thought-leadership/memory', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) setMemories(data.memories);
+    } catch (e) {
+      console.error('[memory] Clear error:', e);
+    }
+  };
+
+  const generateThoughtLeadershipDraft = async () => {
+    if (!writerNotes.trim() && !writerUrls.trim()) {
+      alert("Please enter developer notes or a source URL.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const memoryDetails = memories.map(m => m.detail);
+      const res = await fetch('/api/thought-leadership/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: writerNotes,
+          urls: writerUrls,
+          type: writerType,
+          length: writerLength,
+          memories: memoryDetails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Generation failed');
+
+      setForm(f => ({ ...f, contentMarkdown: data.draft }));
+      await addMemoryLog(
+        `Generated a "${writerType}" draft from your reference notes. Calibrated to voice constraints.`,
+        'Writer Engine',
+        'Agent Output'
+      );
+    } catch (e) {
+      alert("Error generating content: " + e.message);
+    }
+    setGenerating(false);
+  };
+
+  // ── GEO live auditor calculations ──────────────────────────────
+  const runLiveAuditor = () => {
+    const text = form.contentMarkdown || '';
+    
+    // 1. Check hedges
+    const hedges = ['may suggest', 'could potentially', 'it seems', 'one might argue', 'possibly', 'probably', 'perhaps'];
+    const foundHedges = hedges.filter(word => new RegExp('\\b' + word + '\\b', 'gi').test(text));
+
+    // 2. Check prohibited phrases
+    const prohibited = ['delve into', 'unpack', 'game-changer', 'revolutionary', 'transformative', 'ecosystem', 'landscape', 'pivot', 'groundbreaking', 'unprecedented'];
+    const foundProhibited = prohibited.filter(word => new RegExp('\\b' + word + '\\b', 'gi').test(text));
+
+    // 3. Check em-dashes
+    const dashCount = (text.match(/—|--/g) || []).length;
+
+    // 4. Check data points density
+    const dataRegex = /(\d+(?:\.\d+)?%|\$\d+(?:\.\d+)?\s*(?:billion|million|B|M)?|\b(NVIDIA|CISA|OpenAI|PitchBook|Crunchbase|Gartner|NIST|McKinsey)\b)/gi;
+    const dataMatches = text.match(dataRegex) || [];
+    const uniqueDataPoints = [...new Set(dataMatches)];
+
+    // 5. Build warnings
+    const warnings = [];
+    if (dashCount > 0) warnings.push(`⚠️ Prohibited em-dashes (${dashCount}) detected. Enforce voice rules.`);
+    if (foundProhibited.length > 0) warnings.push(`⚠️ Prohibited filler/hype words found: ${foundProhibited.join(', ')}.`);
+    if (foundHedges.length > 0) warnings.push(`⚠️ Hedging detected: "${foundHedges[0]}". State claims declaratively.`);
+    if (uniqueDataPoints.length < 4) warnings.push(`⚠️ GEO Citation Risk: Specific data anchors are too low (${uniqueDataPoints.length}/4 found).`);
+
+    return {
+      dashCount,
+      foundProhibited,
+      foundHedges,
+      uniqueDataPoints,
+      warnings,
+    };
+  };
+
+  const audit = runLiveAuditor();
+
+  // ── Correlation map metadata ──────────────────────────────
+  const nodeData = {
+    infra: {
+      title: "AI Compute & Infrastructure",
+      signals: ["Hyperscaler CapEx reached $54B in Q1 2026", "Blackwell power draws exceeding 1.2kW per rack"],
+      correlation: "NVIDIA hardware allocation correlates directly to local grid capacity constraints. Connects to energy-focused posts to forecast localized data center migration."
+    },
+    security: {
+      title: "OT & Threat Containment Systems",
+      signals: ["CISA OT integration advisory (Vulnerability CVE-2026-118)", "Sec M&A activity reached $12B"],
+      correlation: "Exploits targeting operational firmware bypass traditional software security. Connects to previous identity briefs to show control boundary vulnerabilities."
+    },
+    capital: {
+      title: "PE/Venture & Consolidation",
+      signals: ["IPO volume remains compressed (down 15% YoY)", "Venture debt consolidation at $8.2B"],
+      correlation: "Hyperscaler vertical integration limits exit pathways for point-solutions. Connects to market dynamics briefs to show why platform suites outperform point tools."
+    },
+    energy: {
+      title: "Baseload Grid Capacity",
+      signals: ["Constellation nuclear agreement (20-year off-take)", "Grid connection queues average 5.4 years in Virginia"],
+      correlation: "The compute constraint is transitioning to an energy procurement war. Explains why energy-decoupled computing is the key factor in LLM latency."
+    }
+  };
 
   const uploadImage = async (file) => {
     if (!file) return;
@@ -471,7 +615,7 @@ function PostEditor({ token, post, onBack, onSaved }) {
       </div>
 
       {/* Body */}
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         {preview ? (
           /* ── Preview ── */
           <div className="max-w-3xl">
@@ -500,8 +644,11 @@ function PostEditor({ token, post, onBack, onSaved }) {
             </div>
           </div>
         ) : (
-          /* ── Write ── */
-          <div className="space-y-5">
+          /* ── Two-Column Write & Audit view ── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Left Column: Inputs & Editors */}
+            <div className="lg:col-span-7 space-y-6">
             {/* Title */}
             <input
               type="text"
@@ -582,6 +729,84 @@ function PostEditor({ token, post, onBack, onSaved }) {
                   className={`px-4 py-1 rounded text-xs font-semibold transition-colors ${form.status === 'published' ? 'bg-emerald-700 text-white' : 'text-slate-400 hover:text-white'}`}
                 >Published</button>
               </div>
+            </div>
+
+            {/* ── Reference Notes & Draft Generator ── */}
+            <div className="border border-slate-800 rounded-2xl overflow-hidden mt-4">
+              <button
+                type="button"
+                onClick={() => setShowWriter(v => !v)}
+                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-900 hover:bg-slate-800/80 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">✍️</span>
+                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">Reference Notes &amp; Draft Generator</span>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={`text-slate-500 transition-transform ${showWriter ? 'rotate-180' : ''}`}>
+                  <path d="M2 4l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {showWriter && (
+                <div className="px-5 py-5 space-y-4 bg-slate-950 border-t border-slate-800">
+                  <div>
+                    <label className="block text-xs text-slate-400 font-medium mb-1">Source Material &amp; URLs</label>
+                    <input
+                      type="text"
+                      value={writerUrls}
+                      onChange={e => setWriterUrls(e.target.value)}
+                      placeholder="https://crunchbase.com/funding-announcement..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-400 font-medium mb-1">Developer Notes &amp; Outline Ideas</label>
+                    <textarea
+                      rows="4"
+                      value={writerNotes}
+                      onChange={e => setWriterNotes(e.target.value)}
+                      placeholder="Paste raw thoughts, Blackwell power metrics, policy updates, etc..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none resize-none font-sans"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-400 font-medium mb-1">Post Archetype</label>
+                      <select
+                        value={writerType}
+                        onChange={e => setWriterType(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-850 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        <option value="Signal Analysis">Signal Analysis (Type A)</option>
+                        <option value="Trend Synthesis">Trend Synthesis (Type B)</option>
+                        <option value="Research-Grounded">Research-Grounded (Type C)</option>
+                        <option value="Practitioner Perspective">Practitioner Perspective (Type D)</option>
+                        <option value="LinkedIn Post">LinkedIn Hook</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 font-medium mb-1">Target Length</label>
+                      <select
+                        value={writerLength}
+                        onChange={e => setWriterLength(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-850 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        <option value="short">400-700 words (Rapid)</option>
+                        <option value="standard">800-1400 words (Standard)</option>
+                        <option value="linkedin">150-350 words (LinkedIn)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateThoughtLeadershipDraft}
+                    disabled={generating}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 text-xs font-bold text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-1.5"
+                  >
+                    {generating ? 'Generating draft…' : 'Generate Voice-Calibrated Draft'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* ── Document Import Panel ── */}
@@ -793,6 +1018,140 @@ function PostEditor({ token, post, onBack, onSaved }) {
                 <span>{form.contentMarkdown.length.toLocaleString()} chars</span>
               </div>
             </div>
+            
+            {/* Right Column: GEO Live Auditor, Correlation Node Map & Memory Ledger */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* GEO Live auditor */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  GEO Quality Gate Auditor
+                </h3>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950 border border-slate-850 rounded-lg">
+                    <span className="text-slate-400 font-medium">Confidence Calibration</span>
+                    {audit.foundHedges.length > 0 ? (
+                      <span className="text-red-400 font-bold">⚠️ {audit.foundHedges.length} Hedges</span>
+                    ) : (
+                      <span className="text-emerald-400 font-bold">✓ No Hedges</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950 border border-slate-850 rounded-lg">
+                    <span className="text-slate-400 font-medium">Data Point Density</span>
+                    {audit.uniqueDataPoints.length >= 4 ? (
+                      <span className="text-emerald-400 font-bold">✓ {audit.uniqueDataPoints.length} points</span>
+                    ) : (
+                      <span className="text-amber-400 font-bold">{audit.uniqueDataPoints.length} / 4 points</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950 border border-slate-850 rounded-lg">
+                    <span className="text-slate-400 font-medium">Prohibited Words Filter</span>
+                    {audit.foundProhibited.length > 0 ? (
+                      <span className="text-red-400 font-bold">⚠️ {audit.foundProhibited.length} Flags</span>
+                    ) : (
+                      <span className="text-emerald-400 font-bold">✓ Clear</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs p-2.5 bg-slate-950 border border-slate-850 rounded-lg">
+                    <span className="text-slate-400 font-medium">Em-Dashes Scan</span>
+                    {audit.dashCount > 0 ? (
+                      <span className="text-red-400 font-bold">⚠️ {audit.dashCount} Found</span>
+                    ) : (
+                      <span className="text-emerald-400 font-bold">✓ 0 Dashes</span>
+                    )}
+                  </div>
+                </div>
+
+                {audit.warnings.length > 0 && (
+                  <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-xl text-[11px] text-red-400 space-y-1">
+                    {audit.warnings.map((w, idx) => <div key={idx}>{w}</div>)}
+                  </div>
+                )}
+              </div>
+
+              {/* Correlation Node Map */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Proactive Signal Correlation Map</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Explore semantic connectivity with active sector signals</p>
+                </div>
+                
+                <div className="relative w-full h-48 rounded-xl bg-slate-950 border border-slate-850 flex items-center justify-center overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                    <line x1="50%" y1="50%" x2="20%" y2="25%" stroke="#6366f1" strokeWidth="1" stroke-dasharray="3" />
+                    <line x1="50%" y1="50%" x2="80%" y2="30%" stroke="#10b981" stroke-width="1" stroke-dasharray="3" />
+                    <line x1="50%" y1="50%" x2="75%" y2="75%" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3" />
+                    <line x1="50%" y1="50%" x2="25%" y2="70%" stroke="#ec4899" stroke-width="1" stroke-dasharray="3" />
+                  </svg>
+                  
+                  <div className="absolute w-14 h-14 rounded-full bg-violet-600/10 border border-violet-500/30 flex items-center justify-center text-center z-10">
+                    <span className="text-[8px] font-bold text-white uppercase tracking-tight">ACTIVE</span>
+                  </div>
+
+                  <button type="button" onClick={() => setSelectedNode('infra')} className={`absolute top-[15%] left-[10%] w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedNode === 'infra' ? 'bg-indigo-950 border-indigo-500 text-indigo-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>💻</button>
+                  <button type="button" onClick={() => setSelectedNode('security')} className={`absolute top-[18%] right-[10%] w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedNode === 'security' ? 'bg-emerald-950 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>🛡️</button>
+                  <button type="button" onClick={() => setSelectedNode('capital')} className={`absolute bottom-[15%] right-[12%] w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedNode === 'capital' ? 'bg-amber-950 border-amber-500 text-amber-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>📈</button>
+                  <button type="button" onClick={() => setSelectedNode('energy')} className={`absolute bottom-[18%] left-[12%] w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedNode === 'energy' ? 'bg-pink-950 border-pink-500 text-pink-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>⚡</button>
+                </div>
+
+                <div className="p-3 bg-slate-950 border border-slate-850 rounded-xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-200">{nodeData[selectedNode].title}</span>
+                    <span className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Telemetry</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Recent Feeds:</span>
+                    {nodeData[selectedNode].signals.map((sig, idx) => (
+                      <div key={idx} className="text-slate-300 text-[11px] leading-relaxed flex items-start gap-1">
+                        <span>•</span> <span>{sig}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-slate-800 text-slate-400 text-[11px] leading-relaxed">
+                    <strong>Topic Continuity:</strong> {nodeData[selectedNode].correlation}
+                  </div>
+                </div>
+              </div>
+
+              {/* Memory Ledger Log */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Learned Memory</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Style constraints learned from revisions</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearMemoryLogs}
+                    className="text-[10px] text-red-400 hover:text-red-300 font-semibold"
+                  >
+                    Clear Ledger
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {memories.length === 0 ? (
+                    <div className="text-slate-650 text-xs italic text-center py-4">No parameters saved yet.</div>
+                  ) : (
+                    memories.map((m, idx) => (
+                      <div key={m.id || idx} className="p-2.5 rounded-lg bg-slate-950 border border-slate-850 space-y-1 text-[11px]">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-pink-400 text-[10px] uppercase font-mono">{m.scope}</span>
+                          <span className="text-slate-650 text-[9px] font-mono">{m.source}</span>
+                        </div>
+                        <p className="text-slate-400 leading-normal">{m.detail}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
       </div>
