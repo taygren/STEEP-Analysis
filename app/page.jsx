@@ -15,6 +15,7 @@ import {
 import { INSTRUMENT_ATTRIBUTES, GEOECONOMIC_CAPACITIES, STRATEGIC_UTILITY_CLASSES, computeSeverityScore, classifySeverity } from '../lib/bigCycle/engine';
 import AboutPanel from './components/AboutPanel';
 import GeoPolicyLabTool from './components/GeoPolicyLabTool';
+import PortfolioDashboard from './components/PortfolioDashboard';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -11390,8 +11391,14 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
 
         {/* Home — portfolio landing */}
         {activeTab === 'home' && (
-          <div className="h-full overflow-y-auto px-4 py-6 md:px-8 md:py-10">
-            <div className="max-w-4xl mx-auto">
+          <div className="h-full overflow-y-auto">
+            <PortfolioDashboard
+              dispatch={dispatch}
+              groqStatus={groqStatus}
+              selectedModel={selectedModel}
+            />
+            {false && (
+              <div className="max-w-4xl mx-auto">
 
               {/* Studio header */}
               <div className="mb-10">
@@ -11612,6 +11619,7 @@ Integrate the STEEP context where relevant — especially macro tailwinds/headwi
               </section>
 
             </div>
+            )}
           </div>
         )}
 
